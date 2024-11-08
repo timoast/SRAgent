@@ -1,0 +1,66 @@
+# Misc
+tmp/
+OLD/
+cache_*
+*.pkl
+milvus/
+volumes/
+sandbox/
+
+# Streamlit specific
+.streamlit/
+
+# Bytecode compiled files
+*.pyc
+__pycache__/
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+sandbox*
+deepmased_files.txt
+
+# Virtual environment
+venv/
+env/
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE/Text editor specific
+.vscode/
+.idea/
+
+# If using a database, ignore the file where the database is stored, e.g. for SQLite:
+*.sqlite
+*.sqlite3
+
+# Ignore all local configuration files
+*.local
+
+# If there are any CSV, JSON, or Excel files that are data dumps not needed in the repo:
+*.csv
+*.json
+*.xls
+*.xlsx
+
+# Environment variables file
+.env

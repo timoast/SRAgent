@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SRAgent"
+version = "0.1.0"
+description = "AI agents for finding public biological datasets"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT license" }
+authors = [
+    { name = "Nick Youngblut", email = "nyoungb2@gmail.com" },
+]
+urls = { "Homepage" = "https://github.com/arcinstitute/SRAgent" }
+dependencies = [
+    "python-dotenv==1.0.1",
+    "pandas==2.2.3",
+    "langchain==0.3.7",
+    "langchainhub==0.1.21",
+    "langchain_community==0.3.5",
+    "openai==1.54.3",
+    "langchain_openai==0.2.6",
+    "langgraph==0.2.45",
+    "biopython==1.84"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["SRAgent"]
+
