@@ -22,7 +22,8 @@ dependencies = [
     "openai==1.54.3",
     "langchain_openai==0.2.6",
     "langgraph==0.2.45",
-    "biopython==1.84"
+    "biopython==1.84",
+    "xmltodict==0.14.2"
 ]
 
 [tool.setuptools.packages.find]
