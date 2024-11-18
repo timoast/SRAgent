@@ -22,11 +22,19 @@ pip install -e .
 
 ## Entrez Agent
 
-Example
+Example accession conversion:
 
 ```bash
 SRAgent entrez-agent "Convert GSE121737 to SRX accessions"
 ```
+
+Example of obtaining pubmed articles associated with a dataset accession:
+
+```bash
+SRAgent entrez-agent "Obtain any available publications for GSE196830"
+```
+
+
 
 
 # TODO

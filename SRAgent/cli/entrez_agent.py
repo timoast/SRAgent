@@ -13,6 +13,7 @@ def entrez_agent_parser(subparsers):
     desc = """
     # Example prompts:
     1. "Convert GSE121737 to SRX accessions"
+    2. "Obtain any available publications for GSE196830"
     """
     sub_parser = subparsers.add_parser(
         'entrez-agent', help=help, description=desc, formatter_class=CustomFormatter
