@@ -10,7 +10,7 @@ from Bio import Entrez
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
-from langchain import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 ## package
 from SRAgent.agents.workers import create_worker_agent

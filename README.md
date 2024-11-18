@@ -1,16 +1,14 @@
-Genomics Guide v2
-=================
+SRAgent
+=======
 
-Chatbot for answering questions about genomics at the Arc Institute.
+LLM agents for working with the SRA and associated bioinformatics databases.
+
 
 # Install 
     
 ```bash
 pip install .
 ```
-
-
-
 
 # Development
 
@@ -20,24 +18,20 @@ pip install .
 pip install -e .
 ```
 
+# Usage
 
-# Agent structure
+## Entrez Agent
 
-* Supervisor
-* Workers
-  * `Database query`
-    * tools
-      * `Entrez_esearch`
-        * search terms
-        * organism
-        * Notes: the results must be parsed
-      * `Entrez_efetch`
-        * database
-        * id
-        * Notes: the results must be parsed
-      * `geo2sra`
-        * geo_id
-  * `Critic`
-    * tools
-      * `web search for accession`?
-      * `read abstract`?
+Example
+
+```bash
+SRAgent entrez-agent "Convert GSE121737 to SRX accessions"
+```
+
+
+# TODO
+
+* [X] Handle conversion of GEO to SRA
+  * For use of `geo2sra` if gds database
+* [ ] Handle conversion of all final accessions to SRR
+  * Adapt from https://github.com/ArcInstitute/scRecounter/blob/main/scripts/acc2srr.py
