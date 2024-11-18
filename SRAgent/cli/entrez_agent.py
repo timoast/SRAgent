@@ -20,21 +20,31 @@ def entrez_agent_parser(subparsers):
     )
     sub_parser.set_defaults(func=entrez_agent_main)
     sub_parser.add_argument('prompt', type=str, help='Prompt for the agent')    
-
+    sub_parser.add_argument('--max-concurrency', type=int, default=8, 
+                            help='Maximum number of concurrent processes')
+    sub_parser.add_argument('--recursion-limit', type=int, default=50,
+                            help='Maximum recursion limit')
+    
 
 def entrez_agent_main(args):
     """
     Main function for invoking the entrez agent
     """
+    # set email and api key
     Entrez.email = os.getenv("EMAIL")
+    Entrez.api_key = os.getenv("NCBI_API_KEY")
 
     # create supervisor agent
     agent = create_supervisor_agent()
     step_summary_chain = create_step_summary_chain()
 
     # invoke agent
+    config = {
+        "max_concurrency" : args.max_concurrency,
+        "recursion_limit": args.recursion_limit
+    }
     input = {"messages": [("user", args.prompt)]}
-    invoke_entrez_agent(input, agent, step_summary_chain)
+    invoke_entrez_agent(input, agent, step_summary_chain, config)
 
 # main
 if __name__ == '__main__':
