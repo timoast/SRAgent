@@ -36,7 +36,11 @@ def create_supervisor_agent():
         "Use eSummary to obtain summary information on an Entrez record.",
         "Use eLink to navigate between databases to find related records (e.g., GEO to SRA).",
         "Use the sequences worker to investigate the sequence data associated with GEO and/or SRA accessions.",
-        "Note: the sequences worker calls sra-stat and fastq-dump, which both require SRA (or GEO) accessions; do not provide Entrez IDs to the fastq worker.",
+        "Note that the sequences worker calls sra-stat and fastq-dump, which both require SRA (or GEO) accessions; do not provide Entrez IDs to the fastq worker.",
+        "Be sure to provide context to the workers (e.g., search SRA for SRX4967527 accession)."
+        "\n",
+        "If the task involves accessions instead of Entrez IDs, you may need to convert them to Entrez IDs first.",
+        "For example, convert SRX4967527 to the corresponding Entrez ID via eSearch of the SRA database.",
         "\n",
         "Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
         "If there are dozens of records, batch the IDs and call the worker multiple times to avoid rate limits and token count limits.",
@@ -61,8 +65,11 @@ def create_supervisor_agent():
         "ERP -> SRP -> SRX -> SRR",
         "#-- Example workflows --#",
         "# Task: Convert GSE123456 to SRX, SRP, or SRR accessions",
-        "  1. esearch of GSE accession to obtain Entrez IDs",
-        "  2. esummary of the Entrez IDs to get the SRX accessions"
+        "  1. eSearch of GSE accession to obtain Entrez IDs",
+        "  2. eSummary of the Entrez IDs to get the SRX accessions"
+        "# Task: Obtain the SRR accessions for SRX4967527",
+        "  1. eSearch of the SRX accession to obtain the Entrez ID",
+        "  2. eFetch of the Entrez ID to obtain the SRR accessions",
     ])
 
     # create agent
@@ -72,7 +79,6 @@ def create_supervisor_agent():
         state_modifier=state_mod
     )
     return agent
-
 
 def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):
     """

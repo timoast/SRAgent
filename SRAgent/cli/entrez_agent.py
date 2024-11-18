@@ -14,6 +14,7 @@ def entrez_agent_parser(subparsers):
     # Example prompts:
     1. "Convert GSE121737 to SRX accessions"
     2. "Obtain any available publications for GSE196830"
+    3. "Obtain the SRR accessions for SRX4967527"
     """
     sub_parser = subparsers.add_parser(
         'entrez-agent', help=help, description=desc, formatter_class=CustomFormatter
@@ -22,7 +23,7 @@ def entrez_agent_parser(subparsers):
     sub_parser.add_argument('prompt', type=str, help='Prompt for the agent')    
     sub_parser.add_argument('--max-concurrency', type=int, default=8, 
                             help='Maximum number of concurrent processes')
-    sub_parser.add_argument('--recursion-limit', type=int, default=50,
+    sub_parser.add_argument('--recursion-limit', type=int, default=30,
                             help='Maximum recursion limit')
     
 

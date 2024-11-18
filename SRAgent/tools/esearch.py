@@ -15,6 +15,8 @@ def esearch_scrna(
     )-> Annotated[List[str], "Entrez IDs of database records"]:
     """
     Find recent single cell RNA-seq studies in SRA or GEO.
+    sra : Sequence Read Archive (SRA)
+    gds : Gene Expression Omnibus (GEO)
     """
     esearch_query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
 
