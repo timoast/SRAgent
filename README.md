@@ -10,6 +10,15 @@ LLM agents for working with the SRA and associated bioinformatics databases.
 pip install .
 ```
 
+## Environmental variables
+
+* `OPENAI_API_KEY` = API key for using the OpenAI API
+  * **required**
+* `EMAIL` = email for using the Entrez API
+  * optional, but HIGHLY recommended
+* `NCBI_API_KEY` = API key for using the Entrez API
+  * optional, increases rate limits
+
 # Development
 
 ## Install
