@@ -109,7 +109,7 @@ def esearch(
             if retstart >= int(search_results['Count']):
                 break
         except Exception as e:
-            print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
+            print(f"Error searching {database} with query: {esearch_query}: {str(e)}", file=sys.stderr)
             break 
         
     # return records

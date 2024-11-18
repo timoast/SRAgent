@@ -32,11 +32,9 @@ def efetch(
             batch_record = handle.read()
             handle.close()
         except Entrez.Parser.ValidationError:
-            print(f"Failed to fetch record for IDs: {id_str}")
-            continue  # Skip this batch and proceed to the next
+            batch_record = f"Failed to fetch record for IDs: {id_str}"
         except Exception as e:
-            print(f"An error occurred: {e}")
-            continue
+            batch_record = f"An error occurred: {e}"
         finally:
             try:
                 handle.close()
@@ -58,8 +56,7 @@ def efetch(
 
         # Check for errors in the response
         if "Error occurred: cannot get document summary" in batch_record:
-            print(f"Failed to fetch record for IDs: {id_str}. Try a different database.")
-            continue
+            batch_record = f"Failed to fetch record for IDs: {id_str}. Try a different database."
 
         records.append(batch_record)
 

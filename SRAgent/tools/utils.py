@@ -1,6 +1,9 @@
 # import
 ## batteries
 import json
+import shutil
+import tempfile
+from subprocess import Popen, PIPE
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
 import xml.etree.ElementTree as ET
 from xml.parsers.expat import ExpatError
@@ -35,3 +38,16 @@ def xml2json(record: str) -> Dict[str, Any]:
         return json.dumps(xmltodict.parse(record), indent=2)
     except ExpatError:
         return record
+
+def run_cmd(cmd: list) -> Tuple[int, str, str]:
+    """
+    Run sub-command and return returncode, output, and error.
+    Args:
+        cmd: Command to run
+    Returns:
+        tuple: (returncode, output, error)
+    """
+    cmd = [str(i) for i in cmd]
+    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+    output, err = p.communicate()
+    return p.returncode, output, err

@@ -34,11 +34,9 @@ def esummary(
             batch_record = handle.read()
             handle.close()
         except Entrez.Parser.ValidationError:
-            print(f"Failed to fetch summary for IDs: {id_str}. Check if the IDs exist.")
-            continue 
+            batch_record = f"Failed to fetch summary for IDs: {id_str}. Check if the IDs exist."
         except Exception as e:
-            print(f"An error occurred: {e}")
-            continue
+            batch_record = f"An error occurred: {e}"
         finally:
             try:
                 handle.close()
@@ -52,8 +50,6 @@ def esummary(
             except Exception as e:
                 print(f"Decoding error: {e}")
                 continue
-
-        print(batch_record)
             
         # Truncate long values in the record
         batch_record = truncate_values(batch_record, max_length=500)
@@ -63,8 +59,7 @@ def esummary(
 
         # Check for errors in the response
         if "ERROR" in batch_record.upper() or "INVALID_ID" in batch_record.upper():
-            print(f"Failed to fetch summary for IDs: {id_str}. Try a different database or verify the IDs.")
-            continue
+            batch_record = f"Failed to fetch summary for IDs: {id_str}. Try a different database or verify the IDs."
 
         # Append the batch record to the list of records
         records.append(batch_record)
