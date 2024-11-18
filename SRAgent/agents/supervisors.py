@@ -65,11 +65,14 @@ def create_supervisor_agent():
         "ERP -> SRP -> SRX -> SRR",
         "#-- Example workflows --#",
         "# Task: Convert GSE123456 to SRX, SRP, or SRR accessions",
-        "  1. eSearch of GSE accession to obtain Entrez IDs",
+        "  1. eSearch of the GSE accession to obtain Entrez IDs",
         "  2. eSummary of the Entrez IDs to get the SRX accessions"
         "# Task: Obtain the SRR accessions for SRX4967527",
         "  1. eSearch of the SRX accession to obtain the Entrez ID",
         "  2. eFetch of the Entrez ID to obtain the SRR accessions",
+        "# Task: Is SRP309720 paired-end Illumina 10X Genomics data?",
+        "  1. eSearch of SRP accession obtain the Entrez IDs",
+        "  2. eFetch of the Entrez IDs to get the library preparation information",
     ])
 
     # create agent

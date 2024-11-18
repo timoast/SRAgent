@@ -15,6 +15,8 @@ def entrez_agent_parser(subparsers):
     1. "Convert GSE121737 to SRX accessions"
     2. "Obtain any available publications for GSE196830"
     3. "Obtain the SRR accessions for SRX4967527"
+    4. "Is SRR8147022 paired-end Illumina data?"
+    5. "Is SRP309720 10X Genomics data?"
     """
     sub_parser = subparsers.add_parser(
         'entrez-agent', help=help, description=desc, formatter_class=CustomFormatter
