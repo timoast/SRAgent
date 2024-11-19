@@ -10,10 +10,8 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langgraph.graph import MessagesState, StateGraph, START, END
+from langgraph.graph import StateGraph, START, END
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-## package
-from SRAgent.tools.planner import create_planner_tool, create_critic_tool
 
 # functions
 class GraphState(TypedDict):
@@ -144,7 +142,6 @@ def create_router_node():
 
     return invoke_router
 
-
 def route_interpret(state: GraphState) -> str:
     """
     Determine the route based on the current state of the conversation.
@@ -154,6 +151,9 @@ def route_interpret(state: GraphState) -> str:
     return "planner_node" if state["route"] == "Continue" else END
 
 def create_planner_graph():
+    """
+    Create a graph that combines the planner, critic, and router nodes.
+    """
     #-- subgraph --#
     workflow = StateGraph(GraphState)
 
@@ -171,27 +171,6 @@ def create_planner_graph():
     # compile the graph
     graph = workflow.compile()
     return graph
-
-
-# def create_planner_agent():
-#     model = ChatOpenAI(model="gpt-4o", temperature=0.1)
-
-#     state_mod = "\n".join([
-#         "You are a supervisor.",
-#         "Your job is to help the user plan and critique a plan to accomplish a task.",
-#         "Facilitate the conversation between the planner and the critic.",
-#         "When the planner is done, ask the critic to critique the plan.",
-#         "When the critic is done, ask the planner to revise the plan.",
-#         "Use up to 3 planner-critic rounds to accomplish the task.",
-#         "Return the final plan.",
-#     ])
-#     planner_agent = create_react_agent(
-#         model=model,
-#         tools=[create_planner_tool(), create_critic_tool()],
-#         state_modifier=state_mod
-#     )
-#     return planner_agent
-
 
 # main
 if __name__ == "__main__":
