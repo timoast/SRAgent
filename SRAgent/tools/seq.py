@@ -106,7 +106,8 @@ def sra_stat(
 
 if __name__ == "__main__":
     # fastq-dump
-    input = {"SRR_accessions" : ["SRR13112659", "SRR13112660"]}
+    #input = {"SRR_accessions" : ["SRR13112659", "SRR13112660"]}
+    input = {"SRR_accessions" : ["ERR12363157"]}
     print(fastq_dump.invoke(input))
 
     # sra-stat

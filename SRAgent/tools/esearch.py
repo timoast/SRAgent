@@ -1,5 +1,6 @@
 # langchain custom tools
 import os
+import sys
 import time
 from datetime import datetime, timedelta
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
@@ -30,8 +31,7 @@ def esearch_scrna(
     esearch_query += " AND (Homo sapiens[Organism] OR Mus musculus[Organism])"
 
     # debug model
-    if os.getenv("DEBUG_MODE") == "TRUE":
-        max_ids = 2 
+    max_ids = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
 
     # query
     ids = []
@@ -61,7 +61,7 @@ def esearch_scrna(
             break 
         
     # return IDs
-    if os.getenv("DEBUG_MODE") == "TRUE":
+    if max_ids:
         ids = ids[:max_ids]  # debug
     return ids
 
@@ -116,8 +116,8 @@ def esearch(
         
     # return records
     if len(records) == 0:
-        return(f"No records found for query: {esearch_query}")
-    if os.getenv("DEBUG_MODE") == "TRUE":
+        return f"No records found for query: {esearch_query}"
+    if max_records:
         records = records[:max_records]  # debug
     return str(records)
 
@@ -128,12 +128,10 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # scRNA-seq
-    IDs = esearch_scrna.invoke({"database" : "sra"})
-    print(IDs)
+    print(esearch_scrna.invoke({"database" : "sra"}))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}
     input = {"esearch_query" : "GSE121737", "database" : "gds"}
-    IDs = esearch.invoke(input)
-    print(IDs)
+    #print(esearch.invoke(input))
 

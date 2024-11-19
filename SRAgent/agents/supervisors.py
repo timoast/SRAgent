@@ -73,6 +73,8 @@ def create_supervisor_agent():
         "# Task: Is SRP309720 paired-end Illumina 10X Genomics data?",
         "  1. eSearch of SRP accession obtain the Entrez IDs",
         "  2. eFetch of the Entrez IDs to get the library preparation information",
+        "# Task: Obtain the SRA study accessions for the Entrez ID 36098095",
+        "  1. eFetch of the Entrez ID to obtain the SRA accessions"
     ])
 
     # create agent
