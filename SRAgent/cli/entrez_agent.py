@@ -5,7 +5,7 @@ import sys
 import argparse
 from Bio import Entrez
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.agents.supervisors import create_supervisor_agent, create_step_summary_chain, invoke_entrez_agent
+from SRAgent.agents.entrez import create_supervisor_agent, create_step_summary_chain, invoke_entrez_agent
 
 # functions
 def entrez_agent_parser(subparsers):
@@ -28,7 +28,6 @@ def entrez_agent_parser(subparsers):
     sub_parser.add_argument('--recursion-limit', type=int, default=30,
                             help='Maximum recursion limit')
     
-
 def entrez_agent_main(args):
     """
     Main function for invoking the entrez agent

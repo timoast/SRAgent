@@ -14,10 +14,10 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 ## package
 from SRAgent.agents.workers import create_worker_agent
+from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
-
-def create_supervisor_agent():
+def create_entrez_agent():
     # create model
     model_supervisor = ChatOpenAI(model="gpt-4o", temperature=0.1)
 
@@ -85,27 +85,6 @@ def create_supervisor_agent():
     )
     return agent
 
-def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):
-    """
-    Create a chain of tools to summarize each step in a workflow.
-    """
-    # Create the prompt template
-    template = "\n".join([
-        "Concisely summarize the provided step in the langgraph workflow.",
-        f"The summary must be {max_tokens} tokens or less.",
-        "Do not use introductory words such as \"The workflow step involves\"",
-        "Write your output as plain text instead of markdown.",
-        "#-- The workflow step --#",
-        "{step}"
-    ])
-    prompt = PromptTemplate(input_variables=["step"], template=template)
-
-    # Initialize the language model
-    llm = ChatOpenAI(model_name=model, temperature=0, max_tokens=max_tokens)
-
-    # Return the LLM chain
-    return prompt | llm
-
 def invoke_entrez_agent(
     input: dict,
     agent: Any,
@@ -141,8 +120,8 @@ if __name__ == "__main__":
     #step_summary_chain = create_step_summary_chain()
     #print(step_summary_chain.invoke({"step": msg, "max_tokens": 25}).content)
 
-    # create supervisor agent
-    agent = create_supervisor_agent()
+    # create entrez agent
+    agent = create_entrez_agent()
     step_summary_chain = create_step_summary_chain()
 
     # invoke agent
