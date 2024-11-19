@@ -29,7 +29,8 @@ class GraphState(TypedDict):
 ## entrez agent
 def invoke_entrez_agent_node(state: GraphState):
     entrez_agent = create_entrez_agent()
-    return entrez_agent.invoke({"messages" : state["messages"]})
+    response = entrez_agent.invoke({"messages" : state["messages"]})
+    return {"messages" : [response["messages"][-1]]}
 
 ## accessions extraction
 class Acessions(BaseModel):
@@ -153,9 +154,10 @@ if __name__ == "__main__":
     msg = f"Obtain all SRX accessions for the Entrez ID {entrez_id}"
     input = {"messages" : [HumanMessage(content=msg)]}
     graph = create_convert_graph()
-    #for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
-    #    print(step)
+    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
+        print(step)
 
+    ## invoke with graph object directly provided
     #invoke_convert_graph = partial(invoke_convert_graph, graph=graph)
     #print(invoke_convert_graph(input))
     
