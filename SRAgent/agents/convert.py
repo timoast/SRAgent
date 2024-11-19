@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from Bio import Entrez
 ## package
 from SRAgent.agents.entrez import create_entrez_agent
 
@@ -95,7 +94,12 @@ def create_router_node():
         formatted_prompt = prompt.format_messages(history=state["messages"][-4:])
         # call the model
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
-        return {"route": response.Choice.value, "rounds": 1}
+        # format the response
+        if response.Choice.value == Choices.CONTINUE.value:
+            message = "It seems that the SRA accessions have not been obtained. Let's try again."
+        else:
+            message = "The SRA accessions have been obtained. The task is complete."
+        return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
     
     return invoke_router
 
@@ -143,6 +147,7 @@ def invoke_convert_graph(
 # main
 if __name__ == "__main__":
     from functools import partial
+    from Bio import Entrez
 
     #-- setup --#
     from dotenv import load_dotenv
