@@ -154,7 +154,6 @@ def create_planner_graph():
     """
     Create a graph that combines the planner, critic, and router nodes.
     """
-    #-- subgraph --#
     workflow = StateGraph(GraphState)
 
     # nodes

@@ -5,7 +5,8 @@ import sys
 import argparse
 from Bio import Entrez
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.agents.entrez import create_supervisor_agent, create_step_summary_chain, invoke_entrez_agent
+from SRAgent.agents.entrez import create_entrez_agent, invoke_entrez_agent
+from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
 def entrez_agent_parser(subparsers):
@@ -37,7 +38,7 @@ def entrez_agent_main(args):
     Entrez.api_key = os.getenv("NCBI_API_KEY")
 
     # create supervisor agent
-    agent = create_supervisor_agent()
+    agent = create_entrez_agent()
     step_summary_chain = create_step_summary_chain()
 
     # invoke agent

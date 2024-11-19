@@ -10,7 +10,7 @@ from langchain_core.tools import tool
 # functions
 @tool 
 def esearch_scrna(
-    #esearch_query: Annotated[str, "Entrez query string."],
+    esearch_query: Annotated[str, "Entrez query string."],
     database: Annotated[str, "Database name ('sra' or 'gds')"],
     previous_days: Annotated[int, "Number of days to search back."]=7,
     )-> Annotated[List[str], "Entrez IDs of database records"]:
@@ -18,9 +18,15 @@ def esearch_scrna(
     Find recent single cell RNA-seq studies in SRA or GEO.
     sra : Sequence Read Archive (SRA)
     gds : Gene Expression Omnibus (GEO)
-    """
-    esearch_query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
+    
+    Example query for single cell RNA-seq:
+    '("single cell RNA sequencing" OR "single cell RNA-seq")'
 
+    Args:
+        esearch_query: Entrez query string.
+        database: Database name ('sra' or 'gds').
+        previous_days: Number of days to search back (default = 7).
+    """
     # add date range
     start_date = datetime.now() - timedelta(days=previous_days)
     end_date = datetime.now()
@@ -128,10 +134,9 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # scRNA-seq
-    print(esearch_scrna.invoke({"database" : "sra"}))
+    #print(esearch_scrna.invoke({"database" : "sra"}))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}
     input = {"esearch_query" : "GSE121737", "database" : "gds"}
     #print(esearch.invoke(input))
-

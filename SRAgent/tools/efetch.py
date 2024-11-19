@@ -72,4 +72,7 @@ if __name__ == "__main__":
     # Test efetch
     input = { "entrez_ids" : ["35966237"], "database" : "sra"}
     input = {"entrez_ids" : ["200254051"], "database" : "gds"}
+    #print(efetch.invoke(input))
+
+    input = {"entrez_ids" : ["34748561"], "database" : "sra"}
     print(efetch.invoke(input))

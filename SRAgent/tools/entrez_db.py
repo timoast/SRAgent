@@ -57,4 +57,7 @@ if __name__ == "__main__":
 
     # test esummary
     input = {"entrez_ids" : ['200121737', '100024679', '303444964']}
+    #print(which_entrez_databases.invoke(input))
+
+    input = {"entrez_ids" : ["34748561"]}
     print(which_entrez_databases.invoke(input))
