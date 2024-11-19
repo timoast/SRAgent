@@ -21,7 +21,7 @@ def create_planner_tool():
 
     @tool
     def invoke_planner(
-        message: Annotated[str, "Message to the planner"],
+        task: Annotated[str, "Task to plan"]
     ) -> Annotated[str, "Response from the planner"]:
         """
         The planner will help you plan how to accomplish a task.
@@ -57,6 +57,7 @@ def create_critic_tool():
     ) -> Annotated[str, "Response from the critic"]:
         """
         The critic will help you critique a plan to accomplish a task.
+        Be specific about the plan you need help critiquing.
         """
         prompt = "\n".join([
             "You are an expert critic.",
