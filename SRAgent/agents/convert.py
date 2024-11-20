@@ -16,12 +16,12 @@ class GraphState(TypedDict):
     """
     Shared state of the agents in the graph
     """
-    messages: Annotated[Sequence[BaseMessage], operator.add, "Messages"]
-    SRP: Annotated[List[str], operator.add, "SRP accessions"]
-    SRX: Annotated[List[str], operator.add, "SRX accessions"]
-    SRR: Annotated[List[str], operator.add, "SRR accessions"]
+    messages: Annotated[Sequence[BaseMessage], operator.add]
+    SRP: Annotated[List[str], operator.add]
+    SRX: Annotated[List[str], operator.add]
+    SRR: Annotated[List[str], operator.add]
     route: Annotated[str, "Route choice"]
-    rounds: Annotated[int, "Rounds of trying to convert accessions"]
+    rounds: Annotated[int, operator.add]
 
 
 # functions
@@ -69,12 +69,13 @@ class Choices(Enum):
 
 class Choice(BaseModel):
     Choice: Choices
+    Message: str
 
 def create_router_node():
     """
     Router for the graph
     """
-    model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    model = ChatOpenAI(model="gpt-4o", temperature=0)
 
     def invoke_router(
         state: GraphState
@@ -82,24 +83,34 @@ def create_router_node():
         """
         Route the conversation to the appropriate tool based on the current state of the conversation.
         """
+        def format_accessions(accessions):
+            if not accessions:
+                return "No accessions found"
+            return ", ".join(accessions)
+
+        accesions = "\n".join([
+            " - SRP: " + format_accessions(state["SRP"]),
+            " - SRX: " + format_accessions(state["SRX"]),
+            " - SRR: " + format_accessions(state["SRR"]),
+            "\n"
+        ])
+
         # create prompt
         prompt = ChatPromptTemplate.from_messages([
             # First add any static system message if needed
-            ("system", "You determine whether Sequence Read Archive SRX accessions have been obtained from the Entrez ID."),
+            ("system", "You determine whether Sequence Read Archive SRX accessions (e.g., SRX123456) have been obtained from the Entrez ID."
+                       " There should be at least one SRX accession. SRP and SRR accessions are optional."
+                       " If the accessions have been obtained, select STOP. If more information is needed, select CONTINUE."
+                       " If more information is needed (CONTINUE), provide one or two sentences of feedback on how to obtain the data (e.g., use esearch instead of efetch)."),
             ("system", "Here are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
-            # Add the final question/instruction
-            ("human", "Based on the messages above, select STOP if the task is complete or CONTINUE if more information is needed."),
+            ("system", "\nHere are the extracted SRA accessions:\n" + accesions)
         ])
         formatted_prompt = prompt.format_messages(history=state["messages"][-4:])
         # call the model
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
         # format the response
-        if response.Choice.value == Choices.CONTINUE.value:
-            message = "It seems that the SRA accessions have not been obtained. Let's try again."
-        else:
-            message = "The SRA accessions have been obtained. The task is complete."
-        return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
+        return {"route": response.Choice.value,  "messages": [AIMessage(content=response.Message)], "rounds": 1}
     
     return invoke_router
 
@@ -141,7 +152,7 @@ def invoke_convert_graph(
     Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions
     """
     response = graph.invoke(state)
-    filtered_response = {key: response[key] for key in to_return}
+    filtered_response = {key: [response[key]] for key in to_return}
     return filtered_response
 
 # main

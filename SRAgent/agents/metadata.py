@@ -16,15 +16,15 @@ from SRAgent.agents.entrez import create_entrez_agent
 # classes
 class YesNo(Enum):
     """
-    Yes or no
+    Yes, no, or unsure
     """
     YES = "yes"
     NO = "no"
     UNSURE = "unsure"
 
-class Organism(Enum):
+class OrganismEnum(Enum):
     """
-    Organism
+    Organism sequenced
     """
     HUMAN = "human"
     MOUSE = "mouse"
@@ -41,33 +41,37 @@ class Organism(Enum):
     ZEBRAFISH = "zebrafish"
     OTHER = "other"
 
-class Metadata(BaseModel):
-    is_illumina: List[YesNo] 
-    is_single_cell: List[YesNo]
-    is_paired_end: List[YesNo]
-    is_10x: List[YesNo]
-    organism: List[Organism]
+class MetadataEnum(BaseModel):
+    """
+    Metadata to extract
+    """
+    is_illumina: YesNo
+    is_single_cell: YesNo
+    is_paired_end: YesNo
+    is_10x: YesNo
+    organism: OrganismEnum
 
-class Choices(Enum):
+class ChoicesEnum(Enum):
     CONTINUE = "Continue"
     STOP = "Stop"
 
 class Choice(BaseModel):
-    Choice: Choices
+    Choice: ChoicesEnum
 
 class GraphState(TypedDict):
     """
     Shared state of the agents in the graph
     """
-    messages: Annotated[Sequence[BaseMessage], operator.add, "Messages"]
-    is_illumina: Annotated[List[YesNo], operator.add, "Is Illumina sequence data?"]
-    is_single_cell: Annotated[List[YesNo], operator.add, "Is single cell RNA-seq data?"]
-    is_paired_end: Annotated[List[YesNo], operator.add, "Is paired-end sequencing data?"]
-    is_10x: Annotated[List[YesNo], operator.add, "Is 10X Genomics data?"]
-    organism: Annotated[List[Organism], operator.add, "Organism sequenced"]
+    SRX: Annotated[str, "SRX accession to query"]
+    messages: Annotated[Sequence[BaseMessage], operator.add]
     route: Annotated[str, "Route"]
-    round: Annotated[int, "Round"]
-
+    rounds: Annotated[int, operator.add]
+    is_illumina: Annotated[str, "Is Illumina sequence data?"]
+    is_single_cell: Annotated[str, "Is single cell RNA-seq data?"]
+    is_paired_end: Annotated[str, "Is paired-end sequencing data?"]
+    is_10x: Annotated[str, "Is 10X Genomics data?"]
+    organism: Annotated[str, "Organism sequenced"]
+    
 
 # functions
 def get_metadata_items():
@@ -103,13 +107,13 @@ def create_get_metadata_node():
             message
         ])
         model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
-        response = model.with_structured_output(Metadata, strict=True).invoke(prompt)
+        response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
         return {
-            "is_illumina" : response.is_illumina,
-            "is_single_cell" : response.is_single_cell,
-            "is_paired_end" : response.is_paired_end,
-            "is_10x" : response.is_10x,
-            "organism" : response.organism
+            "is_illumina" : response.is_illumina.value,
+            "is_single_cell" : response.is_single_cell.value,
+            "is_paired_end" : response.is_paired_end.value,
+            "is_10x" : response.is_10x.value,
+            "organism" : response.organism.value
         }
     
     return invoke_get_metadata_node
@@ -122,29 +126,40 @@ def create_router_node():
         Router for the graph
         """
         # create prompt
-        prompt = "\n".join([
+        prompt1 = "\n".join([
             "You determine whether all of appropriate metadata has been extracted.",
-            "The metadata of interest:"
-            ] + get_metadata_items() + [
-            "\n",
             "If most or all of the metadata is \"unsure\", then the task is incomplete."
             ]
         )
+        prompt2 = "\n".join([
+            "\nThe extracted metadata:",
+            " - Is the study Illumina sequence data?",
+            "    - " + state['is_illumina'],
+            " - Is the study single cell RNA-seq data?",
+            "    - " + state['is_single_cell'],
+            " - Is the study paired-end sequencing data?",
+            "    - " + state['is_paired_end'],
+            " - Is the study 10X Genomics data?",
+            "    - " + state['is_10x'],
+            " - Which organism was sequenced?",
+            "    - " + state['organism']
+        ])
 
         prompt = ChatPromptTemplate.from_messages([
             # First add any static system message if needed
-            ("system", prompt),
-            ("system", "Here are the last few messages:"),
+            ("system", prompt1),
+            ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
+            ("system", prompt2),
             # Add the final question/instruction
-            ("human", "Based on the messages above, select STOP if the task is complete or CONTINUE if more information is needed."),
+            ("human", "Based on the information above, select STOP if the task is complete or CONTINUE if more information is needed."),
         ])
         formatted_prompt = prompt.format_messages(history=state["messages"])
         # call the model
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
         # format the response
-        if response.Choice.value == Choices.CONTINUE.value:
-            message = "At least some of the meadata is still uncertain. Please try to provide more information."
+        if response.Choice.value == ChoicesEnum.CONTINUE.value:
+            message = "At least some of the metadata is still uncertain. Please try to provide more information by using a different approach."
         else:
             message = "Enough of the metadata has been extracted."
         return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
@@ -178,6 +193,18 @@ def create_metadata_graph():
     graph = workflow.compile()
     return graph
 
+def invoke_metadata_graph(
+    state: GraphState, 
+    graph: StateGraph,
+    to_return: List[str] = MetadataEnum.__fields__.keys()
+) -> Annotated[dict, "Response from the graph"]:
+    """
+    Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions
+    """
+    response = graph.invoke(state)
+    filtered_response = {key: [response[key]] for key in to_return}
+    filtered_response["SRX_meta"] = [state["SRX"]]
+    return filtered_response
 
 # main
 if __name__ == "__main__":
@@ -197,9 +224,9 @@ if __name__ == "__main__":
     )
     input = {"messages" : [HumanMessage(content=prompt)]}
     graph = create_metadata_graph()
-    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
-        print(step)
+    #for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 20}):
+    #    print(step)
 
     ## invoke with graph object directly provided
-    #invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
-    #print(invoke_metadata_graph(input))
+    invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
+    print(invoke_metadata_graph(input))
