@@ -23,7 +23,9 @@ dependencies = [
     "langchain_openai==0.2.6",
     "langgraph==0.2.45",
     "biopython==1.84",
-    "xmltodict==0.14.2"
+    "xmltodict==0.14.2",
+    "gspread==6.1.4",
+    "gspread-dataframe==4.0.0",
 ]
 
 [project.scripts]

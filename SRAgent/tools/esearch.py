@@ -37,7 +37,7 @@ def esearch_scrna(
     esearch_query += " AND (Homo sapiens[Organism] OR Mus musculus[Organism])"
 
     # debug model
-    max_ids = 1 if os.getenv("DEBUG_MODE") == "TRUE" else None
+    max_ids = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
 
     # query
     ids = []

@@ -4,6 +4,9 @@ import operator
 from functools import partial
 from enum import Enum
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Sequence, TypedDict
+import gspread
+from gspread_dataframe import set_with_dataframe
+import pandas as pd
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
@@ -62,15 +65,19 @@ class GraphState(TypedDict):
     """
     Shared state of the agents in the graph
     """
-    SRX: Annotated[str, "SRX accession to query"]
-    messages: Annotated[Sequence[BaseMessage], operator.add]
-    route: Annotated[str, "Route"]
-    rounds: Annotated[int, operator.add]
+    database: Annotated[str, "Database"]
+    entrez_ids: Annotated[List[str], "Entrez IDs"]
+    SRP: Annotated[List[str], "SRP accession(s)"]
+    SRX: Annotated[List[str], "SRX accession to query"]
+    SRR: Annotated[List[str], "SRR accession to query"]
     is_illumina: Annotated[str, "Is Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is paired-end sequencing data?"]
     is_10x: Annotated[str, "Is 10X Genomics data?"]
     organism: Annotated[str, "Organism sequenced"]
+    messages: Annotated[Sequence[BaseMessage], operator.add]
+    route: Annotated[str, "Route"]
+    rounds: Annotated[int, operator.add]
     
 
 # functions
@@ -172,7 +179,39 @@ def route_interpret(state: GraphState) -> str:
     """
     if state["rounds"] >= 2:
         return END
-    return "entrez_agent_node" if state["route"] == "Continue" else END
+    return "add2db_node" if state["route"] == "Continue" else END
+
+def add2db(state: GraphState):
+    """
+    Add results to the database
+    """
+    # create dataframe from state
+    fmt = lambda x: ";".join([str(y) for y in x])
+    results = pd.DataFrame([{
+        "database": state["database"],
+        "entrez_ids": fmt(state["entrez_ids"]),
+        "SRP": fmt(state["SRX"]),
+        "SRX": fmt(state["SRX"]),
+        "SRR": fmt(state["SRR"]),
+        "is_illumina": state["is_illumina"],
+        "is_single_cell": state["is_single_cell"],
+        "is_paired_end": state["is_paired_end"],
+        "is_10x": state["is_10x"],
+        "organism": state["organism"]
+    }])
+
+    # Authenticate and open the Google Sheet
+    db_name = "SRAgent_database"
+    gc = gspread.service_account(filename=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+    sheet = gc.open(db_name)
+    worksheet = sheet.worksheet("database")
+    # Read existing data to find where to append
+    existing_data = pd.DataFrame(worksheet.get_all_values())
+    next_row = len(existing_data) + 1
+    # Append the data starting from the next row
+    set_with_dataframe(worksheet, results, row=next_row, col=1, include_index=False, include_column_header=False)
+    # Return
+    return {"messages": [AIMessage(content=f"The results have been added to the database: {db_name}")]}
 
 def create_metadata_graph():
     #-- graph --#
@@ -182,12 +221,14 @@ def create_metadata_graph():
     workflow.add_node("entrez_agent_node", invoke_entrez_agent_node)
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
+    workflow.add_node("add2db_node", add2db)
 
     # edges
     workflow.add_edge(START, "entrez_agent_node")
     workflow.add_edge("entrez_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_interpret)
+    workflow.add_edge("router_node", "add2db_node")
 
     # compile the graph
     graph = workflow.compile()
@@ -222,7 +263,14 @@ if __name__ == "__main__":
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + get_metadata_items()
     )
-    input = {"messages" : [HumanMessage(content=prompt)]}
+    input = {
+        "messages": [HumanMessage(content=prompt)],
+        "SRP": [],
+        "SRX": [SRX_accession],
+        "SRR": [],
+        "database": "sra",
+        "entrez_ids": [],
+    }
     graph = create_metadata_graph()
     #for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 20}):
     #    print(step)
