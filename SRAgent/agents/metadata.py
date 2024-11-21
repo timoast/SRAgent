@@ -84,7 +84,6 @@ class GraphState(TypedDict):
 def get_metadata_items():
     metadata_items = [
         " - Is the study Illumina sequence data?",
-        " - Is the study Illumina sequence data?",
         " - Is the study single cell RNA-seq data?",
         " - Is the study paired-end sequencing data?",
         " - Is the study 10X Genomics data?",
@@ -190,8 +189,6 @@ def add2db(state: GraphState):
     """
     Add results to the database
     """
-    print(state);
-
     # create dataframe from state
     results = pd.DataFrame([{
         "database": state["database"],
