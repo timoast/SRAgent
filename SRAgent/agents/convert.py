@@ -17,6 +17,7 @@ class GraphState(TypedDict):
     Shared state of the agents in the graph
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
+    final_entrez_id: Annotated[str, "Entrez ID"]
     SRP: Annotated[List[str], operator.add]
     SRX: Annotated[List[str], operator.add]
     SRR: Annotated[List[str], operator.add]
@@ -152,8 +153,8 @@ def invoke_convert_graph(
     Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions
     """
     response = graph.invoke(state)
-    filtered_response = {key: [response[key]] for key in to_return}
-    return filtered_response
+    # filter to just the keys we want to return
+    return {key: [response[key]] for key in to_return}
 
 # main
 if __name__ == "__main__":

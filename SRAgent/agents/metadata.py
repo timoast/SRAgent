@@ -66,7 +66,7 @@ class GraphState(TypedDict):
     Shared state of the agents in the graph
     """
     database: Annotated[str, "Database"]
-    entrez_ids: Annotated[List[str], "Entrez IDs"]
+    entrez_id: Annotated[str, "Entrez ID"]
     SRP: Annotated[List[str], "SRP accession(s)"]
     SRX: Annotated[List[str], "SRX accession to query"]
     SRR: Annotated[List[str], "SRR accession to query"]
@@ -189,7 +189,7 @@ def add2db(state: GraphState):
     fmt = lambda x: ";".join([str(y) for y in x])
     results = pd.DataFrame([{
         "database": state["database"],
-        "entrez_ids": fmt(state["entrez_ids"]),
+        "entrez_id": state["entrez_id"][0],
         "SRP": fmt(state["SRX"]),
         "SRX": fmt(state["SRX"]),
         "SRR": fmt(state["SRR"]),
@@ -244,7 +244,7 @@ def invoke_metadata_graph(
     """
     response = graph.invoke(state)
     filtered_response = {key: [response[key]] for key in to_return}
-    filtered_response["SRX_meta"] = [state["SRX"]]
+    #filtered_response["SRX_meta"] = [state["SRX"]]
     return filtered_response
 
 # main
