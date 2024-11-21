@@ -67,8 +67,8 @@ class GraphState(TypedDict):
     """
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
+    SRX: Annotated[str, "SRX accession to query"]
     SRP: Annotated[List[str], "SRP accession(s)"]
-    SRX: Annotated[List[str], "SRX accession to query"]
     SRR: Annotated[List[str], "SRR accession to query"]
     is_illumina: Annotated[str, "Is Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is single cell RNA-seq data?"]
@@ -181,17 +181,23 @@ def route_interpret(state: GraphState) -> str:
         return END
     return "add2db_node" if state["route"] == "Continue" else END
 
+def fmt(x):
+    if type(x) != list:
+        return x
+    return ";".join([str(y) for y in x])
+
 def add2db(state: GraphState):
     """
     Add results to the database
     """
+    print(state);
+
     # create dataframe from state
-    fmt = lambda x: ";".join([str(y) for y in x])
     results = pd.DataFrame([{
         "database": state["database"],
-        "entrez_id": state["entrez_id"][0],
-        "SRP": fmt(state["SRX"]),
+        "entrez_id": state["entrez_id"],
         "SRX": fmt(state["SRX"]),
+        "SRP": fmt(state["SRX"]),
         "SRR": fmt(state["SRR"]),
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
@@ -244,7 +250,6 @@ def invoke_metadata_graph(
     """
     response = graph.invoke(state)
     filtered_response = {key: [response[key]] for key in to_return}
-    #filtered_response["SRX_meta"] = [state["SRX"]]
     return filtered_response
 
 # main
@@ -258,23 +263,23 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    SRX_accession = "SRX11740066"
+    SRX_accession = "SRX25716878"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + get_metadata_items()
     )
     input = {
-        "messages": [HumanMessage(content=prompt)],
+        "SRX": SRX_accession,
         "SRP": [],
-        "SRX": [SRX_accession],
         "SRR": [],
         "database": "sra",
-        "entrez_ids": [],
+        "entrez_id": "",
+        "messages": [HumanMessage(content=prompt)],
     }
     graph = create_metadata_graph()
-    #for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 20}):
+    #for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
     #    print(step)
 
     ## invoke with graph object directly provided
     invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
-    print(invoke_metadata_graph(input))
+    #print(invoke_metadata_graph(input))

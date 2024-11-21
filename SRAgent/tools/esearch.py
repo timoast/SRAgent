@@ -134,7 +134,8 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # scRNA-seq
-    #print(esearch_scrna.invoke({"database" : "sra"}))
+    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
+    print(esearch_scrna.invoke({"esearch_query" : query, "database" : "sra"}))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}

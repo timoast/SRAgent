@@ -17,7 +17,7 @@ class GraphState(TypedDict):
     Shared state of the agents in the graph
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    final_entrez_id: Annotated[str, "Entrez ID"]
+    entrez_id: Annotated[str, "Entrez ID"]
     SRP: Annotated[List[str], operator.add]
     SRX: Annotated[List[str], operator.add]
     SRR: Annotated[List[str], operator.add]
