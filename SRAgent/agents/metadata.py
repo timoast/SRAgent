@@ -103,15 +103,19 @@ def create_get_metadata_node():
         """
         Structured data extraction
         """
-        message = state["messages"][-1].content
+        #message = state["messages"][-1].content
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
             "If there is not enough information to determine the metadata, please respond with 'unsure'.",
-            "The specific metadata to extract:"] + get_metadata_items() + [
-            "\n",
-            "The provided text:",
-            message
+            "The specific metadata to extract:"] + get_metadata_items())
+        prompt = ChatPromptTemplate.from_messages([
+            # First add any static system message if needed
+            ("system", prompt),
+            ("system", "\nHere are the last few messages:"),
+            MessagesPlaceholder(variable_name="history"),
         ])
+        prompt = prompt.format_messages(history=state["messages"])
+
         model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
         response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
         return {
@@ -177,8 +181,8 @@ def route_interpret(state: GraphState) -> str:
     Determine the route based on the current state of the conversation.
     """
     if state["rounds"] >= 2:
-        return END
-    return "add2db_node" if state["route"] == "Continue" else END
+        return "add2db_node"
+    return "entrez_agent_node" if state["route"] == "Continue" else "add2db_node"
 
 def fmt(x):
     if type(x) != list:
@@ -231,7 +235,7 @@ def create_metadata_graph():
     workflow.add_edge("entrez_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_interpret)
-    workflow.add_edge("router_node", "add2db_node")
+    #workflow.add_edge("router_node", "add2db_node")
 
     # compile the graph
     graph = workflow.compile()
@@ -260,7 +264,8 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    SRX_accession = "SRX25716878"
+    #SRX_accession = "SRX25716878"
+    SRX_accession = "SRX20554853"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + get_metadata_items()
@@ -274,8 +279,8 @@ if __name__ == "__main__":
         "messages": [HumanMessage(content=prompt)],
     }
     graph = create_metadata_graph()
-    #for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
-    #    print(step)
+    for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
+        print(step)
 
     ## invoke with graph object directly provided
     invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)

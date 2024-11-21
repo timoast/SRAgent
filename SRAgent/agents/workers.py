@@ -69,7 +69,7 @@ def create_worker_agent(agent_name: str="esearch"):
             message: Annotated[str, "Message to the worker. Be sure to provide Entrez IDs."],
         ) -> Annotated[str, "Response from the worker"]:
             """
-            Invoke the esummary worker to perform a task.
+            Invoke the esummary worker to run eSummary on the provided Entrez ID(s).
             """
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
@@ -86,6 +86,7 @@ def create_worker_agent(agent_name: str="esearch"):
                 "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
                 "Based on the task provided by your supervisor, use Entrez efetch to help complete the task.",
                 "You can use which_entrez_databases to determine which databases to use for efetch queries.",
+                "Note that \"PAIRED: null\" does not mean that the data is single-end; it just means a lack of information.",
                 "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
             ])
         )
@@ -95,7 +96,7 @@ def create_worker_agent(agent_name: str="esearch"):
             message: Annotated[str, "Message to the worker. Be sure to provide Entrez IDs."],
         ) -> Annotated[str, "Response from the worker"]:
             """
-            Invoke the efetch worker to perform a task.
+            Invoke the efetch worker to run eFetch on the provided Entrez ID(s).
             """
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
@@ -123,7 +124,7 @@ def create_worker_agent(agent_name: str="esearch"):
             message: Annotated[str, "Message to the worker. Be sure to provide Entrez IDs."],
         ) -> Annotated[str, "Response from the worker"]:
             """
-            Invoke the efetch worker to perform a task.
+            Invoke the elink worker to run eLink on the provided Entrez ID(s).
             """
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
@@ -148,10 +149,10 @@ def create_worker_agent(agent_name: str="esearch"):
         )
         @tool
         def invoke_sequences_worker(
-            message: Annotated[str, "Message to the worker. Be sure to provide GEO and/or SRA accessions."],
+            message: Annotated[str, "Message to the worker. Be sure to provide Entrez IDs"],
         ) -> Annotated[str, "Response from the worker"]:
             """
-            Invoke the sequences worker to perform a task.
+            Invoke the sequences worker to run fastq-dump and/or sra-stat to investigate the sequence data.
             """
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response

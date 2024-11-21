@@ -15,7 +15,7 @@ from langchain_core.tools import tool
 ## package
 from SRAgent.tools.utils import run_cmd, truncate_values, xml2json
 
-
+# functions
 @tool
 def fastq_dump(
     SRR_accessions: Annotated[List[str], "List of SRA run accessions (e.g., SRR1234567)"],

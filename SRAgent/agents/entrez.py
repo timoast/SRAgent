@@ -35,9 +35,8 @@ def create_entrez_agent():
         "Generally, start with eSearch to find Entrez records, then use eFetch to get detailed information.",
         "Use eSummary to obtain summary information on an Entrez record.",
         "Use eLink to navigate between databases to find related records (e.g., GEO to SRA).",
-        "Use the sequences worker to investigate the sequence data associated with GEO and/or SRA accessions.",
-        "Note that the sequences worker calls sra-stat and fastq-dump, which both require SRA (or GEO) accessions; do not provide Entrez IDs to the fastq worker.",
-        "Be sure to provide context to the workers (e.g., search SRA for SRX4967527 accession)."
+        "Use the sequences worker to investigate the sequence data associated with GEO and/or SRA accessions (e.g, paired-end or single-end).",
+        "Be sure to provide context to the workers (e.g., \"Use efetch to determine whether SRX4967527 is Illumina data.\")."
         "\n",
         "If the task involves accessions instead of Entrez IDs, you may need to convert them to Entrez IDs first.",
         "For example, convert SRX4967527 to the corresponding Entrez ID via eSearch of the SRA database.",
@@ -45,6 +44,7 @@ def create_entrez_agent():
         "Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
         "If there are dozens of records, batch the IDs and call the worker multiple times to avoid rate limits and token count limits.",
         "Continue sending tasks to your workers until you successfully complete the task.",
+        "For instance, if you cannot determine paired-end state from the eFetch worker, try using the sequences worker.",
         "Be very concise; provide simple lists when possible; do not include unnecessary wording such as \"If you need further assistance\".",
         "Write your output as plain text instead of markdown.",
         "\n",
@@ -73,6 +73,7 @@ def create_entrez_agent():
         "# Task: Is SRP309720 paired-end Illumina 10X Genomics data?",
         "  1. eSearch of SRP accession obtain the Entrez IDs",
         "  2. eFetch of the Entrez IDs to get the library preparation information",
+        "  3. Use the sequences worker to directly investigate the sequence data",
         "# Task: Obtain the SRA study accessions for the Entrez ID 36098095",
         "  1. eFetch of the Entrez ID to obtain the SRA accessions"
     ])
