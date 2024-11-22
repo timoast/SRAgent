@@ -2,16 +2,11 @@
 ## batteries
 import os
 import sys
-import time
-from datetime import datetime, timedelta
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
 ## 3rd party
 from Bio import Entrez
 from langchain_openai import ChatOpenAI
-from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
-from langchain_core.prompts import PromptTemplate
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 ## package
 from SRAgent.agents.workers import create_worker_agent
 from SRAgent.agents.utils import create_step_summary_chain
@@ -23,7 +18,7 @@ def create_entrez_agent():
 
     # set tools
     tools = []
-    for x in ["esearch", "esummary", "efetch", "elink", "sequences"]:
+    for x in ["ncbi-fetch", "esearch", "esummary", "efetch", "elink"]:
         tools.append(create_worker_agent(x)[1])
 
     # state modifier
@@ -35,16 +30,17 @@ def create_entrez_agent():
         "Generally, start with eSearch to find Entrez records, then use eFetch to get detailed information.",
         "Use eSummary to obtain summary information on an Entrez record.",
         "Use eLink to navigate between databases to find related records (e.g., GEO to SRA).",
-        "Use the sequences worker to investigate the sequence data associated with GEO and/or SRA accessions (e.g, paired-end or single-end).",
+        "Use the ncbi-fetch worker to directly fetch data from the NCBI website (SRA, Pubmed, and GEO) and obtain more information.",
+        "\n",
         "Be sure to provide context to the workers (e.g., \"Use efetch to determine whether SRX4967527 is Illumina data.\")."
+        "Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
+        "If there are dozens of records, batch the IDs and call the worker multiple times to avoid rate limits and token count limits.",
         "\n",
         "If the task involves accessions instead of Entrez IDs, you may need to convert them to Entrez IDs first.",
         "For example, convert SRX4967527 to the corresponding Entrez ID via eSearch of the SRA database.",
         "\n",
-        "Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
-        "If there are dozens of records, batch the IDs and call the worker multiple times to avoid rate limits and token count limits.",
         "Continue sending tasks to your workers until you successfully complete the task.",
-        "For instance, if you cannot determine paired-end state from the eFetch worker, try using the sequences worker.",
+        "For instance, if you cannot determine paired-end state from the eFetch worker, try using the ncbi-fetch worker.",
         "Be very concise; provide simple lists when possible; do not include unnecessary wording such as \"If you need further assistance\".",
         "Write your output as plain text instead of markdown.",
         "\n",
@@ -65,17 +61,18 @@ def create_entrez_agent():
         "ERP -> SRP -> SRX -> SRR",
         "#-- Example workflows --#",
         "# Task: Convert GSE123456 to SRX, SRP, or SRR accessions",
-        "  1. eSearch of the GSE accession to obtain Entrez IDs",
-        "  2. eSummary of the Entrez IDs to get the SRX accessions"
+        "  1. esearch worker: eSearch of the GSE accession to obtain Entrez IDs",
+        "  2. esummary worker: eSummary of the Entrez IDs to get the SRX accessions",
         "# Task: Obtain the SRR accessions for SRX4967527",
-        "  1. eSearch of the SRX accession to obtain the Entrez ID",
-        "  2. eFetch of the Entrez ID to obtain the SRR accessions",
+        "  1. esearch worker: eSearch of the SRX accession to obtain the Entrez ID",
+        "  2. efetch worker: eFetch of the Entrez ID to obtain the SRR accessions",
         "# Task: Is SRP309720 paired-end Illumina 10X Genomics data?",
-        "  1. eSearch of SRP accession obtain the Entrez IDs",
-        "  2. eFetch of the Entrez IDs to get the library preparation information",
-        "  3. Use the sequences worker to directly investigate the sequence data",
+        "  1. esearch worker: eSearch of SRP accession obtain the Entrez IDs",
+        "  2. efetch worker: eFetch of the Entrez IDs to get the library preparation information",
+        "  3. ncbi-fetch worker: ncbi-fetch of the SRP accession to get more details",
         "# Task: Obtain the SRA study accessions for the Entrez ID 36098095",
-        "  1. eFetch of the Entrez ID to obtain the SRA accessions"
+        "  1. efetch worker: eFetch of the Entrez ID to obtain the SRA accessions",
+        "  2. ncbi-fetch worker: ncbi-fetch of the SRP accessions to get more details",
     ])
 
     # create agent
@@ -126,6 +123,8 @@ if __name__ == "__main__":
     step_summary_chain = create_step_summary_chain()
 
     # invoke agent
-    input = {"messages": [("user", "Convert GSE121737 to SRX accessions")]}
-    invoke_entrez_agent(input, agent, step_summary_chain)
+    #input = {"messages": [("user", "Convert GSE121737 to SRX accessions")]}
+    #input = {"messages": [("user", "Is SRX20554853 paired-end Illumina data?")]}
+    input = {"messages": [("user", "List the collaborators for the SRX20554853 dataset")]}
+    invoke_entrez_agent(input, agent, None) #step_summary_chain)
 

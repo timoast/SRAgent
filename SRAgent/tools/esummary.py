@@ -76,6 +76,7 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # test esummary
-    input = {"entrez_ids" : ["35966237"], "database" : "sra"}
-    input = {"entrez_ids" : ["200121737"], "database" : "sra"}
+    #input = {"entrez_ids" : ["35966237"], "database" : "sra"}
+    #input = {"entrez_ids" : ["200121737"], "database" : "sra"}
+    input = {"entrez_ids" : ["27978912"], "database" : "sra"}
     print(esummary.invoke(input))

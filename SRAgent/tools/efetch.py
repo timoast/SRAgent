@@ -1,6 +1,7 @@
 # import
 ## batteries
 import os
+import re
 import time
 from pprint import pprint
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
@@ -22,6 +23,7 @@ def efetch(
     """
     batch_size = 200  # Maximum number of IDs per request as per NCBI guidelines
     records = []
+    regex = re.compile(r'"(PAIRED|SINGLE)": +null')
 
     for id_batch in batch_ids(entrez_ids, batch_size):
         time.sleep(0.34)  # Respect the rate limit of 3 requests per second
@@ -54,6 +56,9 @@ def efetch(
         # convert to XML to JSON
         batch_record = xml2json(batch_record)
 
+        # fix values for PAIRED and SINGLE
+        batch_record = re.sub(regex, "\\1: \"yes\"", batch_record)
+
         # Check for errors in the response
         if "Error occurred: cannot get document summary" in batch_record:
             batch_record = f"Failed to fetch record for IDs: {id_str}. Try a different database."
@@ -74,5 +79,5 @@ if __name__ == "__main__":
     input = {"entrez_ids" : ["200254051"], "database" : "gds"}
     #print(efetch.invoke(input))
 
-    input = {"entrez_ids" : ["34748561"], "database" : "sra"}
+    input = {"entrez_ids" : ["27978912"], "database" : "sra"}
     print(efetch.invoke(input))

@@ -235,7 +235,6 @@ def create_metadata_graph():
     workflow.add_edge("entrez_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_interpret)
-    #workflow.add_edge("router_node", "add2db_node")
 
     # compile the graph
     graph = workflow.compile()

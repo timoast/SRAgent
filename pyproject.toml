@@ -26,6 +26,7 @@ dependencies = [
     "xmltodict==0.14.2",
     "gspread==6.1.4",
     "gspread-dataframe==4.0.0",
+    "beautifulsoup4==4.12.3"
 ]
 
 [project.scripts]

@@ -13,6 +13,7 @@ from SRAgent.tools.efetch import efetch
 from SRAgent.tools.esummary import esummary
 from SRAgent.tools.elink import elink
 from SRAgent.tools.entrez_db import which_entrez_databases
+from SRAgent.tools.ncbi_fetch import fetch_sra_record, fetch_pubmed_record, fetch_geo_record
 from SRAgent.tools.seq import sra_stat, fastq_dump
 
 
@@ -48,13 +49,13 @@ def create_worker_agent(agent_name: str="esearch"):
             result = agent.invoke({"messages": [("user", message)]})
             # just return the response
             return {
-                "messages": [HumanMessage(content=result["messages"][-1].content, name="esearch worker")]
+                "messages": [AIMessage(content=result["messages"][-1].content, name="esearch worker")]
             }
         invoke_tool = invoke_esearch_worker
     elif agent_name == "esummary":
         # create agent
         agent = create_react_agent(
-            model=model_simple,
+            model=model_complex,
             tools=[esummary, which_entrez_databases],
             state_modifier="\n".join([
                 "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
@@ -74,19 +75,18 @@ def create_worker_agent(agent_name: str="esearch"):
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
             return {
-                "messages": [HumanMessage(content=result["messages"][-1].content, name="esummary worker")]
+                "messages": [AIMessage(content=result["messages"][-1].content, name="esummary worker")]
             }
         invoke_tool = invoke_esummary_worker
     elif agent_name == "efetch":
         # create agent
         agent = create_react_agent(
-            model=model_simple,
+            model=model_complex,
             tools=[efetch, which_entrez_databases],
             state_modifier="\n".join([
                 "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
                 "Based on the task provided by your supervisor, use Entrez efetch to help complete the task.",
                 "You can use which_entrez_databases to determine which databases to use for efetch queries.",
-                "Note that \"PAIRED: null\" does not mean that the data is single-end; it just means a lack of information.",
                 "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
             ])
         )
@@ -101,7 +101,7 @@ def create_worker_agent(agent_name: str="esearch"):
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
             return {
-                "messages": [HumanMessage(content=result["messages"][-1].content, name="efetch worker")]
+                "messages": [AIMessage(content=result["messages"][-1].content, name="efetch worker")]
             }
         invoke_tool = invoke_efetch_worker
     elif agent_name == "elink":
@@ -129,37 +129,92 @@ def create_worker_agent(agent_name: str="esearch"):
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
             return {
-                "messages": [HumanMessage(content=result["messages"][-1].content, name="elink worker")]
+                "messages": [AIMessage(content=result["messages"][-1].content, name="elink worker")]
             }
         invoke_tool = invoke_elink_worker
-    elif agent_name == "sequences":
+    elif agent_name == "sra-stat":
         # create agent
         agent = create_react_agent(
             model=model_simple,
-            tools=[sra_stat, fastq_dump],
+            tools=[sra_stat],
             state_modifier="\n".join([
                 "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-                "Based on the task provided by your supervisor, use sra-stat and fastq-dump to help complete the task.",
+                "Based on the task provided by your supervisor, use sra-stat to help complete the task.",
                 "You can investige the sequence data (fastq files) associated with GEO and/or SRA accessions.",
                 "sra-stat provides information about the sequence data associated with GEO and/or SRA accessions.",
+                "If you are provided with Entrez IDs instead of GEO/SRA accessions, just state that you require GEO and/or SRA accessions.",
+                "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            ])
+        )
+        @tool
+        def invoke_sra_stat_worker(
+            message: Annotated[str, "Message to the worker."],
+        ) -> Annotated[str, "Response from the worker"]:
+            """
+            Invoke the sra-stat worker to run sra-stat to investigate the sequence data.
+            """
+            result = agent.invoke({"messages": [("user", message)]})
+            # just return the final response
+            return {
+                "messages": [AIMessage(content=result["messages"][-1].content, name="sra-stat worker")]
+            }
+        invoke_tool = invoke_sra_stat_worker
+    elif agent_name == "fastq-dump":
+        # create agent
+        agent = create_react_agent(
+            model=model_simple,
+            tools=[fastq_dump],
+            state_modifier="\n".join([
+                "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+                "Based on the task provided by your supervisor, use fastq-dump to help complete the task.",
+                "You can investige the sequence data (fastq files) associated with GEO and/or SRA accessions.",
                 "fastq-dump is useful for quickly checking the fastq files of SRR accessions.",
                 "If you are provided with Entrez IDs instead of GEO/SRA accessions, just state that you require GEO and/or SRA accessions.",
                 "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
             ])
         )
         @tool
-        def invoke_sequences_worker(
-            message: Annotated[str, "Message to the worker. Be sure to provide Entrez IDs"],
+        def invoke_sra_stat_worker(
+            message: Annotated[str, "Message to the worker."],
         ) -> Annotated[str, "Response from the worker"]:
             """
-            Invoke the sequences worker to run fastq-dump and/or sra-stat to investigate the sequence data.
+            Invoke the fastq-dump worker to run fastq-dump to investigate the sequence data.
             """
             result = agent.invoke({"messages": [("user", message)]})
             # just return the final response
             return {
-                "messages": [HumanMessage(content=result["messages"][-1].content, name="sequences worker")]
+                "messages": [AIMessage(content=result["messages"][-1].content, name="fastq-dump worker")]
             }
-        invoke_tool = invoke_sequences_worker
+        invoke_tool = invoke_sra_stat_worker
+    elif agent_name == "ncbi-fetch":
+        # create agent
+        agent = create_react_agent(
+            model=model_complex,
+            tools=[fetch_sra_record, fetch_pubmed_record, fetch_geo_record],
+            state_modifier="\n".join([
+                "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+                "You will use tools that directly request data from the NCBI website.",
+                "Based on the task provided by your supervisor, use fetch_sra_record and fetch_pubmed_record to help complete the task.",
+                "You can query with both Entrez IDs and accessions.",
+                "fetch_sra_record is useful for fetching information on SRA records (SRA accessions or Entrez IDs).",
+                "fetch_pubmed_record is useful for fetching information on PubMed records (SRA acccessions or Entrez IDs).",
+                "fetch_geo_record is useful for fetching information on GEO accessions (Entrez IDs are not allowed).",
+                "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            ])
+        )
+        @tool
+        def invoke_ncbi_fetch_worker(
+            message: Annotated[str, "Message to the worker."],
+        ) -> Annotated[str, "Response from the worker"]:
+            """
+            Invoke the ncbi-fetch worker to query the NCBI website (SRA and Pubmed) directly with Entrez IDs and accessions.
+            """
+            result = agent.invoke({"messages": [("user", message)]})
+            # just return the final response
+            return {
+                "messages": [AIMessage(content=result["messages"][-1].content, name="ncbi-fetch worker")]
+            }
+        invoke_tool = invoke_ncbi_fetch_worker
     else:
         raise ValueError(f"Invalid agent name: {agent_name}")
     
