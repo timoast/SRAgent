@@ -1,8 +1,12 @@
 import time
 import requests
 from bs4 import BeautifulSoup
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
+from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage, AIMessage
+
 
 # functions
 def _fetch_sra_record(
@@ -101,6 +105,40 @@ def fetch_geo_record(
         data.append(_fetch_geo_record(acc) + "\n")
         time.sleep(0.34)
     return "\n\n".join(data)
+
+def create_ncbi_fetch_agent(model_name: str="gpt-4o-mini") -> Callable:
+    """
+    Create an agent that queries the NCBI website 
+    """
+    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    agent = create_react_agent(
+        model=model,
+        tools=[fetch_geo_record, fetch_sra_record, fetch_pubmed_record],
+        state_modifier="\n".join([
+            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            "You will use tools that directly request data from the NCBI website.",
+            "You can query with both Entrez IDs and accessions.",
+            "fetch_sra_record is useful for fetching information on SRA records (SRA accessions or Entrez IDs).",
+            "fetch_pubmed_record is useful for fetching information on PubMed records (SRA acccessions or Entrez IDs).",
+            "fetch_geo_record is useful for fetching information on GEO accessions (Entrez IDs are not).",
+            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+        ])
+    )
+
+    @tool
+    def invoke_ncbi_fetch_agent(
+        message: Annotated[str, "Message to the ncbi-fetch agent"]
+    ) -> Annotated[str, "Response from the ncbi-fetch agent"]:
+        """
+        Invoke the ncbi-fetch agent to query the NCBI website for information 
+        on Entrez IDs, SRA accessions, and GEO accessions.
+        """
+        # Invoke the agent with the message
+        result = agent.invoke({"messages": [HumanMessage(content=message)]})
+        return {
+            "messages": [AIMessage(content=result["messages"][-1].content, name="ncbi-fetch agent")]
+        }
+    return invoke_ncbi_fetch_agent
 
 # main
 if __name__ == "__main__":

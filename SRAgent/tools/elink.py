@@ -4,10 +4,14 @@ import os
 import time
 import json
 from pprint import pprint
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
+from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage, AIMessage
+
 ## package
 from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
 
@@ -70,6 +74,39 @@ def elink(
     
     # Combine all batch records into a single string
     return "\n".join(records)
+
+def create_elink_agent(model_name: str="gpt-4o") -> Callable:
+    """
+    Create an agent that uses Entrez elink to help complete a task.
+    """
+    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    agent = create_react_agent(
+        model=model,
+        tools=[elink],
+        state_modifier="\n".join([
+            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            "Based on the task provided by your supervisor, use Entrez elink to help complete the task.",
+            "elink is useful for finding related entries between Entrez databases.",
+            "Generally, you will want to use the which_entrez_databases tool to determine which databases to use for elink queries.",
+            "Note that elink results are composed of Entrez IDs and not accessions (e.g., SRA accessions).",
+            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+        ])
+    )
+
+    @tool
+    def invoke_elink_agent(
+        message: Annotated[str, "Message to the elink agent"]
+    ) -> Annotated[str, "Response from the elink agent"]:
+        """
+        Invoke the elink agent to run Entrez elink queries.
+        """
+        # Invoke the agent with the message
+        result = agent.invoke({"messages": [HumanMessage(content=message)]})
+        return {
+            "messages": [AIMessage(content=result["messages"][-1].content, name="elink agent")]
+        }
+    return invoke_elink_agent
+
 
 if __name__ == "__main__":
     # setup
