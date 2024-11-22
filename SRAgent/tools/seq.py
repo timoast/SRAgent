@@ -103,7 +103,6 @@ def sra_stat(
     output = xml2json(output)
     return str(output)
 
-
 if __name__ == "__main__":
     # fastq-dump
     #input = {"SRR_accessions" : ["SRR13112659", "SRR13112660"]}

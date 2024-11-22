@@ -169,7 +169,7 @@ def create_router_node():
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
         # format the response
         if response.Choice.value == ChoicesEnum.CONTINUE.value:
-            message = "At least some of the metadata is still uncertain. Please try to provide more information by using a different approach."
+            message = "At least some of the metadata is still uncertain. Please try to provide more information by using a different approach (e.g., different tool calls)."
         else:
             message = "Enough of the metadata has been extracted."
         return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
