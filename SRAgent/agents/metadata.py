@@ -103,19 +103,19 @@ def create_get_metadata_node():
         """
         Structured data extraction
         """
-        #message = state["messages"][-1].content
+        # format prompt
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
             "If there is not enough information to determine the metadata, please respond with 'unsure'.",
             "The specific metadata to extract:"] + get_metadata_items())
         prompt = ChatPromptTemplate.from_messages([
-            # First add any static system message if needed
             ("system", prompt),
             ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
         ])
         prompt = prompt.format_messages(history=state["messages"])
 
+        # call the model
         model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
         response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
         return {

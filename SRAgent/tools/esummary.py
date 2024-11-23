@@ -100,7 +100,7 @@ def create_esummary_agent(model_name: str="gpt-4o-mini") -> Callable:
         # Invoke the agent with the message
         result = agent.invoke({"messages": [HumanMessage(content=message)]})
         return {
-            "messages": [AIMessage(content=result["messages"][-1].content, name="esummary agent")]
+            "messages": [AIMessage(content=result["messages"][-1].content, name="esummary_agent")]
         }
     return invoke_esummary_agent
 

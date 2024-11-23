@@ -156,7 +156,7 @@ def create_esearch_agent(model_name: str="gpt-4o-mini") -> Callable:
         # Invoke the agent with the message
         result = agent.invoke({"messages": [HumanMessage(content=message)]})
         return {
-            "messages": [AIMessage(content=result["messages"][-1].content, name="esearch agent")]
+            "messages": [AIMessage(content=result["messages"][-1].content, name="esearch_agent")]
         }
     return invoke_esearch_agent
 

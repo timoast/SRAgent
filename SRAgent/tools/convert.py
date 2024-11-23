@@ -77,16 +77,17 @@ def create_convert_agent(model_name="gpt-4o") -> Callable:
 
     @tool
     def invoke_convert_agent(
-        message: Annotated[str, "Message to the sequences agent"]
-    ) -> Annotated[str, "Response from the sequences agent"]:
+        message: Annotated[str, "Message to the convert agent"]
+    ) -> Annotated[str, "Response from the convert agent"]:
         """
-        Invoke the sequences agent to run the sra-stat and fastq-dump tools
-        and provide information the sequence data (fastq files).
+        Invoke the convert agent to use Entrez tools to convert among Entrez IDs and accessions.
+        Example 1: Convert SRX123456 to SRR accessions.
+        Example 2: Convert Entrez ID 34747624 to SRX accessions.
         """
         # Invoke the agent with the message
         result = agent.invoke({"messages": [HumanMessage(content=message)]})
         return {
-            "messages": [AIMessage(content=result["messages"][-1].content, name="sequence agent")]
+            "messages": [AIMessage(content=result["messages"][-1].content, name="convert_agent")]
         }
     return invoke_convert_agent
 

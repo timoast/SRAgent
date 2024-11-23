@@ -97,7 +97,7 @@ def create_efetch_agent(model_name: str="gpt-4o-mini") -> Callable:
         # Invoke the agent with the message
         result = agent.invoke({"messages": [HumanMessage(content=message)]})
         return {
-            "messages": [AIMessage(content=result["messages"][-1].content, name="efetch agent")]
+            "messages": [AIMessage(content=result["messages"][-1].content, name="efetch_agent")]
         }
     return invoke_efetch_agent
 

@@ -131,7 +131,7 @@ def create_sequences_agent(model_name: str="gpt-4o") -> Callable:
         # Invoke the agent with the message
         result = agent.invoke({"messages": [HumanMessage(content=message)]})
         return {
-            "messages": [AIMessage(content=result["messages"][-1].content, name="sequence agent")]
+            "messages": [AIMessage(content=result["messages"][-1].content, name="sequence_agent")]
         }
     return invoke_sequences_agent
 
