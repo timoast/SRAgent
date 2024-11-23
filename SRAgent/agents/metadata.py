@@ -3,7 +3,7 @@ import os
 import operator
 from functools import partial
 from enum import Enum
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Sequence, TypedDict
+from typing import Annotated, List, Dict, Any, Sequence, TypedDict, get_args, get_origin
 import gspread
 from gspread_dataframe import set_with_dataframe
 import pandas as pd
@@ -68,25 +68,27 @@ class GraphState(TypedDict):
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
-    is_illumina: Annotated[str, "Is Illumina sequence data?"]
-    is_single_cell: Annotated[str, "Is single cell RNA-seq data?"]
-    is_paired_end: Annotated[str, "Is paired-end sequencing data?"]
-    is_10x: Annotated[str, "Is 10X Genomics data?"]
-    organism: Annotated[str, "Organism sequenced"]
+    is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
+    is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
+    is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
+    is_10x: Annotated[str, "Is the dataset 10X Genomics data?"]
+    organism: Annotated[str, "Which organism was sequenced"]
     messages: Annotated[Sequence[BaseMessage], operator.add]
     route: Annotated[str, "Route"]
     rounds: Annotated[int, operator.add]
     
 
 # functions
-def get_metadata_items():
-    metadata_items = [
-        " - Is the study Illumina sequence data?",
-        " - Is the study single cell RNA-seq data?",
-        " - Is the study paired-end sequencing data?",
-        " - Is the study 10X Genomics data?",
-        " - Which organism was sequenced?"
-    ]
+def get_metadata_items() -> Dict[str, str]:
+    """
+    Set metadata items based on graph state annotationes
+    """
+    to_include = ["is_illumina", "is_single_cell", "is_paired_end", "is_10x", "organism"]
+    metadata_items = {}
+    for key, value in GraphState.__annotations__.items():
+        if key not in to_include or not get_origin(value) is Annotated:
+            continue
+        metadata_items[key] = get_args(value)[1]
     return metadata_items
 
 def invoke_entrez_agent_node(state: GraphState):
@@ -105,7 +107,7 @@ def create_get_metadata_node():
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
             "If there is not enough information to determine the metadata, please respond with 'unsure'.",
-            "The specific metadata to extract:"] + get_metadata_items())
+            "The specific metadata to extract:"] + list(get_metadata_items().values()))
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt),
             ("system", "\nHere are the last few messages:"),
@@ -265,7 +267,7 @@ if __name__ == "__main__":
     SRX_accession = "SRX25994842"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
-        ] + get_metadata_items()
+        ] + list(get_metadata_items().values())
     )
     input = {
         "SRX": SRX_accession,
