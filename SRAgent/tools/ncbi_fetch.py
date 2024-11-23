@@ -121,6 +121,7 @@ def create_ncbi_fetch_agent(model_name: str="gpt-4o-mini") -> Callable:
             "fetch_sra_record is useful for fetching information on SRA records (SRA accessions or Entrez IDs).",
             "fetch_pubmed_record is useful for fetching information on PubMed records (SRA acccessions or Entrez IDs).",
             "fetch_geo_record is useful for fetching information on GEO accessions (Entrez IDs are not).",
+            "Continue calling tools until you have all the information you need.",
             "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
@@ -146,10 +147,14 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
 
+    # test agent
+    invoke_ncbi_fetch_agent = create_ncbi_fetch_agent()
+    message = "Fetch information for Entrez ID 35447314"
+    print(invoke_ncbi_fetch_agent.invoke(message))
+
     # test GEO fetch
     input = {"GEO_accessions" : ["GSE110878"]}
-    print(fetch_geo_record.invoke(input))
-
+    #print(fetch_geo_record.invoke(input))
 
     # test fetch_sra_record
     input = {"terms" : ["27978912"]}

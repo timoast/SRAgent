@@ -13,6 +13,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
 from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
+from SRAgent.tools.entrez_db import which_entrez_databases
 
 
 @tool 
@@ -78,11 +79,11 @@ def create_efetch_agent(model_name: str="gpt-4o-mini") -> Callable:
     model = ChatOpenAI(model_name=model_name, temperature=0.0)
     agent = create_react_agent(
         model=model,
-        tools=[efetch],
+        tools=[efetch, which_entrez_databases],
         state_modifier="\n".join([
             "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
             "Based on the task provided by your supervisor, use Entrez efetch to help complete the task.",
-            "You can use which_entrez_databases to determine which databases to use for efetch queries.",
+            "If you are unsure of which database to query (sra or gds), you can use which_entrez_databases to determine which databases contain the Entrez ID.",
             "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
@@ -112,5 +113,5 @@ if __name__ == "__main__":
     input = {"entrez_ids" : ["200254051"], "database" : "gds"}
     #print(efetch.invoke(input))
 
-    input = {"entrez_ids" : ["27978912"], "database" : "sra"}
+    input = {"entrez_ids" : ["35447314"], "database" : "sra"}
     print(efetch.invoke(input))

@@ -14,6 +14,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 #from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import InjectedToolArg
 ## package
+from SRAgent.tools.entrez_db import which_entrez_databases
 from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
 
 # functions
@@ -81,11 +82,11 @@ def create_esummary_agent(model_name: str="gpt-4o-mini") -> Callable:
     model = ChatOpenAI(model_name=model_name, temperature=0.0)
     agent = create_react_agent(
         model=model,
-        tools=[esummary],
+        tools=[esummary, which_entrez_databases],
         state_modifier="\n".join([
             "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
             "Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
-            "If the sra or gds database does not return findings, try the other database.",
+            "If you are unsure of which database to query (e.g., sra, gds, or pubmed), you can use which_entrez_databases to determine which databases contain the Entrez ID.",
             "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )

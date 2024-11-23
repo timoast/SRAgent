@@ -51,8 +51,11 @@ def create_get_accessions_node() -> Callable:
         # create prompt
         message = state["messages"][-1].content
         prompt = "\n".join([
-            f"Extract SRX accessions (e.g., \"SRX25716879\") from the following:",
-            message
+            f"Extract SRX accessions (e.g., \"SRX123456\") from the message below.",
+            "If you cannot find any SRX accessions (must have the SRX prefix), do not provide any accessions.",
+            "#-- START OF MESSAGE --#",
+            message,
+            "#-- END OF MESSAGE --#"
         ])
         # invoke model with structured output
         response = model.with_structured_output(Acessions, strict=True).invoke(prompt)

@@ -168,9 +168,12 @@ if __name__ == "__main__":
 
     # scRNA-seq
     query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
-    print(esearch_scrna.invoke({"esearch_query" : query, "database" : "sra"}))
+    #print(esearch_scrna.invoke({"esearch_query" : query, "database" : "sra"}))
+    #print(esearch_scrna.invoke({"esearch_query" : query, "database" : "gds"}))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}
     input = {"esearch_query" : "GSE121737", "database" : "gds"}
-    #print(esearch.invoke(input))
+    input = {"esearch_query" : "35447314", "database" : "sra"}
+    input = {"esearch_query" : "35447314", "database" : "gds"}
+    print(esearch.invoke(input))

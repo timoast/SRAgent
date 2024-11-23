@@ -16,11 +16,12 @@ def which_entrez_databases(
     entrez_ids: Annotated[List[str], "List of Entrez IDs"],
 ) -> Annotated[str, "List of databases where each Entrez ID is found."]:
     """
-    Determine which Entrez databases contain the provided Entrez ID.
+    Determine which Entrez databases contain the provided Entrez IDs.
     """
     databases = ["sra", "gds", "pubmed", "biosample", "bioproject"]
     found_in = {entrez_id: [] for entrez_id in entrez_ids}
 
+    # Query each database for the provided Entrez IDs
     for db in databases:
         for id_batch in batch_ids(entrez_ids, 200):
             time.sleep(0.34)  # Respect the rate limit
@@ -46,7 +47,8 @@ def which_entrez_databases(
             output_lines.append(f"Entrez ID {entrez_id} not found in any databases.")
         else:
             output_lines.append(f"Entrez ID {entrez_id} found in: {', '.join(found_in[entrez_id])}.")
-
+    
+    # return the output as a string
     return "\n".join(output_lines)
 
 if __name__ == "__main__":
