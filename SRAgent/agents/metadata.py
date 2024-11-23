@@ -68,8 +68,6 @@ class GraphState(TypedDict):
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
-    SRP: Annotated[List[str], "SRP accession(s)"]
-    SRR: Annotated[List[str], "SRR accession to query"]
     is_illumina: Annotated[str, "Is Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is paired-end sequencing data?"]
@@ -198,8 +196,6 @@ def add2db(state: GraphState):
         "database": state["database"],
         "entrez_id": state["entrez_id"],
         "SRX": fmt(state["SRX"]),
-        "SRP": fmt(state["SRX"]),
-        "SRR": fmt(state["SRR"]),
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
@@ -264,15 +260,15 @@ if __name__ == "__main__":
 
     #-- graph --#
     #SRX_accession = "SRX25716878"
-    SRX_accession = "SRX20554853"
+    #SRX_accession = "SRX20554853"
+    #SRX_accession = "SRX20554856"
+    SRX_accession = "SRX25994842"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + get_metadata_items()
     )
     input = {
         "SRX": SRX_accession,
-        "SRP": [],
-        "SRR": [],
         "database": "sra",
         "entrez_id": "",
         "messages": [HumanMessage(content=prompt)],

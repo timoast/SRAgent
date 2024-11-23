@@ -7,7 +7,7 @@ from Bio import Entrez
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 ## package
 from SRAgent.tools.esearch import create_esearch_agent
 from SRAgent.tools.esummary import create_esummary_agent
@@ -77,7 +77,7 @@ def create_convert_agent(model_name="gpt-4o") -> Callable:
 
     @tool
     def invoke_convert_agent(
-        message: Annotated[str, "Message to the convert agent"]
+        messages: List[BaseMessage]
     ) -> Annotated[str, "Response from the convert agent"]:
         """
         Invoke the convert agent to use Entrez tools to convert among Entrez IDs and accessions.
@@ -85,7 +85,7 @@ def create_convert_agent(model_name="gpt-4o") -> Callable:
         Example 2: Convert Entrez ID 34747624 to SRX accessions.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages": [HumanMessage(content=message)]})
+        result = agent.invoke({"messages": messages})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="convert_agent")]
         }
@@ -102,8 +102,7 @@ if __name__ == "__main__":
     # test
     # create agent
     agent = create_convert_agent()
-    #message = "Convert SRX25716879 to SRR accessions"
-    #print(agent(message))
-    input = {"message" : "Convert SRX25716879 to SRR accessions"}
+    message = "Convert SRX25716879 to SRR accessions"
+    input = {"messages" : [HumanMessage(content=message)]}
     print(agent.invoke(input))
 
