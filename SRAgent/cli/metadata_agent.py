@@ -33,7 +33,6 @@ def metadata_agent_parser(subparsers):
     sub_parser.add_argument('--recursion-limit', type=int, default=200,
                             help='Maximum recursion limit')
 
-
 def metadata_agent_main(args):
     """
     Main function for invoking the entrez agent

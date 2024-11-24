@@ -34,14 +34,29 @@ pip install -e .
 Example accession conversion:
 
 ```bash
-SRAgent entrez-agent "Convert GSE121737 to SRX accessions"
+SRAgent entrez "Convert GSE121737 to SRX accessions"
 ```
 
 Example of obtaining pubmed articles associated with a dataset accession:
 
 ```bash
-SRAgent entrez-agent "Obtain any available publications for GSE196830"
+SRAgent entrez "Obtain any available publications for GSE196830"
 ```
+
+## Metadata agent
+
+Example of querying metadata for an SRA dataset (Entrez ID 36178506):
+
+```bash
+SRAgent metadata 36178506
+```
+
+Example of querying metadata for a GEO dataset (Entrez ID 200254051):
+
+```bash
+SRAgent metadata --database gds 200254051
+```
+
 
 # Workflow
 
