@@ -6,6 +6,7 @@ cache_*
 milvus/
 volumes/
 sandbox/
+archive/
 
 # Streamlit specific
 .streamlit/

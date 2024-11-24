@@ -52,7 +52,7 @@ def create_get_accessions_node() -> Callable:
         message = state["messages"][-1].content
         prompt = "\n".join([
             f"Extract SRX accessions (e.g., \"SRX123456\") from the message below.",
-            "If you cannot find any SRX accessions (must have the SRX prefix), do not provide any accessions.",
+            "If you cannot find any SRX (or ERX) accessions (must have the SRX or ERX prefix), do not provide any accessions.",
             "#-- START OF MESSAGE --#",
             message,
             "#-- END OF MESSAGE --#"
@@ -99,6 +99,7 @@ def create_router_node() -> Callable:
             ("system", 
                 "You determine whether Sequence Read Archive SRX accessions (e.g., SRX123456) have been obtained from the Entrez ID."
                 " There should be at least one SRX accession."
+                " ERX accessions are also valid."
                 " If the accessions have been obtained, select STOP. If more information is needed, select CONTINUE."
                 " If more information is needed (CONTINUE), provide one or two sentences of feedback on how to obtain the data (e.g., use esearch instead of efetch)."),
             ("system", "Here are the last few messages:"),

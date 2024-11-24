@@ -14,12 +14,24 @@ import xmltodict
 def batch_ids(ids: List[str], batch_size: int) -> List[List[str]]:
     """
     Batch a list of IDs into smaller lists of a given size.
+    Args:
+        ids: List of IDs.
+        batch_size: Size of each batch.
+    Returns:
+        List of batches.
     """
     for i in range(0, len(ids), batch_size):
         yield ids[i:i + batch_size]
 
-def truncate_values(record, max_length):
-    # truncate long values in the record
+def truncate_values(record, max_length: int) -> str:
+    """
+    Truncate long values in the record.
+    Args:
+        record: XML record to truncate.
+        max_length: Maximum length of the value.
+    Returns:
+        Truncated record.
+    """
     try:
         root = ET.fromstring(record)
     except ET.ParseError:
@@ -33,6 +45,10 @@ def truncate_values(record, max_length):
 def xml2json(record: str) -> Dict[str, Any]:
     """
     Convert an XML record to a JSON object.
+    Args:
+        record: XML record.
+    Returns:
+        JSON object.
     """
     try:
         return json.dumps(xmltodict.parse(record), indent=2)

@@ -2,11 +2,12 @@
 ## batteries
 import os
 import sys
+import asyncio
 import argparse
 from Bio import Entrez
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.agents.entrez import create_entrez_agent, invoke_entrez_agent
-from SRAgent.agents.utils import create_step_summary_chain
+from SRAgent.agents.entrez import create_entrez_agent_stream
 
 # functions
 def entrez_agent_parser(subparsers):
@@ -20,13 +21,15 @@ def entrez_agent_parser(subparsers):
     5. "Is SRP309720 10X Genomics data?"
     """
     sub_parser = subparsers.add_parser(
-        'entrez-agent', help=help, description=desc, formatter_class=CustomFormatter
+        'entrez', help=help, description=desc, formatter_class=CustomFormatter
     )
     sub_parser.set_defaults(func=entrez_agent_main)
     sub_parser.add_argument('prompt', type=str, help='Prompt for the agent')    
-    sub_parser.add_argument('--max-concurrency', type=int, default=8, 
+    sub_parser.add_argument('--no-summaries', action='store_true', default=False,
+                            help='No LLM summaries')
+    sub_parser.add_argument('--max-concurrency', type=int, default=3, 
                             help='Maximum number of concurrent processes')
-    sub_parser.add_argument('--recursion-limit', type=int, default=30,
+    sub_parser.add_argument('--recursion-limit', type=int, default=40,
                             help='Maximum recursion limit')
     
 def entrez_agent_main(args):
@@ -37,17 +40,15 @@ def entrez_agent_main(args):
     Entrez.email = os.getenv("EMAIL")
     Entrez.api_key = os.getenv("NCBI_API_KEY")
 
-    # create supervisor agent
-    agent = create_entrez_agent()
-    step_summary_chain = create_step_summary_chain()
-
-    # invoke agent
+    # invoke agent with streaming
     config = {
         "max_concurrency" : args.max_concurrency,
         "recursion_limit": args.recursion_limit
     }
-    input = {"messages": [("user", args.prompt)]}
-    invoke_entrez_agent(input, agent, step_summary_chain, config)
+    input = {"messages": [HumanMessage(content=args.prompt)]}
+    results = asyncio.run(create_entrez_agent_stream(input, config, summarize_steps=True))
+    print(results)
+            
 
 # main
 if __name__ == '__main__':

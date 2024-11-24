@@ -43,8 +43,40 @@ Example of obtaining pubmed articles associated with a dataset accession:
 SRAgent entrez-agent "Obtain any available publications for GSE196830"
 ```
 
+# Workflow
 
+## Option 1
 
+* `esearch` to find Entrez IDs for new datasets
+* `elink` for each GEO ID, find associated SRA IDs
+* Merge Entrez IDs
+* Filter IDs that have been processed
+  * Database lookup
+* Filter IDs that appear to not be scRNA-seq
+  * Entrez-agent => `"Is Entrez ID {ID} a scRNA-seq dataset?"`
+* For each remaining Entrez ID, obtain SRX accessions
+* For each SRX accession:
+  * Sequencing platform metadata:
+    * `Illumina sequencing?`
+    * `Paired-end?`
+    * `10X Genomics library prep?`
+    * `Species`
+  * Obtain SRR accessions
+    * For each SRR accesion:
+      * Check sequence data files
+
+## Option 2
+
+Agents all the way down...
+
+* Top agent
+  * Input: dataset entrez ID
+  * Tools
+    * `convert`
+    * `metadata`
+    * `add2db`
+
+  
 
 # TODO
 

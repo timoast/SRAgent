@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 ## package
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.cli.entrez_agent import entrez_agent_parser, entrez_agent_main
+from SRAgent.cli.metadata_agent import metadata_agent_parser, metadata_agent_main
+
 
 # functions
 def arg_parse(args=None) -> dict:
@@ -32,10 +34,12 @@ def arg_parse(args=None) -> dict:
         formatter_class=CustomFormatter
     )
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
-    
+
     # subparsers
     ## Entrez agent
     entrez_agent_parser(subparsers)
+    ## Metadata agent
+    metadata_agent_parser(subparsers)
     
     # parsing args
     return parser.parse_args()
@@ -47,8 +51,10 @@ def main():
     args = arg_parse()
     
     # which subcommand
-    if args.command == "entrez-agent":
+    if args.command == "entrez":
         entrez_agent_main(args)
+    elif args.command == "metadata":
+        metadata_agent_main(args)
     else:
         print("No command specified. Exiting ...")
         sys.exit(0)

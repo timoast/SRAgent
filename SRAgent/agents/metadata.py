@@ -3,7 +3,7 @@ import os
 import operator
 from functools import partial
 from enum import Enum
-from typing import Annotated, List, Dict, Any, Sequence, TypedDict, get_args, get_origin
+from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, get_args, get_origin
 import gspread
 from gspread_dataframe import set_with_dataframe
 import pandas as pd
@@ -91,12 +91,12 @@ def get_metadata_items() -> Dict[str, str]:
         metadata_items[key] = get_args(value)[1]
     return metadata_items
 
-def invoke_entrez_agent_node(state: GraphState):
+def invoke_entrez_agent_node(state: GraphState) -> Dict[str, Any]:
     entrez_agent = create_entrez_agent()
     response = entrez_agent.invoke({"messages" : state["messages"]})
     return {"messages" : [response["messages"][-1]]}
 
-def create_get_metadata_node():
+def create_get_metadata_node() -> Callable:
     model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
 
     def invoke_get_metadata_node(state: GraphState):
@@ -161,7 +161,7 @@ def create_router_node():
             ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
             ("system", prompt2),
-            # Add the final question/instruction
+            # Add the final instruction
             ("human", "Based on the information above, select STOP if the task is complete or CONTINUE if more information is needed."),
         ])
         formatted_prompt = prompt.format_messages(history=state["messages"])
@@ -169,20 +169,24 @@ def create_router_node():
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
         # format the response
         if response.Choice.value == ChoicesEnum.CONTINUE.value:
-            message = "At least some of the metadata is still uncertain. Please try to provide more information by using a different approach (e.g., different tool calls)."
+            message = "\n".join([
+                f"At least some of the metadata for {state['SRX']} is still uncertain." 
+                "Please try to provide more information by using a different approach (e.g., different tool calls)."
+            ])
         else:
-            message = "Enough of the metadata has been extracted."
+            message = f"Enough of the metadata has been extracted for {state['SRX']}."
         return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
     
     return invoke_router_node
 
-def route_interpret(state: GraphState) -> str:
+def route_interpret(state: GraphState, db_add: bool=True) -> str:
     """
     Determine the route based on the current state of the conversation.
     """
+    continue_node = "add2db_node" if db_add else END
     if state["rounds"] >= 2:
-        return "add2db_node"
-    return "entrez_agent_node" if state["route"] == "Continue" else "add2db_node"
+        return continue_node
+    return "entrez_agent_node" if state["route"] == "Continue" else continue_node
 
 def fmt(x):
     if type(x) != list:
@@ -194,17 +198,17 @@ def add2db(state: GraphState):
     Add results to the database
     """
     # create dataframe from state
+    SRX = fmt(state["SRX"])
     results = pd.DataFrame([{
         "database": state["database"],
         "entrez_id": state["entrez_id"],
-        "SRX": fmt(state["SRX"]),
+        "SRX": SRX,
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
         "is_10x": state["is_10x"],
         "organism": state["organism"]
     }])
-
     # Authenticate and open the Google Sheet
     db_name = "SRAgent_database"
     gc = gspread.service_account(filename=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
@@ -216,9 +220,9 @@ def add2db(state: GraphState):
     # Append the data starting from the next row
     set_with_dataframe(worksheet, results, row=next_row, col=1, include_index=False, include_column_header=False)
     # Return
-    return {"messages": [AIMessage(content=f"The results have been added to the database: {db_name}")]}
+    return {"messages": [AIMessage(content=f"{SRX} added to database \"{db_name}\"")]}
 
-def create_metadata_graph():
+def create_metadata_graph(db_add: bool=True):
     #-- graph --#
     workflow = StateGraph(GraphState)
 
@@ -226,13 +230,15 @@ def create_metadata_graph():
     workflow.add_node("entrez_agent_node", invoke_entrez_agent_node)
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
-    workflow.add_node("add2db_node", add2db)
+    if db_add:
+        workflow.add_node("add2db_node", add2db)
 
     # edges
     workflow.add_edge(START, "entrez_agent_node")
     workflow.add_edge("entrez_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
-    workflow.add_conditional_edges("router_node", route_interpret)
+    route_interpret_p = partial(route_interpret, db_add=db_add)
+    workflow.add_conditional_edges("router_node", route_interpret_p)
 
     # compile the graph
     graph = workflow.compile()
@@ -275,7 +281,7 @@ if __name__ == "__main__":
         "entrez_id": "",
         "messages": [HumanMessage(content=prompt)],
     }
-    graph = create_metadata_graph()
+    graph = create_metadata_graph(db_add=False)
     for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
         print(step)
 

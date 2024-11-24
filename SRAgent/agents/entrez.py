@@ -20,7 +20,10 @@ from SRAgent.tools.seq import create_sequences_agent
 from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
-def create_entrez_agent(model_name="gpt-4o") -> Callable:
+def create_entrez_agent(
+    model_name="gpt-4o",
+    return_tool: bool=True,
+) -> Callable:
     # create model
     model_supervisor = ChatOpenAI(model=model_name, temperature=0.1)
 
@@ -95,20 +98,61 @@ def create_entrez_agent(model_name="gpt-4o") -> Callable:
         tools=tools,
         state_modifier=state_mod
     )
+
+    # return agent
+    if not return_tool:
+        return agent
+
     @tool
     def invoke_entrez_agent(
         messages: List[BaseMessage],
+        config: Optional[Dict[str, Any]] = None
     ) -> Annotated[dict, "Response from the Entrez agent"]:
         """
         Invoke the Entrez agent with a message.
         The Entrez agent will perform a task using Entrez tools.
         """
-        # Invoke the agent with the message
-        result = agent.invoke({"messages" : messages})
+        input = {"messages": messages}        
+        result = agent.invoke(input)
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="entrez_agent")]
         }
     return invoke_entrez_agent
+
+
+async def create_entrez_agent_stream(input, config: dict={}, summarize_steps: bool=False) -> str:
+    """
+    Create an Entrez agent and stream the steps.
+    Args:
+        input: Input message to the agent.
+        config: Configuration for the agent.
+        summarize_steps: Whether to summarize the steps.
+    Returns:
+        The final step message.
+    """
+    # create entrez agent
+    agent = create_entrez_agent(return_tool=False)
+
+    # create step summary chain
+    step_summary_chain = create_step_summary_chain() if summarize_steps else None
+    
+    # invoke agent
+    step_cnt = 0
+    final_step = ""
+    async for step in agent.astream(input, stream_mode="values", config=config):
+        step_cnt += 1
+        final_step = step
+        # summarize step
+        if step_summary_chain:
+            msg = step_summary_chain.invoke({"step": step})
+            print(f"Step {step_cnt}: {msg.content}", file=sys.stderr)
+        else:
+            print(f"Step {step_cnt}: {step}", file=sys.stderr)
+    try:
+        final_step = final_step["agent"]["messages"][-1].content
+    except KeyError:
+        final_step = final_step["messages"][-1].content
+    return final_step
 
 # main
 if __name__ == "__main__":
@@ -117,12 +161,11 @@ if __name__ == "__main__":
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
 
-    # create entrez agent
-    agent = create_entrez_agent()
-    
-    # invoke agent
-    #input = {"message": "Convert GSE121737 to SRX accessions"}
-    #input = {"message": "Is SRX20554853 paired-end Illumina data?"}
-    #input = {"message": "List the collaborators for the SRX20554853 dataset"}
+    # call streaming agent
+    import asyncio
     input = {"messages": [HumanMessage(content="How many bases per run in SRX20554853?")]}
-    print(agent.invoke(input))
+    config = {"max_concurrency" : 3, "recursion_limit": 40}
+    results = asyncio.run(create_entrez_agent_stream(input, config, summarize_steps=True))
+    print(results)
+    
+    
