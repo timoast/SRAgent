@@ -43,6 +43,7 @@ class OrganismEnum(Enum):
     FRUIT_FLY = "fruit_fly"
     ROUNDWORM = "roundworm"
     ZEBRAFISH = "zebrafish"
+    METAGENOME = "metagenome"
     OTHER = "other"
 
 class MetadataEnum(BaseModel):
@@ -72,6 +73,7 @@ class GraphState(TypedDict):
     """
     Shared state of the agents in the graph
     """
+    messages: Annotated[Sequence[BaseMessage], operator.add]
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
@@ -81,7 +83,6 @@ class GraphState(TypedDict):
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     is_10x: Annotated[str, "Is the dataset 10X Genomics data?"]
     organism: Annotated[str, "Which organism was sequenced"]
-    messages: Annotated[Sequence[BaseMessage], operator.add]
     route: Annotated[str, "Route"]
     rounds: Annotated[int, operator.add]
     
@@ -198,12 +199,18 @@ def route_retry_metadata(state: GraphState) -> str:
 
 def invoke_SRX2SRR_entrez_agent_node(state: GraphState) -> Dict[str, Any]:
     entrez_agent = create_entrez_agent()
-    message = "\n".join([
-        f"Obtain the SRR accessions for the following SRX accession: {state['SRX']}.",
-        "Return a simple list of SRR accessions."
-    ])
+    if state['SRX'].startswith("SRX"):
+        message = f"Obtain the SRR accessions for the following SRX accession: {state['SRX']}."
+    elif state['SRX'].startswith("ERX"):
+        message = f"Obtain the ERR accessions for the following ERX accession: {state['SRX']}."
+    else:
+        message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with 'SRX' or 'ERR'."
+    message = "\n".join([message, "Return a simple list of SRR accessions."])
     response = entrez_agent.invoke({"messages" : [HumanMessage(content=message)]})
-    return {"messages" : [response["messages"][-1]]}
+    # extract all SRR/ERR accessions in the message
+    regex = re.compile(r"(?:SRR|ERR)\d{4,}")
+    SRR_acc = regex.findall(response["messages"][-1].content)
+    return {"SRR" : list(set(SRR_acc))}
 
 def create_get_SRR_node():
     model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
@@ -214,9 +221,9 @@ def create_get_SRR_node():
         """
         # format prompt
         prompt = "\n".join([
-            "Your job is to extract all SRR from the provided messages below.",
-            "All SRR accessions should start with the \"SRR\" prefix (e.g., \"SRR123456\").",
-            "If you do not find any SRR accessions, respond with \"None\".",
+            "Your job is to extract all SRR and ERR accessions from the provided messages below.",
+            "All SRR accessions should start with the \"SRR\" or \"ERR\" prefix (e.g., \"SRR123456\" or \"ERR123123\").",
+            "If you do not find any SRR or ERR accessions, respond with \"None\".",
         ])
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt),
@@ -229,7 +236,7 @@ def create_get_SRR_node():
         model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
         response = model.with_structured_output(SRR, strict=True).invoke(prompt)
         # filter out non-SRR accessions
-        regex = re.compile(r"SRR\d+")
+        regex = re.compile(r"(SRR|ERR)\d+")
         SRR_acc = [x for x in response.SRR if regex.match(x)]
         return {"SRR" : SRR_acc}
     
@@ -270,6 +277,21 @@ def add2db(state: GraphState):
     # Return
     return {"messages": [AIMessage(content=f"{SRX} added to database \"{db_name}\"")]}
 
+def final_state(state: GraphState):
+    """
+    Final state
+    """
+    message = "\n".join([
+        "# SRX accession: " + state["SRX"],
+        " - SRR accessions: " + fmt(state["SRR"]),
+        " - Is the study Illumina sequence data? " + state["is_illumina"],
+        " - Is the study single cell RNA-seq data? " + state["is_single_cell"],
+        " - Is the study paired-end sequencing data? " + state["is_paired_end"],
+        " - Is the study 10X Genomics data? " + state["is_10x"],
+        " - Which organism was sequenced? " + state["organism"]
+    ])
+    return {"messages": [AIMessage(content=message)]}
+
 def create_metadata_graph(db_add: bool=True):
     #-- graph --#
     workflow = StateGraph(GraphState)
@@ -282,19 +304,18 @@ def create_metadata_graph(db_add: bool=True):
     workflow.add_node("get_SRR_node", create_get_SRR_node())
     if db_add:
         workflow.add_node("add2db_node", add2db)
+    workflow.add_node("final_state_node", final_state)
 
     # edges
     workflow.add_edge(START, "entrez_agent_node")
     workflow.add_edge("entrez_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_retry_metadata)
-    workflow.add_edge("SRX2SRR_node", "get_SRR_node")
     if db_add:
-        workflow.add_edge("get_SRR_node", "add2db_node")
-        workflow.add_edge("add2db_node", END)
-        print("here")
+        workflow.add_edge("SRX2SRR_node", "add2db_node")
+        workflow.add_edge("add2db_node", "final_state_node")
     else:
-        workflow.add_edge("get_SRR_node", END)
+        workflow.add_edge("SRX2SRR_node", "final_state_node")
 
     # compile the graph
     graph = workflow.compile()
@@ -325,7 +346,9 @@ if __name__ == "__main__":
     #-- graph --#
     #SRX_accession = "SRX25716878"
     #SRX_accession = "SRX20554856"
-    SRX_accession = "SRX25994842"
+    #SRX_accession = "SRX25994842"
+    #SRX_accession = "ERX11887200"
+    SRX_accession = "ERX11157721"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + list(get_metadata_items().values())
@@ -336,9 +359,9 @@ if __name__ == "__main__":
         "entrez_id": "",
         "messages": [HumanMessage(content=prompt)],
     }
-    graph = create_metadata_graph(db_add=True)
-    #for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
-    #    print(step)
+    graph = create_metadata_graph(db_add=False)
+    for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
+        print(step)
 
     ## invoke with graph object directly provided
     invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)

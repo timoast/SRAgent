@@ -58,20 +58,21 @@ def metadata_agent_main(args):
         "recursion_limit": args.recursion_limit
     }
     for entrez_id in args.entrez_ids:
-        print(f"Entrez ID: {entrez_id} (database: {args.database})", file=sys.stderr)
+        print(f"#-- Entrez ID: {entrez_id} (database: {args.database}) --#")
         input = {"entrez_id": entrez_id, "database": args.database}
         # stream invoke graph
         final_state = None
         for i,step in enumerate(graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200})):
             final_state = step
             if args.no_summaries:
-                print(f"  Step {i+1}: {step}", file=sys.stderr)
+                print(f"Step {i+1}: {step}")
             else:
                 msg = step_summary_chain.invoke({"step": step})
-                print(f"  Step {i+1}: {msg.content}", file=sys.stderr)
+                print(f"Step {i+1}: {msg.content}")
         # print final state
         if final_state:
-            print(final_state["final_state_node"]["messages"][-1].content, file=sys.stderr)
+            print(final_state["final_state_node"]["messages"][-1].content)
+        print("")
 
 # main
 if __name__ == '__main__':

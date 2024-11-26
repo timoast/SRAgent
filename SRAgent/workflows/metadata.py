@@ -78,27 +78,34 @@ def continue_to_metadata(state: GraphState) -> Dict[str, Any]:
             "messages": [HumanMessage(prompt.format(SRX_accession=SRX_accession))]
         }
         responses.append(Send("metadata_graph_node", input))
-    # return messages 
     return responses
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """
     Return the final state of the graph
     """
-    # final message:
-    message = "\n".join([
-        "The metadata for the following SRA accessions has been retrieved:",
-        "\n".join([f" - {x}" for x in state["SRX"]]),
-    ])
+    # filter to messages that 
+    messages = []
+    for msg in state["messages"]:
+        try:
+            msg = [msg.content]
+        except AttributeError:
+            msg = [x.content for x in msg]
+        for x in msg:
+            if x.startswith("# SRX accession: "):
+                messages.append(x)
+    # final message
+    message = "\n".join(messages)
     return {
-        "messages": [AIMessage(message)]
+        "messages": [AIMessage(content=message)]
     }
 
 def create_metadata_workflow(db_add:bool = True):
     # metadata subgraph
     invoke_metadata_graph_p = partial(
         invoke_metadata_graph,
-        graph = create_metadata_graph(db_add=db_add),
+        graph=create_metadata_graph(db_add=db_add),
+        to_return=["messages"]
     )
 
     #-- graph --#
