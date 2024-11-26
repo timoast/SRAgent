@@ -84,6 +84,7 @@ def create_convert_agent(model_name="gpt-4o") -> Callable:
         "\n",
         "Continue sending tasks to your agents until you successfully complete the task.",
         "Be very concise; provide simple lists when possible; do not include unnecessary wording.",
+        "Simply list the converted accessions and Entrez IDs, unless told otherwise.",
         "If you cannot complete the task, simply state that you were unable to do so.",
         "Write your output as plain text instead of markdown.",
         "\n",

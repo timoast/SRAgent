@@ -34,6 +34,8 @@ class OrganismEnum(Enum):
     MOUSE = "mouse"
     RAT = "rat"
     MONKEY = "monkey"
+    MACAQUE = "macaque"
+    MARMOSET = "marmoset"
     HORSE = "horse"
     DOG = "dog"
     BOVINE = "bovine"
@@ -106,7 +108,7 @@ def invoke_entrez_agent_node(state: GraphState) -> Dict[str, Any]:
     return {"messages" : [response["messages"][-1]]}
 
 def create_get_metadata_node() -> Callable:
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
     def invoke_get_metadata_node(state: GraphState):
         """
@@ -125,7 +127,6 @@ def create_get_metadata_node() -> Callable:
         prompt = prompt.format_messages(history=state["messages"])
 
         # call the model
-        model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
         response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
         return {
             "is_illumina" : response.is_illumina.value,
@@ -198,49 +199,20 @@ def route_retry_metadata(state: GraphState) -> str:
     return "entrez_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
 
 def invoke_SRX2SRR_entrez_agent_node(state: GraphState) -> Dict[str, Any]:
-    entrez_agent = create_entrez_agent()
-    if state['SRX'].startswith("SRX"):
-        message = f"Obtain the SRR accessions for the following SRX accession: {state['SRX']}."
-    elif state['SRX'].startswith("ERX"):
-        message = f"Obtain the ERR accessions for the following ERX accession: {state['SRX']}."
+    # format the message
+    if state["SRX"].startswith("SRX"):
+        message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions."
+    elif state["SRX"].startswith("ERX"):
+        message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions."
     else:
-        message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with 'SRX' or 'ERR'."
-    message = "\n".join([message, "Return a simple list of SRR accessions."])
+        message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRX\" or \"ERR\"."
+    # call the agent
+    entrez_agent = create_entrez_agent()
     response = entrez_agent.invoke({"messages" : [HumanMessage(content=message)]})
     # extract all SRR/ERR accessions in the message
     regex = re.compile(r"(?:SRR|ERR)\d{4,}")
     SRR_acc = regex.findall(response["messages"][-1].content)
     return {"SRR" : list(set(SRR_acc))}
-
-def create_get_SRR_node():
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
-
-    def invoke_get_SRR_node(state: GraphState):
-        """
-        Structured data extraction
-        """
-        # format prompt
-        prompt = "\n".join([
-            "Your job is to extract all SRR and ERR accessions from the provided messages below.",
-            "All SRR accessions should start with the \"SRR\" or \"ERR\" prefix (e.g., \"SRR123456\" or \"ERR123123\").",
-            "If you do not find any SRR or ERR accessions, respond with \"None\".",
-        ])
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", prompt),
-            ("system", "\nHere are the last few messages:"),
-            MessagesPlaceholder(variable_name="history"),
-        ])
-        prompt = prompt.format_messages(history=state["messages"])
-
-        # call the model
-        model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
-        response = model.with_structured_output(SRR, strict=True).invoke(prompt)
-        # filter out non-SRR accessions
-        regex = re.compile(r"(SRR|ERR)\d+")
-        SRR_acc = [x for x in response.SRR if regex.match(x)]
-        return {"SRR" : SRR_acc}
-    
-    return invoke_get_SRR_node
 
 def fmt(x):
     if type(x) != list:
@@ -301,7 +273,6 @@ def create_metadata_graph(db_add: bool=True):
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
     workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_entrez_agent_node)
-    workflow.add_node("get_SRR_node", create_get_SRR_node())
     if db_add:
         workflow.add_node("add2db_node", add2db)
     workflow.add_node("final_state_node", final_state)

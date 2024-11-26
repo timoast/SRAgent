@@ -71,7 +71,10 @@ def metadata_agent_main(args):
                 print(f"Step {i+1}: {msg.content}")
         # print final state
         if final_state:
-            print(final_state["final_state_node"]["messages"][-1].content)
+            try:
+                print(final_state["final_state_node"]["messages"][-1].content)
+            except KeyError:
+                print("No final state message.")
         print("")
 
 # main

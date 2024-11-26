@@ -90,7 +90,14 @@ def esearch(
     """
     # debug model
     max_records = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
- 
+
+    # check input
+    if esearch_query == "":
+        return "Please provide a valid query."
+    for x in ["SRR", "ERR", "GSE", "GSM", "GDS", "ERX", "DRR", "PRJ", "SAM", "SRP", "SRX"]:
+        if esearch_query == x:
+            return f"Invalid query: {esearch_query}"
+    
     # query
     records = []
     retstart = 0
@@ -167,13 +174,15 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # scRNA-seq
-    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
-    #print(esearch_scrna.invoke({"esearch_query" : query, "database" : "sra"}))
-    #print(esearch_scrna.invoke({"esearch_query" : query, "database" : "gds"}))
+    #query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
+    query = '("bulk RNA sequencing")'
+    input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
+    #print(esearch_scrna.invoke(input))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}
     input = {"esearch_query" : "GSE121737", "database" : "gds"}
     input = {"esearch_query" : "35447314", "database" : "sra"}
     input = {"esearch_query" : "35447314", "database" : "gds"}
-    print(esearch.invoke(input))
+    #print(esearch.invoke(input))
+
