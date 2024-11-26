@@ -1,5 +1,6 @@
 # import 
 import os
+import re
 import operator
 from functools import partial
 from enum import Enum
@@ -61,6 +62,12 @@ class ChoicesEnum(Enum):
 class Choice(BaseModel):
     Choice: ChoicesEnum
 
+class SRR(BaseModel):
+    """
+    SRR accessions
+    """
+    SRR: List[str]
+
 class GraphState(TypedDict):
     """
     Shared state of the agents in the graph
@@ -68,6 +75,7 @@ class GraphState(TypedDict):
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
+    SRR: Annotated[List[str], "SRR accessions for the SRX"]
     is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
@@ -179,14 +187,53 @@ def create_router_node():
     
     return invoke_router_node
 
-def route_interpret(state: GraphState, db_add: bool=True) -> str:
+def route_retry_metadata(state: GraphState) -> str:
     """
     Determine the route based on the current state of the conversation.
     """
-    continue_node = "add2db_node" if db_add else END
+    #continue_node = "add2db_node" if db_add else END
     if state["rounds"] >= 2:
-        return continue_node
-    return "entrez_agent_node" if state["route"] == "Continue" else continue_node
+        return "SRX2SRR_node"
+    return "entrez_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
+
+def invoke_SRX2SRR_entrez_agent_node(state: GraphState) -> Dict[str, Any]:
+    entrez_agent = create_entrez_agent()
+    message = "\n".join([
+        f"Obtain the SRR accessions for the following SRX accession: {state['SRX']}.",
+        "Return a simple list of SRR accessions."
+    ])
+    response = entrez_agent.invoke({"messages" : [HumanMessage(content=message)]})
+    return {"messages" : [response["messages"][-1]]}
+
+def create_get_SRR_node():
+    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+
+    def invoke_get_SRR_node(state: GraphState):
+        """
+        Structured data extraction
+        """
+        # format prompt
+        prompt = "\n".join([
+            "Your job is to extract all SRR from the provided messages below.",
+            "All SRR accessions should start with the \"SRR\" prefix (e.g., \"SRR123456\").",
+            "If you do not find any SRR accessions, respond with \"None\".",
+        ])
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt),
+            ("system", "\nHere are the last few messages:"),
+            MessagesPlaceholder(variable_name="history"),
+        ])
+        prompt = prompt.format_messages(history=state["messages"])
+
+        # call the model
+        model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+        response = model.with_structured_output(SRR, strict=True).invoke(prompt)
+        # filter out non-SRR accessions
+        regex = re.compile(r"SRR\d+")
+        SRR_acc = [x for x in response.SRR if regex.match(x)]
+        return {"SRR" : SRR_acc}
+    
+    return invoke_get_SRR_node
 
 def fmt(x):
     if type(x) != list:
@@ -203,6 +250,7 @@ def add2db(state: GraphState):
         "database": state["database"],
         "entrez_id": state["entrez_id"],
         "SRX": SRX,
+        "SRR": fmt(state["SRR"]),
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
@@ -230,6 +278,8 @@ def create_metadata_graph(db_add: bool=True):
     workflow.add_node("entrez_agent_node", invoke_entrez_agent_node)
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
+    workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_entrez_agent_node)
+    workflow.add_node("get_SRR_node", create_get_SRR_node())
     if db_add:
         workflow.add_node("add2db_node", add2db)
 
@@ -237,8 +287,14 @@ def create_metadata_graph(db_add: bool=True):
     workflow.add_edge(START, "entrez_agent_node")
     workflow.add_edge("entrez_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
-    route_interpret_p = partial(route_interpret, db_add=db_add)
-    workflow.add_conditional_edges("router_node", route_interpret_p)
+    workflow.add_conditional_edges("router_node", route_retry_metadata)
+    workflow.add_edge("SRX2SRR_node", "get_SRR_node")
+    if db_add:
+        workflow.add_edge("get_SRR_node", "add2db_node")
+        workflow.add_edge("add2db_node", END)
+        print("here")
+    else:
+        workflow.add_edge("get_SRR_node", END)
 
     # compile the graph
     graph = workflow.compile()
@@ -265,10 +321,9 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
-
+ 
     #-- graph --#
     #SRX_accession = "SRX25716878"
-    #SRX_accession = "SRX20554853"
     #SRX_accession = "SRX20554856"
     SRX_accession = "SRX25994842"
     prompt = "\n".join([
@@ -281,10 +336,11 @@ if __name__ == "__main__":
         "entrez_id": "",
         "messages": [HumanMessage(content=prompt)],
     }
-    graph = create_metadata_graph(db_add=False)
-    for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
-        print(step)
+    graph = create_metadata_graph(db_add=True)
+    #for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
+    #    print(step)
 
     ## invoke with graph object directly provided
     invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
     #print(invoke_metadata_graph(input))
+
