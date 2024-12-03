@@ -37,6 +37,8 @@ class GraphState(TypedDict):
     is_paired_end: Annotated[List[str], operator.add]
     # is_10x
     is_10x: Annotated[List[str], operator.add]
+    # 10X tech
+    tech_10x: Annotated[List[str], operator.add]
     # organism
     organism: Annotated[List[str], operator.add]
 

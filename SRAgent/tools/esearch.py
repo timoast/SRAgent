@@ -11,6 +11,39 @@ from Bio import Entrez
 from langchain_core.tools import tool
 
 # functions
+def esearch_batch(esearch_query, database, max_ids):
+    # query
+    ids = []
+    retstart = 0
+    retmax = 50
+    while True:
+        try:
+            # search
+            search_handle = Entrez.esearch(
+                db=database, 
+                term=esearch_query, 
+                retstart=retstart, 
+                retmax=retmax
+            )
+            search_results = Entrez.read(search_handle)
+            search_handle.close()
+            # add IDs to 
+            ids.extend(search_results.get("IdList", []))
+            retstart += retmax
+            time.sleep(0.34)
+            if max_ids and len(ids) >= max_ids:
+                break
+            if retstart >= int(search_results['Count']):
+                break
+        except Exception as e:
+            print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
+            break 
+        
+    # return IDs
+    if max_ids:
+        ids = ids[:max_ids]
+    return ids
+
 @tool 
 def esearch_scrna(
     esearch_query: Annotated[str, "Entrez query string."],
@@ -42,37 +75,8 @@ def esearch_scrna(
     # debug model
     max_ids = 1 if os.getenv("DEBUG_MODE") == "TRUE" else None
 
-    # query
-    ids = []
-    retstart = 0
-    retmax = 50
-    while True:
-        try:
-            # search
-            search_handle = Entrez.esearch(
-                db=database, 
-                term=esearch_query, 
-                retstart=retstart, 
-                retmax=retmax
-            )
-            search_results = Entrez.read(search_handle)
-            search_handle.close()
-            # add IDs to 
-            ids.extend(search_results.get("IdList", []))
-            retstart += retmax
-            time.sleep(0.34)
-            if max_ids and len(ids) >= max_ids:
-                break
-            if retstart >= int(search_results['Count']):
-                break
-        except Exception as e:
-            print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
-            break 
-        
-    # return IDs
-    if max_ids:
-        ids = ids[:max_ids]  # debug
-    return ids
+    # return entrez IDs 
+    return esearch_batch(esearch_query, database, max_ids)
 
 @tool 
 def esearch(
@@ -176,7 +180,8 @@ if __name__ == "__main__":
     # scRNA-seq
     #query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     query = '("bulk RNA sequencing")'
-    input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
+    #input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
+    input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
     #print(esearch_scrna.invoke(input))
 
     # esearch accession

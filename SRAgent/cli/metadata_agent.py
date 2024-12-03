@@ -58,7 +58,7 @@ def metadata_agent_main(args):
         "recursion_limit": args.recursion_limit
     }
     for entrez_id in args.entrez_ids:
-        print(f"#-- Entrez ID: {entrez_id} (database: {args.database}) --#")
+        print(f"#-- Entrez ID: {entrez_id} (database={args.database}) --#")
         input = {"entrez_id": entrez_id, "database": args.database}
         # stream invoke graph
         final_state = None

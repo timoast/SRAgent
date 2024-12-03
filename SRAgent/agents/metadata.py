@@ -48,6 +48,19 @@ class OrganismEnum(Enum):
     METAGENOME = "metagenome"
     OTHER = "other"
 
+class Tech10XEnum(Enum):
+    THREE_PRIME_GEX = "3_prime_gex"
+    FIVE_PRIME_GEX = "5_prime_gex"
+    ATAC = "atac"
+    MULTIOME = "multiome"
+    FLEX = "flex"
+    VDJ = "vdj"
+    FIXED_RNA = "fixed_rna"
+    CELLPLEX = "cellplex"
+    CNV = "cnv"
+    FEATURE_BARCODING = "feature_barcoding"
+    OTHER = "other"
+
 class MetadataEnum(BaseModel):
     """
     Metadata to extract
@@ -56,6 +69,7 @@ class MetadataEnum(BaseModel):
     is_single_cell: YesNo
     is_paired_end: YesNo
     is_10x: YesNo
+    tech_10x: Tech10XEnum
     organism: OrganismEnum
 
 class ChoicesEnum(Enum):
@@ -84,6 +98,7 @@ class GraphState(TypedDict):
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     is_10x: Annotated[str, "Is the dataset 10X Genomics data?"]
+    tech_10x: Annotated[str, "10X Genomics technology"]
     organism: Annotated[str, "Which organism was sequenced"]
     route: Annotated[str, "Route"]
     rounds: Annotated[int, operator.add]
@@ -94,7 +109,7 @@ def get_metadata_items() -> Dict[str, str]:
     """
     Set metadata items based on graph state annotationes
     """
-    to_include = ["is_illumina", "is_single_cell", "is_paired_end", "is_10x", "organism"]
+    to_include = ["is_illumina", "is_single_cell", "is_paired_end", "is_10x", "tech_10x", "organism"]
     metadata_items = {}
     for key, value in GraphState.__annotations__.items():
         if key not in to_include or not get_origin(value) is Annotated:
@@ -133,13 +148,14 @@ def create_get_metadata_node() -> Callable:
             "is_single_cell" : response.is_single_cell.value,
             "is_paired_end" : response.is_paired_end.value,
             "is_10x" : response.is_10x.value,
+            "tech_10x" : response.tech_10x.value,
             "organism" : response.organism.value
         }
     
     return invoke_get_metadata_node
 
 def create_router_node():
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
     def invoke_router_node(state: GraphState):
         """
@@ -161,6 +177,8 @@ def create_router_node():
             "    - " + state['is_paired_end'],
             " - Is the study 10X Genomics data?",
             "    - " + state['is_10x'],
+            " - Which 10X Genomics technology was used?",
+            "    - " + state['tech_10x'],
             " - Which organism was sequenced?",
             "    - " + state['organism']
         ])
@@ -234,6 +252,7 @@ def add2db(state: GraphState):
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
         "is_10x": state["is_10x"],
+        "tech_10x": state["tech_10x"],
         "organism": state["organism"]
     }])
     # Authenticate and open the Google Sheet
@@ -260,6 +279,7 @@ def final_state(state: GraphState):
         " - Is the study single cell RNA-seq data? " + state["is_single_cell"],
         " - Is the study paired-end sequencing data? " + state["is_paired_end"],
         " - Is the study 10X Genomics data? " + state["is_10x"],
+        " - Which 10X Genomics technology was used? " + state["tech_10x"],
         " - Which organism was sequenced? " + state["organism"]
     ])
     return {"messages": [AIMessage(content=message)]}
@@ -315,11 +335,11 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
  
     #-- graph --#
-    #SRX_accession = "SRX25716878"
+    SRX_accession = "SRX25716878"
     #SRX_accession = "SRX20554856"
     #SRX_accession = "SRX25994842"
     #SRX_accession = "ERX11887200"
-    SRX_accession = "ERX11157721"
+    #SRX_accession = "ERX11157721"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + list(get_metadata_items().values())
