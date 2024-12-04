@@ -112,7 +112,7 @@ def esearch(
     print(f"Query: {esearch_query}")
 
     # debug model
-    max_ids = 1 if os.getenv("DEBUG_MODE") == "true" else None
+    max_ids = 3 if os.getenv("DEBUG_MODE") == "true" else None
 
     # return entrez IDs 
     return esearch_batch(esearch_query, database, max_ids)

@@ -3,12 +3,11 @@
 import os
 import operator
 from functools import partial
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, TypedDict, Sequence
+from typing import Annotated, List, Dict, Any, TypedDict, Sequence
 ## 3rd party
-from pydantic import BaseModel, Field
-from Bio import Entrez
 import pandas as pd
-from dotenv import load_dotenv
+import gspread
+from gspread_dataframe import set_with_dataframe
 from langgraph.types import Send
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import START, END, StateGraph
@@ -60,7 +59,7 @@ def create_convert_graph_node():
         return graph.invoke(input)
     return invoke_convert_graph_node
 
-def continue_to_metadata(state: GraphState) -> Dict[str, Any]:
+def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
     """
     Parallel invoke of the metadata graph
     """
@@ -71,6 +70,16 @@ def continue_to_metadata(state: GraphState) -> Dict[str, Any]:
     )
     
     # submit each accession to the metadata graph
+    ## handle case where no SRX accessions are found
+    if len(state["SRX"]) == 0:
+        add_entrez_id_to_db(state["database"], state["entrez_id"])
+        return []
+        # msg = f"No SRX accessions found in the {state['database']} database for Entrez ID {state['entrez_id']}."
+        # return [Send("end", {
+        #     "messages": [AIMessage(content=msg)]
+        # })]
+    
+    ## submit each SRX accession to the metadata graph
     responses = []
     for SRX_accession in state["SRX"]:
         input = {
@@ -81,6 +90,29 @@ def continue_to_metadata(state: GraphState) -> Dict[str, Any]:
         }
         responses.append(Send("metadata_graph_node", input))
     return responses
+
+def add_entrez_id_to_db(database: str, entrez_id: str) -> None:
+    """
+    Add just the entrez_id to the gsheet database 
+    Args:
+        database: NCBI database name
+        entrez_id: NCBI entrez ID
+    """
+    # create dataframe from state
+    results = pd.DataFrame([{
+        "database": str(database),
+        "entrez_id": str(entrez_id)
+    }])
+    # Authenticate and open the Google Sheet
+    db_name = "SRAgent_database"
+    gc = gspread.service_account(filename=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+    sheet = gc.open(db_name)
+    worksheet = sheet.worksheet("database")
+    # Read existing data to find where to append
+    existing_data = pd.DataFrame(worksheet.get_all_values())
+    next_row = len(existing_data) + 1
+    # Append the data starting from the next row
+    set_with_dataframe(worksheet, results, row=next_row, col=1, include_index=False, include_column_header=False)
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """

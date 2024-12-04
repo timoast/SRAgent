@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser(description=desc, epilog=epi,
                                  formatter_class=CustomFormatter)
 parser.add_argument('accession_file', type=str, 
                     help='Text file with accessions; 1 per line')
-parser.add_argument('--email', type=str, default=None,
+parser.add_argument('--email', type=str, default=os.getenv('EMAIL'),
                     help='Email address for Entrez')
 parser.add_argument('--batch-size', type=int, default=50,
                     help='Batch size for fetching')
@@ -287,6 +287,6 @@ def main(args):
 
 ## script main
 if __name__ == '__main__':
-    args = parser.parse_args()
     load_dotenv()
+    args = parser.parse_args()
     main(args)
