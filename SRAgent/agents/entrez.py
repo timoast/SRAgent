@@ -15,6 +15,7 @@ from SRAgent.tools.esearch import create_esearch_agent
 from SRAgent.tools.esummary import create_esummary_agent
 from SRAgent.tools.efetch import create_efetch_agent
 from SRAgent.tools.elink import create_elink_agent
+from SRAgent.tools.bigquery import create_bigquery_agent
 from SRAgent.tools.ncbi_fetch import create_ncbi_fetch_agent
 from SRAgent.tools.seq import create_sequences_agent
 from SRAgent.agents.utils import create_step_summary_chain

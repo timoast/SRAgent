@@ -337,9 +337,6 @@ if __name__ == "__main__":
     #-- graph --#
     SRX_accession = "SRX25716878"
     #SRX_accession = "SRX20554856"
-    #SRX_accession = "SRX25994842"
-    #SRX_accession = "ERX11887200"
-    #SRX_accession = "ERX11157721"
     prompt = "\n".join([
         f"For the SRA accession {SRX_accession}, find the following information:",
         ] + list(get_metadata_items().values())
