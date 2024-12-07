@@ -1,48 +1,17 @@
 # import
 ## batteries
 import os
-import json
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
-import decimal
 from google.cloud import bigquery
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
+## package
+from utils import to_json, join_accs
 
-
-def to_json(results, indent: int=None):
-    """
-    Convert a dictionary to a JSON string.
-    Args:
-        results: a bigquery query result object
-    Returns:
-        str: JSON string
-    """
-    def datetime_handler(obj):
-        if hasattr(obj, 'isoformat'):
-            return obj.isoformat()
-        elif isinstance(obj, decimal.Decimal):
-            return str(obj)
-        raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
-
-    return json.dumps(
-        [dict(row) for row in results],
-        default=datetime_handler,
-        indent=indent
-    )
-
-def join_accs(accessions: List[str]) -> str:
-    """
-    Join a list of accessions into a string.
-    Args:
-        accessions: list of accessions
-    Returns:
-        str: comma separated string of accessions
-    """
-    return ', '.join([f"'{acc}'" for acc in accessions])
-
+# functions
 def create_get_study_metadata(client):
     @tool
     def get_study_metadata(
@@ -155,6 +124,49 @@ def create_get_run_metadata(client):
         return to_json(client.query(query))
     return get_run_metadata
 
+
+def create_get_study_experiment_run(client):
+    @tool
+    def get_study_experiment_run(
+        accessions: Annotated[List[str], "A list of SRA study accession numbers"]
+        ) -> Annotated[str, "JSON string of SRA experiment metadata"]:
+        """
+        Get study, experiment, and run accessions for a list of SRA and/or ENA accessions.
+        The accessions can be from any level of the SRA hierarchy: study, experiment, or run.
+        The metadata fields returned:
+        - study_accession: SRA or ENA study accession (SRP or PRJNA)
+        - experiment_accession: SRA or ENA experiment accession (SRX or ERX)
+        - run_accession: SRA or ENA run accession (SRR or ERR)
+        """
+        # get study accessions
+        study_acc = [x for x in accessions if x.startswith("SRP") or x.startswith("PRJNA")]
+        exp_acc = [x for x in accessions if x.startswith("SRX") or x.startswith("ERX")]        
+        run_acc = [x for x in accessions if x.startswith("SRR") or x.startswith("ERR")]
+
+        # create WHERE query
+        study_query = f"m.sra_study IN ({join_accs(study_acc)})" if len(study_acc) > 0 else None
+        exp_query =  f"m.experiment IN ({join_accs(exp_acc)})" if len(exp_acc) > 0 else None
+        run_query = f"m.acc IN ({join_accs(run_acc)})" if len(run_acc) > 0 else None
+        query = " OR ".join([x for x in [study_query, exp_query, run_query] if x is not None])
+
+        # if empty
+        if query is None or query == "":
+            return "No valid accessions provided."
+
+        # create full query
+        query = f"""
+        SELECT DISTINCT
+            m.sra_study AS study_accession,
+            m.experiment AS experiment_accession,
+            m.acc AS run_accession
+        FROM `nih-sra-datastore.sra.metadata` as m
+        WHERE {query}
+        """
+
+        # return query results
+        return to_json(client.query(query))
+    return get_study_experiment_run
+
 def create_bigquery_agent(model_name="gpt-4o") -> Callable:
     # create model
     model = ChatOpenAI(model=model_name, temperature=0.1)
@@ -164,6 +176,7 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
 
     # set tools
     tools = [
+        create_get_study_experiment_run(client),
         create_get_study_metadata(client),
         create_get_experiment_metadata(client),
         create_get_run_metadata(client)
@@ -175,17 +188,15 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
         "You are an expert bioinformatician specialized in querying the Sequence Read Archive (SRA) database.",
         "Your purpose is to retrieve and analyze metadata across SRA's hierarchical structure: studies (SRP) → experiments (SRX) → runs (SRR).",
         # Tool Capabilities
-        "You have access to three specialized tools:",
-        " 1. get_study_metadata: Retrieves study and associated experiment accessions",
-        " 2. get_experiment_metadata: Retrieves experiment details and associated run accessions",
-        " 3. get_run_metadata: Retrieves detailed run-level information",
-        # Metadata structure
-        "If the task is to retrieve metadata for a specific accession type (SRP, SRX, or SRR), chain the tools as needed to gather complete information.",
-        # Conversion Strategy
-        "IMPORTANT - Follow this strategy for accession conversion tasks:",
-        " - To go from study → run: Use get_study_metadata → get_experiment_metadata → extract run accessions",
-        " - To go from run → study: Use get_run_metadata → extract experiment → get_experiment_metadata → extract study",
-        "Always convert accessions when needed to provide complete information.",
+        "You have access to four specialized tools:",
+        " 1. get_study_experiment_run: Retrieves study, experiment, and run accessions",
+        " 2. get_study_metadata: Retrieves study and associated experiment accessions",
+        " 3. get_experiment_metadata: Retrieves experiment details and associated run accessions",
+        " 4. get_run_metadata: Retrieves detailed run-level information",
+        # Tool Usage
+        "Use the get_study_experiment_run tool to convert accessions between study, experiment, and run levels.",
+        "Use the get_*_metadata tools to retrieve metadata for a specific accession type.",
+        "Chain the tools as needed to gather complete information for a given study, experiment, or run.",
         # Response Guidelines
         "When responding:",
         " - If the query mentions one accession type but asks about another, automatically perform the necessary conversions",
@@ -228,13 +239,21 @@ if __name__ == "__main__":
 
     # test agent
     bigquery_agent = create_bigquery_agent()
-    #print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
-    print(bigquery_agent.invoke({"message" : "Get experiment metadata for SRP548813"}))
+    # print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
+    # print(bigquery_agent.invoke({"message" : "Get experiment metadata for SRP548813"}))
+    # print(bigquery_agent.invoke({"message" : "Get the number of base pairs for all runs in SRP548813"}))
+    # print(bigquery_agent.invoke({"message" : "Convert SRP548813 to SRR"}))
 
     # test tools
+    ## get_study_experiment_run
+    # get_study_experiment_run = create_get_study_experiment_run(client)
+    # print(get_study_experiment_run.invoke({"accessions" : ["SRP548813", "SRX26939191", "SRR31573627"]}))
+    # print(get_study_experiment_run.invoke({"accessions" : ["XXX"]}))
+
     ## get_study_metadata
     # get_study_metadata = create_get_study_metadata(client)
     # print(get_study_metadata.invoke({"study_accessions" : ["SRP548813"]}))
+    # print(get_study_metadata.invoke({"study_accessions" : ["XXX"]}))
 
     ## get_experiment_metadata
     # get_experiment_metadata = create_get_experiment_metadata(client)
