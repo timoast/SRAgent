@@ -50,6 +50,10 @@ def create_get_study_metadata(client):
         ) -> Annotated[str, "JSON string of SRA experiment metadata"]:
         """
         Get study-level metadata for a list of SRA study accessions.
+        The metadata fields returned:
+        - sra_study: SRA study accession (the query accession)
+        - bioproject: BioProject accession (parent of study)
+        - experiments: Comma-separated list of associated experiment accessions (SRX)
         """
         query = f"""
         WITH distinct_values AS (
@@ -77,12 +81,22 @@ def create_get_experiment_metadata(client):
         ) -> Annotated[str, "JSON string of SRA experiment metadata"]:
         """
         Get experiment-level metadata for a list of SRA experiment accessions.
+        The metadata fields returned:
+        - experiment: SRA experiment accession (the query accession)
+        - sra_study: SRA study accession (parent of experiment)
+        - library_name: Library name (e.g., 1, 2, 3)
+        - librarylayout: Library layout (e.g., single, paired)
+        - libraryselection: Library selection (e.g., random, PCR)
+        - librarysource: Library source (e.g., transcriptomic, genomic)
+        - platform: Sequencing platform (e.g., Illumina, PacBio)
+        - instrument: Sequencing instrument (e.g., HiSeq, NovaSeq)
+        - acc: Comma-separated list of associated run accessions (SRR)
         """
         query = f"""
         WITH distinct_values AS (
             SELECT DISTINCT
-                m.sra_study,
                 m.experiment,
+                m.sra_study,
                 m.library_name, 
                 m.librarylayout,
                 m.libraryselection, 
@@ -115,11 +129,20 @@ def create_get_run_metadata(client):
         ) -> Annotated[str, "JSON string of SRA run metadata"]:
         """
         Get run-level metadata for a list of SRA run accessions.
+        The metadata fields returned:
+        - acc: SRA run accession (the query accession)
+        - experiment: SRA experiment accession (parent of run)
+        - biosample: BioSample accession (parent of run)
+        - organism: Organism name
+        - assay_type: Assay type (e.g., RNA-Seq, ChIP-Seq)
+        - mbases: Total bases sequenced (in megabases)
+        - avgspotlen: Average spot length (in base pairs)
+        - insertsize: Insert size (in base pairs)
         """
         query = f"""
         SELECT 
-            m.experiment,
             m.acc,
+            m.experiment,
             m.biosample,
             m.organism,
             m.assay_type,
@@ -148,22 +171,32 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
   
     # state modifier
     state_mod = "\n".join([
-        "You are a helpful bioinformatician assisting a researcher with a task involving the Sequence Read Archive (SRA) database.",
-        "You can use your tools to search the SRA with BigQuery.",
-        "\n",
-        "The tools provide metadata for SRA studies, experiments, and runs.",
-        "For instance, you can obtain the organism, assay type, and number of bases for an SRA run accession.",
-        "\n",
-        "Note that you can convert between studies, experiments, and runs with the output of each tool.",
-        "For instance, the get_study_metadata tool provides a list of experiments for each study.",
-        "You can then use the get_experiment_metadata tool to get metadata for each experiment.",
-        "\n",
-        "Continue calling tools until you successfully complete the task.",
-        "If you encounter an error, provide the error message to the researcher.",
-        "If you cannot complete the task, inform the researcher of the issue.",
-        "\n",
-        "Be very concise; provide simple lists when possible; do not include unnecessary wording.",
-        "Write your output as plain text instead of markdown.",
+        # Role and Purpose
+        "You are an expert bioinformatician specialized in querying the Sequence Read Archive (SRA) database.",
+        "Your purpose is to retrieve and analyze metadata across SRA's hierarchical structure: studies (SRP) → experiments (SRX) → runs (SRR).",
+        # Tool Capabilities
+        "You have access to three specialized tools:",
+        " 1. get_study_metadata: Retrieves study and associated experiment accessions",
+        " 2. get_experiment_metadata: Retrieves experiment details and associated run accessions",
+        " 3. get_run_metadata: Retrieves detailed run-level information",
+        # Metadata structure
+        "If the task is to retrieve metadata for a specific accession type (SRP, SRX, or SRR), chain the tools as needed to gather complete information.",
+        # Conversion Strategy
+        "IMPORTANT - Follow this strategy for accession conversion tasks:",
+        " - To go from study → run: Use get_study_metadata → get_experiment_metadata → extract run accessions",
+        " - To go from run → study: Use get_run_metadata → extract experiment → get_experiment_metadata → extract study",
+        "Always convert accessions when needed to provide complete information.",
+        # Response Guidelines
+        "When responding:",
+        " - If the query mentions one accession type but asks about another, automatically perform the necessary conversions",
+        " - Chain multiple tool calls when needed to gather complete information",
+        " - If you receive an error, explain it clearly and suggest alternatives",
+        # Output Format
+        "Keep responses concise and structured:",
+        " - Present metadata as key-value pairs",
+        " - Group related information",
+        " - Include accession IDs in outputs",
+        " - No markdown formatting",
     ])
 
     # create agent
@@ -194,8 +227,9 @@ if __name__ == "__main__":
     client = bigquery.Client()
 
     # test agent
-    # bigquery_agent = create_bigquery_agent()
-    # print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
+    bigquery_agent = create_bigquery_agent()
+    #print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
+    print(bigquery_agent.invoke({"message" : "Get experiment metadata for SRP548813"}))
 
     # test tools
     ## get_study_metadata
