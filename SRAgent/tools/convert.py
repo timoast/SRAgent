@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import xml.etree.ElementTree as ET
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
 from Bio import Entrez
@@ -17,8 +18,53 @@ from SRAgent.tools.efetch import create_efetch_agent
 from SRAgent.tools.elink import create_elink_agent
 from SRAgent.tools.ncbi_fetch import create_ncbi_fetch_agent
 from SRAgent.tools.entrez_db import which_entrez_databases
+from SRAgent.tools.bigquery import create_bigquery_agent
+from SRAgent.tools.utils import batch_ids
 
 # functions
+def elink(entrez_id, ntries=3):
+    # Fetch detailed GEO record to get links to SRA
+    error = None
+    for _ in range(ntries):
+        try:
+            handle = Entrez.elink(
+                id=entrez_id,
+                dbfrom="gds",
+                db="sra",
+                retmode="xml"
+            )
+            batch_record = handle.read()
+            handle.close()
+        except Entrez.Parser.ValidationError:
+            error = f"Failed to find links for IDs: {entrez_id}"
+        except Exception as e:
+            error = f"An error occurred: {e}"
+        finally:
+            try:
+                handle.close()
+            except:
+                pass 
+
+        if error is not None:
+            time.sleep(1)
+            continue
+
+        # Parse XML
+        try:
+            root = ET.fromstring(batch_record)
+        except ET.ParseError as e:
+            error = f"XML Parsing Error: {e}"
+            time.sleep(1)
+            continue
+
+        # Check for errors in the response
+        error = root.find("ERROR")
+        if error is not None:
+            time.sleep(1)
+            continue
+        return root
+    return error
+
 @tool 
 def geo2sra(
     entrez_ids: Annotated[List[str], "List of GEO (gds) database Entrez IDs"],
@@ -26,28 +72,29 @@ def geo2sra(
     """
     Convert GEO (gds) Entrez IDs to SRA Entrez IDs.
     """
+    batch_size = 50
     id_map = []
     for entrez_id in entrez_ids:
-        # Fetch detailed GEO record to get links to SRA
-        handle = Entrez.elink(dbfrom="gds", db="sra", id=entrez_id)
-        links = Entrez.read(handle)
-        handle.close()
-        
-        # header
         id_map.append(f"GEO Entrez ID: {entrez_id}; the associated SRA Entrez IDs:")
 
-        # get SRA IDs
-        IDs = []
-        if links[0]['LinkSetDb']:
-            try:
-                IDs = [link['Id'] for link in links[0]['LinkSetDb'][0]['Link']]
-            except (KeyError, IndexError) as e:
-                print(f"Error: {e}", file=sys.stderr)
-                pass
-        if len(IDs) == 0:
+        # Fetch detailed GEO record to get links to SRA
+        root = elink(entrez_id)
+        if isinstance(root, str):
+            id_map.append(root)
+            continue
+        
+        # Extract links from the XML
+        sra_ids = []
+        for linksetdb in root.findall(".//LinkSetDb"):
+            for link in linksetdb.findall("./Link"):
+                sra_id = link.find("Id").text
+                sra_ids.append(sra_id)
+
+        # Add results to the output
+        if not sra_ids:
             id_map.append(" - No SRA Entrez IDs found")
         else:
-            id_map.append("\n".join([f" - {x}" for x in IDs]) + "\n")
+            id_map.append("\n".join([f" - {x}" for x in sra_ids]) + "\n")
         time.sleep(0.34) 
 
     # return SRA IDs
@@ -60,8 +107,8 @@ def create_convert_agent(model_name="gpt-4o") -> Callable:
     # set tools
     tools = [
         which_entrez_databases,
-        geo2sra,
         create_ncbi_fetch_agent(),
+        create_bigquery_agent(),
         create_esearch_agent(),
         create_esummary_agent(),
         create_efetch_agent(),
@@ -75,55 +122,55 @@ def create_convert_agent(model_name="gpt-4o") -> Callable:
         "Provide guidance to the agents to help them complete the task successfully.",
         "\n",
         "Your main goal is to convert among Entrez IDs and accessions (e.g., SRX, SRR, GSE, GSM, PRJNA, SAMN).",
-        "You can call the ncbi-fetch, geo2sra, which_entrez_databases, esearch, esummary, efetch, elink agents to accomplish this task.",
-        "Generally, start with the ncbi-fetch agent to check the NCBI website for infomation on the Entrez IDs and accessions.",
+        "You can call the following agents to accomplish the task:",
+        " - which_entrez_databases",
+        " - bigquery",
+        " - esearch", 
+        " - esummary", 
+        " - efetch",
+        " - elink", 
+        " - ncbi-fetch",
         "\n",
-        "Be sure to provide context to the agents (e.g., \"Use esearch to find the Entrez ID for SRP123456\")."
-        "Generally, you will want to specify the database(s) to query (e.g., sra, gds, or pubmed).",
-        "If there are dozens of records, batch the IDs and call the agent multiple times to avoid rate limits and token count limits.",
+        "For SRA Entrez IDs, use the following strategy:",
+        " 1. Use which_entrez_databases to determine which Entrez database contain the Entrez IDs (if not provided by the researcher).",
+        " 2. Use esearch to find SRA accessions associated with the Entrez IDs.",
+        " 3. Use bigquery to convert among SRA accessions in the SRA hierarchy: studies (SRP) → experiments (SRX) → runs (SRR)",
+        " 4. If needed, use esummary and efetch to obtain detailed information on the accessions.",
+        " 5. If needed, use elink to find related records in other databases.",
+        "For GEO Entrez IDs, use the following strategy:",
+         " 1. Use ncbi-fetch to find GEO accessions and SRA project IDs.",
+         " 2. Use ncbi-fetch to find GEO accessions.",
         "\n",
-        "Continue sending tasks to your agents until you successfully complete the task.",
-        "Be very concise; provide simple lists when possible; do not include unnecessary wording.",
-        "Simply list the converted accessions and Entrez IDs, unless told otherwise.",
-        "If you cannot complete the task, simply state that you were unable to do so.",
-        "Write your output as plain text instead of markdown.",
+        "Notes on strategy:\n",
+        " - ENA records are equivalent to SRA records, so you can use the same strategy for both.",
+        " - Be sure to provide context to the agents (e.g., \"Use esearch to find the Entrez ID for SRP123456\")."
+        " - For Entrez agents (e.g., esearch or efetch), you should specify the database(s) to query (e.g., sra or gds).",
+        " - If there are dozens of records, batch the IDs and call the agent multiple times to avoid rate limits and token count limits.",
         "\n",
-        "#-- Accession notes --#",
-        "SRA accesssion prefixes: SRX, SRP, SRR",
-        "ENA accession prefixes: ERX, PRJNA, DRX, E-MTAB",
-        "GEO accession prefixes: GSE, GSM, GPL",
-        "BioProject accession prefixes: PRJNA, PRJEB, PRJDB",
-        "BioSample accession prefixes: SAMN, SAME",
-        "#-- Database notes --#",
-        "Entrez databases: sra, gds, pubmed, biosample, bioproject",
-        "#-- Accession conversion workflows --#",
-        "GSE -> SRP -> SRX -> SRR",
-        "GSE -> GSM -> SRS -> SRX -> SRR",
-        "GSM -> SRS -> SRX -> SRR",
-        "PRJNA -> SRX -> SRR",
-        "SAMN -> SRX -> SRR",
-        "ERP -> SRP -> SRX -> SRR",
-        "#-- Example workflows --#",
-        "# Task: Convert the Entrez ID 200249445 (gds database) to SRX accessions",
-        "  1. geo2sra agent: Convert the GEO Entrez ID to SRA Entrez IDs",
-        "  2. ncbi-fetch agent: check the NCBI website for basic information on the SRA Entrez IDs",
-        "  3. esearch agent: eSearch of the SRA accessions to obtain the SRX accessions",
-        "  4. efetch agent: eFetch of the SRA accessions to obtain the SRX accessions",
-        "# Task: Convert the Entrez ID 200249001 (uknown database) to SRX accessions",
-        "  1. which_entrez_databases agent: Check the available Entrez databases",
-        "  2. geo2sra agent: If GEO Entrez ID, convert to SRA Entrez IDs",
-        "  3. ncbi-fetch agent: check the NCBI website for basic information on the SRA Entrez IDs",
-        "  4. esearch agent: eSearch of the SRA accessions to obtain the SRX accessions",
-        "  5. efetch agent: eFetch of the SRA accessions to obtain the SRX accessions",
-        "# Task: Convert GSE123456 to SRX accessions",
-        "  1. esearch agent: eSearch of the GSE accession to obtain Entrez IDs",
-        "  2. esummary agent: eSummary of the Entrez IDs to get the SRX accessions",
-        "  3. ncbi-fetch agent: check the NCBI website for more information",
-        "# Task: Obtain the SRR accessions for SRX4967527",
-        "  1. esearch agent: eSearch of the SRX accession to obtain the Entrez ID",
-        "  2. efetch agent: eFetch of the Entrez ID to obtain the SRR accessions",
-        "  3. ncbi-fetch agent: check the NCBI website for more information",
-        
+        "Accession notes:",
+        " - SRA accesssion prefixes: SRX, SRP, SRR",
+        " - ENA accession prefixes: ERX, PRJNA, DRX, E-MTAB",
+        " - GEO accession prefixes: GSE, GSM, GPL",
+        " - BioProject accession prefixes: PRJNA, PRJEB, PRJDB",
+        " - BioSample accession prefixes: SAMN, SAME",
+        "\n",
+        "Database notes:",
+        " - Entrez databases: sra, gds, pubmed, biosample, bioproject",
+        "\n",
+        "Accession conversion workflows:",
+        " - GSE → SRP → SRX → SRR",
+        " - GSE → GSM → SRS → SRX → SRR",
+        " - GSM → SRS → SRX → SRR",
+        " - PRJNA → SRX → SRR",
+        " - SAMN → SRX → SRR",
+        " - ERP → SRP → SRX → SRR"
+        "\n",
+        "General notes:",
+        " - Continue sending tasks to your agents until you successfully complete the task.",
+        " - Be very concise; provide simple lists when possible; do not include unnecessary wording.",
+        " - Simply list the converted accessions and Entrez IDs, unless told otherwise.",
+        " - Write your output as plain text instead of markdown.",
+        "\n",
     ])
 
     # create agent
@@ -159,13 +206,16 @@ if __name__ == "__main__":
 
     # test
     ## convert geo to sra
-    #print(geo2sra.invoke({"entrez_ids" : ["200254051", "200249445", "200276533"]})); 
-    #exit();
+    #input = {'entrez_ids': ['200278601']}
+    #input = {"entrez_ids" : ["35966237", "200254051"]}
+    #input = {"entrez_ids" : ["200276533"]}
+    #print(geo2sra.invoke(input)); 
 
     ## create agent
     agent = create_convert_agent()
     #message = "Convert SRX25716879 to SRR accessions"
-    message = "Convert Entrez ID 200278601 to SRX accessions. The Entrez ID is associated with the gds database."
+    #message = "Convert Entrez ID 200276533 to SRX accessions. The Entrez ID is associated with the gds database."
+    message = "Convert Entrez ID 200277303 to SRX accessions. The Entrez ID is associated with the gds database."
     input = {"messages" : [HumanMessage(content=message)]}
     print(agent.invoke(input))
 

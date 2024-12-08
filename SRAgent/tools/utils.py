@@ -1,10 +1,9 @@
 # import
 ## batteries
 import json
-import shutil
-import tempfile
+import decimal
 from subprocess import Popen, PIPE
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any
+from typing import Annotated, List, Dict, Tuple, Any
 import xml.etree.ElementTree as ET
 from xml.parsers.expat import ExpatError
 ## 3rd party
@@ -67,3 +66,37 @@ def run_cmd(cmd: list) -> Tuple[int, str, str]:
     p = Popen(cmd, stdout=PIPE, stderr=PIPE)
     output, err = p.communicate()
     return p.returncode, output, err
+
+def to_json(results, indent: int=None):
+    """
+    Convert a dictionary to a JSON string.
+    Args:
+        results: a bigquery query result object
+    Returns:
+        str: JSON string
+    """
+    def datetime_handler(obj):
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        elif isinstance(obj, decimal.Decimal):
+            return str(obj)
+        raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
+    # convert to json
+    ret = json.dumps(
+        [dict(row) for row in results],
+        default=datetime_handler,
+        indent=indent
+    )
+    if ret == "[]":
+        return "No results found"
+    return ret
+
+def join_accs(accessions: List[str]) -> str:
+    """
+    Join a list of accessions into a string.
+    Args:
+        accessions: list of accessions
+    Returns:
+        str: comma separated string of accessions
+    """
+    return ', '.join([f"'{acc}'" for acc in accessions])

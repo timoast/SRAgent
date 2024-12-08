@@ -14,11 +14,11 @@ from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
 @tool
 def which_entrez_databases(
     entrez_ids: Annotated[List[str], "List of Entrez IDs"],
+    databases: Annotated[List[str], "Which NCBI databases to check"] = ["sra", "gds", "pubmed", "biosample", "bioproject"],
 ) -> Annotated[str, "List of databases where each Entrez ID is found."]:
     """
     Determine which Entrez databases contain the provided Entrez IDs.
     """
-    databases = ["sra", "gds", "pubmed", "biosample", "bioproject"]
     found_in = {entrez_id: [] for entrez_id in entrez_ids}
 
     # Query each database for the provided Entrez IDs
