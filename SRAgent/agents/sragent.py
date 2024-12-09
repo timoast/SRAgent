@@ -67,12 +67,21 @@ def create_sragent_agent(model_name="gpt-4o") -> Callable:
         "# Execution Rules",
         " 1. Before giving up, you MUST try at least two different agents or prompting approaches",
         " 2. Be sure to provide ALL important information each each agent, such as accessions, databases, or metadata fields",
-        "   - For metadata fields, do not simplify. For example, "
-        "   - For example, state \"Which 10X Genomics technology was used?\" if you need that information",
-        " 3. If an agent returns no results, you MUST try a different prompt format or agent",
-        " 4. Always verify if the obtained information fully answers the original question",
+        " 3. Do not simplify metadata fields; ask the agent for the EXACT metadata field",
+        "   - For example, state \"Which 10X Genomics library preparation technology?\" to the agent instead of just \"10X Genomics data\"",
+        " 4. If an agent returns no results, you MUST try a different prompt format or agent",
+        " 5. Always verify if the obtained information fully answers the original question",
+        "## Examples",
+        "### Incorrect"
+        "Fetch metadata for SRA accession SRX25994842 to find out if it is Illumina sequence data, 10X Genomics data, and the organism sequenced.",
+        "### Correct",
+        "Fetch the following metadata for SRA accession SRX25994842:",
+        " - Illumina sequence data?",
+        " - 10X Genomics data?",
+        " - Which 10X Genomics library preparation technology?",
+        " - The organism sequenced",
         "\n",
-        "# Response format",
+        "# Response Format",
         " 1. After each agent call, briefly analyze the response:",
         "   - What information was obtained?",
         "   - What information is still missing?",
@@ -113,18 +122,18 @@ if __name__ == "__main__":
     agent = create_sragent_agent()
     
     # invoke agent
-    # msg = "Convert GSE121737 to SRX accessions"
+    msg = "Convert GSE121737 to SRX accessions"
     # msg = "Is SRX20554853 paired-end Illumina data?"
     # msg = "Obtain all SRR accessions for SRX20554853"
     # msg = "List the collaborators for the SRX20554853 dataset"
-    msg = "\n".join([
-        "For the SRA accession SRX25994842, find the following information:"
-        " - Is the dataset Illumina sequence data?",
-        " - Is the dataset single cell RNA-seq data?", 
-        " - Is the dataset paired-end sequencing data?",
-        " - Is the dataset 10X Genomics data?",
-        " - Which 10X Genomics technology?",
-        " - Which organism was sequenced?"
-    ])
+    # msg = "\n".join([
+    #     "For the SRA accession SRX25994842, find the following information:"
+    #     " - Is the dataset Illumina sequence data?",
+    #     " - Is the dataset single cell RNA-seq data?", 
+    #     " - Is the dataset paired-end sequencing data?",
+    #     " - Is the dataset 10X Genomics data?",
+    #     " - Which 10X Genomics technology?",
+    #     " - Which organism was sequenced?"
+    # ])
     input = {"messages": [HumanMessage(content=msg)]}
     print(agent.invoke(input))

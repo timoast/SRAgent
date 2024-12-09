@@ -49,17 +49,17 @@ def create_entrez_agent(model_name="gpt-4o") -> Callable:
         "Write your output as plain text instead of markdown.",
         "\n",
         "#Example workflows",
-        "#@ Task: Convert GSE123456 to SRX, SRP, or SRR accessions",
+        "## Task: Convert GSE123456 to SRX, SRP, or SRR accessions",
         "  1. esearch agent: eSearch of the GSE accession to obtain Entrez IDs",
         "  2. esummary agent: eSummary of the Entrez IDs to get the SRX accessions",
-        "#@ Task: Obtain the SRR accessions for SRX4967527",
+        "## Task: Obtain the SRR accessions for SRX4967527",
         "  1. esearch agent: eSearch of the SRX accession to obtain the Entrez ID",
         "  2. efetch agent: eFetch of the Entrez ID to obtain the SRR accessions",
-        "#@ Task: Is SRP309720 paired-end Illumina 10X Genomics data?",
+        "## Task: Is SRP309720 paired-end Illumina 10X Genomics data?",
         "  1. esearch agent: eSearch of SRP accession obtain the Entrez IDs",
-        "  2. efetch agent: eFetch of the Entrez IDs to get the library preparation information",
-        "#@ Task: Obtain the SRA study accessions for the Entrez ID 36098095",
-        "  1. efetch agent: eFetch of the Entrez ID to obtain the SRA accessions",
+        "  2. efetch agent: eFetch of the Entrez IDs to get the library preparation information, including the 10X Genomics library prep method (e.g., 3 prime GEX)",
+        "## Task: Obtain the SRA study accessions for the Entrez ID 36098095",
+        "  1. efetch agent: eFetch of the Entrez ID to obtain the SRA accessions"
     ])
 
     # create agent

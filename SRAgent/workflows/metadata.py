@@ -98,7 +98,7 @@ class GraphState(TypedDict):
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     is_10x: Annotated[str, "Is the dataset 10X Genomics data?"]
-    tech_10x: Annotated[str, "Which 10X Genomics technology?"]
+    tech_10x: Annotated[str, "Which 10X Genomics library preparation technology?"]
     organism: Annotated[str, "Which organism was sequenced?"]
     route: Annotated[str, "Route"]
     rounds: Annotated[int, operator.add]
