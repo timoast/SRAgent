@@ -1,6 +1,7 @@
 # import
 ## batteries
 import os
+import sys
 from typing import Annotated, List, Dict, Any, Callable
 ## 3rd party
 from Bio import Entrez
@@ -13,9 +14,13 @@ from SRAgent.agents.esearch import create_esearch_agent
 from SRAgent.agents.esummary import create_esummary_agent
 from SRAgent.agents.efetch import create_efetch_agent
 from SRAgent.agents.elink import create_elink_agent
+from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
-def create_entrez_agent(model_name="gpt-4o") -> Callable:
+def create_entrez_agent(
+    model_name="gpt-4o",
+    return_tool: bool=True,
+) -> Callable:
     # create model
     model_supervisor = ChatOpenAI(model=model_name, temperature=0.1)
 
@@ -68,6 +73,11 @@ def create_entrez_agent(model_name="gpt-4o") -> Callable:
         tools=tools,
         state_modifier=state_mod
     )
+
+    # return agent instead of tool
+    if not return_tool:
+        return agent
+
     @tool
     def invoke_entrez_agent(
         message: Annotated[str, "Message to send to the Entrez agent"],
@@ -82,6 +92,40 @@ def create_entrez_agent(model_name="gpt-4o") -> Callable:
             "messages": [AIMessage(content=result["messages"][-1].content, name="entrez_agent")]
         }
     return invoke_entrez_agent
+
+async def create_entrez_agent_stream(input, config: dict={}, summarize_steps: bool=False) -> str:
+    """
+    Create an Entrez agent and stream the steps.
+    Args:
+        input: Input message to the agent.
+        config: Configuration for the agent.
+        summarize_steps: Whether to summarize the steps.
+    Returns:
+        The final step message.
+    """
+    # create entrez agent
+    agent = create_entrez_agent(return_tool=False)
+
+    # create step summary chain
+    step_summary_chain = create_step_summary_chain() if summarize_steps else None
+    
+    # invoke agent
+    step_cnt = 0
+    final_step = ""
+    async for step in agent.astream(input, stream_mode="values", config=config):
+        step_cnt += 1
+        final_step = step
+        # summarize step
+        if step_summary_chain:
+            msg = step_summary_chain.invoke({"step": step})
+            print(f"Step {step_cnt}: {msg.content}", file=sys.stderr)
+        else:
+            print(f"Step {step_cnt}: {step}", file=sys.stderr)
+    try:
+        final_step = final_step["agent"]["messages"][-1].content
+    except KeyError:
+        final_step = final_step["messages"][-1].content
+    return final_step
 
 # main
 if __name__ == "__main__":

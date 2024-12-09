@@ -13,10 +13,13 @@ from SRAgent.agents.entrez import create_entrez_agent
 from SRAgent.agents.ncbi_fetch import create_ncbi_fetch_agent
 from SRAgent.agents.bigquery import create_bigquery_agent
 from SRAgent.agents.sequences import create_sequences_agent
-
+from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
-def create_sragent_agent(model_name="gpt-4o") -> Callable:
+def create_sragent_agent(
+    model_name="gpt-4o",
+    return_tool: bool=True,
+) -> Callable:
     # create model
     model = ChatOpenAI(model=model_name, temperature=0.1)
 
@@ -96,6 +99,12 @@ def create_sragent_agent(model_name="gpt-4o") -> Callable:
         tools=tools,
         state_modifier=state_mod
     )
+
+    # return agent instead of tool
+    if not return_tool:
+        return agent
+
+    # create tool
     @tool
     def invoke_sragent_agent(
         messages: Annotated[List[BaseMessage], "Messages to send to the SRAgent agent"],
@@ -110,6 +119,8 @@ def create_sragent_agent(model_name="gpt-4o") -> Callable:
             "messages": [AIMessage(content=result["messages"][-1].content, name="sragent_agent")]
         }
     return invoke_sragent_agent
+
+
 
 # main
 if __name__ == "__main__":

@@ -2,7 +2,6 @@
 ## batteries
 import os
 import operator
-from enum import Enum
 from functools import partial
 from typing import Annotated, List, Dict, Any, TypedDict, Sequence
 ## 3rd party
@@ -13,8 +12,8 @@ from langgraph.types import Send
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import START, END, StateGraph
 ## package
-from SRAgent.agents.sragent import create_supervisor_agent
-from SRAgent.workflows.convert import create_convert_graph
+from SRAgent.workflows.convert import create_convert_graph, invoke_convert_graph
+from SRAgent.workflows.metadata import create_metadata_graph, invoke_metadata_graph, get_metadata_items
 
 # classes
 class GraphState(TypedDict):
@@ -41,7 +40,6 @@ class GraphState(TypedDict):
     tech_10x: Annotated[List[str], operator.add]
     # organism
     organism: Annotated[List[str], operator.add]
-
 
 
 # functions
@@ -136,13 +134,13 @@ def final_state(state: GraphState) -> Dict[str, Any]:
         "messages": [AIMessage(content=message)]
     }
 
-def create_metadata_workflow(db_add:bool = True):
-    # # metadata subgraph
-    # invoke_metadata_graph_p = partial(
-    #     invoke_metadata_graph,
-    #     graph=create_metadata_graph(db_add=db_add),
-    #     to_return=["messages"]
-    # )
+def create_sragent_graph(db_add:bool = True):
+    # metadata subgraph
+    invoke_metadata_graph_p = partial(
+        invoke_metadata_graph,
+        graph=create_metadata_graph(db_add=db_add),
+        to_return=["messages"]
+    )
 
     #-- graph --#
     workflow = StateGraph(GraphState)
@@ -161,3 +159,21 @@ def create_metadata_workflow(db_add:bool = True):
     # compile the graph
     graph = workflow.compile()
     return graph
+
+# main
+if __name__ == "__main__":
+    from functools import partial
+    from Bio import Entrez
+
+    #-- setup --#
+    from dotenv import load_dotenv
+    load_dotenv()
+    Entrez.email = os.getenv("EMAIL")
+
+    #-- graph --#
+    database = "sra"
+    entrez_id = "25576380"
+    input = {"entrez_id": entrez_id, "database": database}
+    graph = create_sragent_graph()
+    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200}):
+        print(step)
