@@ -30,37 +30,61 @@ pip install -e .
 
 # Usage
 
-## Entrez Agent
+## SRX-info agent
 
-Example accession conversion:
-
-```bash
-SRAgent entrez "Convert GSE121737 to SRX accessions"
-```
-
-Example of obtaining pubmed articles associated with a dataset accession:
-
-```bash
-SRAgent entrez "Obtain any available publications for GSE196830"
-```
-
-## Metadata agent
+Obtain SRX metadata for >=1 SRA or GEO dataset.
 
 > The metadata is stored in the 
 [SRAgent_database](https://docs.google.com/spreadsheets/d/1dkFvBYTX7DQLxLQKjwQxMvo5dx6fijSh4TRCX2xChlA/edit?usp=sharing)
 Google Sheet by default.
 
-Example of querying metadata for an SRA dataset (Entrez ID 36178506):
+#### Examples
+
+A single SRA dataset:
 
 ```bash
-SRAgent metadata 36178506
+SRAgent srx-info 25576380
 ```
 
-Example of querying metadata for a GEO dataset (Entrez ID 200254051):
+Multiple SRA datasets:
 
 ```bash
-SRAgent metadata --database gds 200254051
+SRAgent srx-info 36404865 36106630 32664033
 ```
+
+## SRAgent agent
+
+General tool for working with the SRA database via Entrez tools, SRA BigQuery, fetching NCBI webpages, and other methods.
+
+#### Example of converting a GEO accession to SRX accessions:
+
+```bash
+SRAgent sragent "Convert GSE121737 to SRX accessions"
+```
+
+#### Example of obtaining metadata for a specific SRX accession:
+
+```bash
+SRAgent sragent "Find the number of base pairs per run for SRX25994842"
+```
+
+## Entrez Agent
+
+General agent for working specifically with Entrez tools (esearch, efetch, esummary, elink).
+Usually, the SRAgent agent will be more useful.
+
+#### Example accession conversion:
+
+```bash
+SRAgent entrez "Convert GSE121737 to SRX accessions"
+```
+
+#### Example of obtaining pubmed articles associated with a dataset accession:
+
+```bash
+SRAgent entrez "Obtain any available publications for GSE196830"
+```
+
 
 ## Network proxy
 
