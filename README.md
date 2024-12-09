@@ -65,7 +65,13 @@ SRAgent sragent "Convert GSE121737 to SRX accessions"
 #### Example of obtaining metadata for a specific SRX accession:
 
 ```bash
-SRAgent sragent "Find the number of base pairs per run for SRX25994842"
+SRAgent sragent "Obtain any available publications for GSE196830"
+```
+
+#### Example of obtaining specific metadata fields for a dataset:
+
+```bash
+SRAgent sragent "Which 10X Genomics technology was used for ERX11887200?"
 ```
 
 ## Entrez Agent
