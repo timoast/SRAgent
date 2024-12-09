@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.cli.entrez import entrez_agent_parser, entrez_agent_main
 from SRAgent.cli.sragent import sragent_parser, sragent_main
-#from SRAgent.cli.metadata import metadata_agent_parser, metadata_agent_main
+from SRAgent.cli.SRX_info import SRX_info_agent_parser, SRX_info_agent_main
 
 
 # functions
@@ -41,9 +41,8 @@ def arg_parse(args=None) -> dict:
     entrez_agent_parser(subparsers)
     ## SR agent
     sragent_parser(subparsers)
-    ## Metadata agent
-    #metadata_agent_parser(subparsers)
-    
+    ## SRX info agent
+    SRX_info_agent_parser(subparsers)
     # parsing args
     return parser.parse_args()
 
@@ -58,8 +57,8 @@ def main():
         entrez_agent_main(args)
     elif args.command == "sragent":
         sragent_main(args)
-    #elif args.command == "metadata":
-    #    metadata_agent_main(args)
+    elif args.command.lower() == "srx-info":
+        SRX_info_agent_main(args)
     else:
         print("No command specified. Exiting ...")
         sys.exit(0)

@@ -134,7 +134,7 @@ def final_state(state: GraphState) -> Dict[str, Any]:
         "messages": [AIMessage(content=message)]
     }
 
-def create_sragent_graph(db_add:bool = True):
+def create_SRX_info_graph(db_add:bool = True):
     # metadata subgraph
     invoke_metadata_graph_p = partial(
         invoke_metadata_graph,
@@ -174,6 +174,6 @@ if __name__ == "__main__":
     database = "sra"
     entrez_id = "25576380"
     input = {"entrez_id": entrez_id, "database": database}
-    graph = create_sragent_graph()
+    graph = create_SRX_info_graph()
     for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200}):
         print(step)

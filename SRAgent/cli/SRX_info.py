@@ -6,21 +6,21 @@ import argparse
 from typing import List
 from Bio import Entrez
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.workflows.SRX_info import create_metadata_workflow
-from SRAgent.agents_OLD.utils import create_step_summary_chain
+from SRAgent.workflows.SRX_info import create_SRX_info_graph
+from SRAgent.agents.utils import create_step_summary_chain
 from SRAgent.utils import filter_by_db
 
 # functions
-def metadata_agent_parser(subparsers):
-    help = 'Metadata Agent: Obtain metadata for SRA experiments.'
+def SRX_info_agent_parser(subparsers):
+    help = 'SRX_info Agent: Obtain metadata for SRA experiments.'
     desc = """
     """
     sub_parser = subparsers.add_parser(
-        'metadata', help=help, description=desc, formatter_class=CustomFormatter
+        'srx-info', help=help, description=desc, formatter_class=CustomFormatter
     )
-    sub_parser.set_defaults(func=metadata_agent_main)
+    sub_parser.set_defaults(func=SRX_info_agent_main)
     sub_parser.add_argument('entrez_ids', type=str, nargs='+',
-                            help='>=1 Entrez IDs to query')    
+                            help='>=1 dataset Entrez IDs to query')    
     sub_parser.add_argument('--database', type=str, default='sra',
                             choices=['gds', 'sra'],
                             help='Entrez database origin of the Entrez IDs')
@@ -33,7 +33,7 @@ def metadata_agent_parser(subparsers):
     sub_parser.add_argument('--recursion-limit', type=int, default=200,
                             help='Maximum recursion limit')
 
-def metadata_agent_main(args):
+def SRX_info_agent_main(args):
     """
     Main function for invoking the entrez agent
     """
@@ -49,7 +49,7 @@ def metadata_agent_main(args):
     Entrez.api_key = os.getenv("NCBI_API_KEY")
 
     # create supervisor agent
-    graph = create_metadata_workflow()
+    graph = create_SRX_info_graph()
     step_summary_chain = create_step_summary_chain()
 
     # invoke agent
@@ -62,7 +62,7 @@ def metadata_agent_main(args):
         input = {"entrez_id": entrez_id, "database": args.database}
         # stream invoke graph
         final_state = None
-        for i,step in enumerate(graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200})):
+        for i,step in enumerate(graph.stream(input, config=config)):
             final_state = step
             if args.no_summaries:
                 print(f"Step {i+1}: {step}")
