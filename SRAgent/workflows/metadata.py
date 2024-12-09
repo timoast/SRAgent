@@ -1,107 +1,262 @@
-# import
-## batteries
+# import 
 import os
+import re
 import operator
 from functools import partial
-from typing import Annotated, List, Dict, Any, TypedDict, Sequence
-## 3rd party
-import pandas as pd
+from enum import Enum
+from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, get_args, get_origin
 import gspread
 from gspread_dataframe import set_with_dataframe
-from langgraph.types import Send
+import pandas as pd
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langgraph.graph import START, END, StateGraph
+from pydantic import BaseModel, Field
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langgraph.graph import START, END, StateGraph, MessagesState
 ## package
-from SRAgent.agents.convert import create_convert_graph, invoke_convert_graph
-from SRAgent.agents.metadata import create_metadata_graph, invoke_metadata_graph, get_metadata_items
+from SRAgent.agents.sragent import create_sragent_agent
 
 # classes
+class YesNo(Enum):
+    """
+    Yes, no, or unsure
+    """
+    YES = "yes"
+    NO = "no"
+    UNSURE = "unsure"
+
+class OrganismEnum(Enum):
+    """
+    Organism sequenced
+    """
+    HUMAN = "human"
+    MOUSE = "mouse"
+    RAT = "rat"
+    MONKEY = "monkey"
+    MACAQUE = "macaque"
+    MARMOSET = "marmoset"
+    HORSE = "horse"
+    DOG = "dog"
+    BOVINE = "bovine"
+    CHICKEN = "chicken"
+    SHEEP = "sheep"
+    PIG = "pig"
+    FRUIT_FLY = "fruit_fly"
+    ROUNDWORM = "roundworm"
+    ZEBRAFISH = "zebrafish"
+    METAGENOME = "metagenome"
+    OTHER = "other"
+
+class Tech10XEnum(Enum):
+    THREE_PRIME_GEX = "3_prime_gex"
+    FIVE_PRIME_GEX = "5_prime_gex"
+    ATAC = "atac"
+    MULTIOME = "multiome"
+    FLEX = "flex"
+    VDJ = "vdj"
+    FIXED_RNA = "fixed_rna"
+    CELLPLEX = "cellplex"
+    CNV = "cnv"
+    FEATURE_BARCODING = "feature_barcoding"
+    OTHER = "other"
+
+class MetadataEnum(BaseModel):
+    """
+    Metadata to extract
+    """
+    is_illumina: YesNo
+    is_single_cell: YesNo
+    is_paired_end: YesNo
+    is_10x: YesNo
+    tech_10x: Tech10XEnum
+    organism: OrganismEnum
+
+class ChoicesEnum(Enum):
+    CONTINUE = "Continue"
+    STOP = "Stop"
+
+class Choice(BaseModel):
+    Choice: ChoicesEnum
+
+class SRR(BaseModel):
+    """
+    SRR accessions
+    """
+    SRR: List[str]
+
 class GraphState(TypedDict):
     """
     Shared state of the agents in the graph
     """
-    # messages
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    # database
-    database: str
-    # dataset entrez ID
-    entrez_id: str
-    # accessions
-    SRX: Annotated[List[str], operator.add]
-    # is_illumina
-    is_illumina: Annotated[List[str], operator.add]
-    # is_single_cell
-    is_single_cell: Annotated[List[str], operator.add]
-    # is_paired_end
-    is_paired_end: Annotated[List[str], operator.add]
-    # is_10x
-    is_10x: Annotated[List[str], operator.add]
-    # 10X tech
-    tech_10x: Annotated[List[str], operator.add]
-    # organism
-    organism: Annotated[List[str], operator.add]
-
+    database: Annotated[str, "Database"]
+    entrez_id: Annotated[str, "Entrez ID"]
+    SRX: Annotated[str, "SRX accession to query"]
+    SRR: Annotated[List[str], "SRR accessions for the SRX"]
+    is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
+    is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
+    is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
+    is_10x: Annotated[str, "Is the dataset 10X Genomics data?"]
+    tech_10x: Annotated[str, "Which 10X Genomics technology?"]
+    organism: Annotated[str, "Which organism was sequenced?"]
+    route: Annotated[str, "Route"]
+    rounds: Annotated[int, operator.add]
+    
 
 # functions
-def create_convert_graph_node():
+def get_metadata_items() -> Dict[str, str]:
     """
-    Create a convert graph node
+    Set metadata items based on graph state annotationes
     """
-    graph = create_convert_graph()
-    def invoke_convert_graph_node(state: GraphState) -> Dict[str, Any]:
-        entrez_id = state["entrez_id"]
-        database = state["database"]
-        message = "\n".join([
-            f"Convert Entrez ID {entrez_id} to SRX (or ERX) accessions.",
-            f"The Entrez ID is associated with the {database} database."
+    to_include = ["is_illumina", "is_single_cell", "is_paired_end", "is_10x", "tech_10x", "organism"]
+    metadata_items = {}
+    for key, value in GraphState.__annotations__.items():
+        if key not in to_include or not get_origin(value) is Annotated:
+            continue
+        metadata_items[key] = get_args(value)[1]
+    return metadata_items
+
+def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+    agent = create_sragent_agent()
+    response = agent.invoke({"messages" : state["messages"]})
+    return {"messages" : [response["messages"][-1]]}
+
+def create_get_metadata_node() -> Callable:
+    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+
+    def invoke_get_metadata_node(state: GraphState):
+        """
+        Structured data extraction
+        """
+        # format prompt
+        prompt = "\n".join([
+            "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
+            "If there is not enough information to determine the metadata, please respond with 'unsure'.",
+            "The specific metadata to extract:"] + list(get_metadata_items().values()))
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt),
+            ("system", "\nHere are the last few messages:"),
+            MessagesPlaceholder(variable_name="history"),
         ])
-        input = {"messages": [HumanMessage(message)]}
-        return graph.invoke(input)
-    return invoke_convert_graph_node
+        prompt = prompt.format_messages(history=state["messages"])
 
-def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
-    """
-    Parallel invoke of the metadata graph
-    """
-    # format the prompt for the metadata graph
-    prompt = "\n".join([
-        "For the SRA accession {SRX_accession}, find the following information:",
-        ] + list(get_metadata_items().values())
-    )
-    
-    # submit each accession to the metadata graph
-    ## handle case where no SRX accessions are found
-    if len(state["SRX"]) == 0:
-        add_entrez_id_to_db(state["database"], state["entrez_id"])
-        return []
-        # msg = f"No SRX accessions found in the {state['database']} database for Entrez ID {state['entrez_id']}."
-        # return [Send("end", {
-        #     "messages": [AIMessage(content=msg)]
-        # })]
-    
-    ## submit each SRX accession to the metadata graph
-    responses = []
-    for SRX_accession in state["SRX"]:
-        input = {
-            "database": state["database"],
-            "entrez_id": state["entrez_id"],
-            "SRX": SRX_accession,
-            "messages": [HumanMessage(prompt.format(SRX_accession=SRX_accession))]
+        # call the model
+        response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
+        return {
+            "is_illumina" : response.is_illumina.value,
+            "is_single_cell" : response.is_single_cell.value,
+            "is_paired_end" : response.is_paired_end.value,
+            "is_10x" : response.is_10x.value,
+            "tech_10x" : response.tech_10x.value,
+            "organism" : response.organism.value
         }
-        responses.append(Send("metadata_graph_node", input))
-    return responses
+    
+    return invoke_get_metadata_node
 
-def add_entrez_id_to_db(database: str, entrez_id: str) -> None:
+def create_router_node():
     """
-    Add just the entrez_id to the gsheet database 
-    Args:
-        database: NCBI database name
-        entrez_id: NCBI entrez ID
+    Routing based on percieved completion of metadata extraction
+    """
+    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+
+    def invoke_router_node(state: GraphState):
+        """
+        Router for the graph
+        """
+        # create prompt
+        prompt1 = "\n".join([
+            "You determine whether all of appropriate metadata has been extracted.",
+            "If most or all of the metadata is \"unsure\", then the task is incomplete."
+            ]
+        )
+        prompt2 = "\n".join([
+            "\nThe extracted metadata:",
+            " - Is the study Illumina sequence data?",
+            "    - " + state['is_illumina'],
+            " - Is the study single cell RNA-seq data?",
+            "    - " + state['is_single_cell'],
+            " - Is the study paired-end sequencing data?",
+            "    - " + state['is_paired_end'],
+            " - Is the study 10X Genomics data?",
+            "    - " + state['is_10x'],
+            " - Which 10X Genomics technology was used?",
+            "    - " + state['tech_10x'],
+            " - Which organism was sequenced?",
+            "    - " + state['organism']
+        ])
+
+        prompt = ChatPromptTemplate.from_messages([
+            # First add any static system message if needed
+            ("system", prompt1),
+            ("system", "\nHere are the last few messages:"),
+            MessagesPlaceholder(variable_name="history"),
+            ("system", prompt2),
+            # Add the final instruction
+            ("human", "Based on the information above, select STOP if the task is complete or CONTINUE if more information is needed."),
+        ])
+        formatted_prompt = prompt.format_messages(history=state["messages"])
+        # call the model
+        response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
+        # format the response
+        if response.Choice.value == ChoicesEnum.CONTINUE.value:
+            message = "\n".join([
+                f"At least some of the metadata for {state['SRX']} is still uncertain." 
+                "Please try to provide more information by using a different approach (e.g., different tool calls)."
+            ])
+        else:
+            message = f"Enough of the metadata has been extracted for {state['SRX']}."
+        return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
+    
+    return invoke_router_node
+
+def route_retry_metadata(state: GraphState) -> str:
+    """
+    Determine the route based on the current state of the conversation.
+    """
+    #continue_node = "add2db_node" if db_add else END
+    if state["rounds"] >= 2:
+        return "SRX2SRR_node"
+    return "sragent_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
+
+def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+    # format the message
+    if state["SRX"].startswith("SRX"):
+        message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions."
+    elif state["SRX"].startswith("ERX"):
+        message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions."
+    else:
+        message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRX\" or \"ERR\"."
+    # call the agent
+    agent = create_sragent_agent()
+    response = agent.invoke({"messages" : [HumanMessage(content=message)]})
+    # extract all SRR/ERR accessions in the message
+    regex = re.compile(r"(?:SRR|ERR)\d{4,}")
+    SRR_acc = regex.findall(response["messages"][-1].content)
+    return {"SRR" : list(set(SRR_acc))}
+
+def fmt(x):
+    if type(x) != list:
+        return x
+    return ";".join([str(y) for y in x])
+
+def add2db(state: GraphState):
+    """
+    Add results to the database
     """
     # create dataframe from state
+    SRX = fmt(state["SRX"])
     results = pd.DataFrame([{
-        "database": str(database),
-        "entrez_id": str(entrez_id)
+        "database": state["database"],
+        "entrez_id": state["entrez_id"],
+        "SRX": SRX,
+        "SRR": fmt(state["SRR"]),
+        "is_illumina": state["is_illumina"],
+        "is_single_cell": state["is_single_cell"],
+        "is_paired_end": state["is_paired_end"],
+        "is_10x": state["is_10x"],
+        "tech_10x": state["tech_10x"],
+        "organism": state["organism"]
     }])
     # Authenticate and open the Google Sheet
     db_name = "SRAgent_database"
@@ -113,49 +268,99 @@ def add_entrez_id_to_db(database: str, entrez_id: str) -> None:
     next_row = len(existing_data) + 1
     # Append the data starting from the next row
     set_with_dataframe(worksheet, results, row=next_row, col=1, include_index=False, include_column_header=False)
+    # Return
+    return {"messages": [AIMessage(content=f"{SRX} added to database \"{db_name}\"")]}
 
-def final_state(state: GraphState) -> Dict[str, Any]:
+def final_state(state: GraphState):
     """
-    Return the final state of the graph
+    Final state
     """
-    # filter to messages that 
-    messages = []
-    for msg in state["messages"]:
-        try:
-            msg = [msg.content]
-        except AttributeError:
-            msg = [x.content for x in msg]
-        for x in msg:
-            if x.startswith("# SRX accession: "):
-                messages.append(x)
-    # final message
-    message = "\n".join(messages)
-    return {
-        "messages": [AIMessage(content=message)]
-    }
+    message = "\n".join([
+        "# SRX accession: " + state["SRX"],
+        " - SRR accessions: " + fmt(state["SRR"]),
+        " - Is the study Illumina sequence data? " + state["is_illumina"],
+        " - Is the study single cell RNA-seq data? " + state["is_single_cell"],
+        " - Is the study paired-end sequencing data? " + state["is_paired_end"],
+        " - Is the study 10X Genomics data? " + state["is_10x"],
+        " - Which 10X Genomics technology was used? " + state["tech_10x"],
+        " - Which organism was sequenced? " + state["organism"]
+    ])
+    return {"messages": [AIMessage(content=message)]}
 
-def create_metadata_workflow(db_add:bool = True):
-    # metadata subgraph
-    invoke_metadata_graph_p = partial(
-        invoke_metadata_graph,
-        graph=create_metadata_graph(db_add=db_add),
-        to_return=["messages"]
-    )
-
+def create_metadata_graph(db_add: bool=True):
     #-- graph --#
     workflow = StateGraph(GraphState)
 
     # nodes
-    workflow.add_node("convert_graph_node", create_convert_graph_node())
-    workflow.add_node("metadata_graph_node", invoke_metadata_graph_p)
+    workflow.add_node("sragent_agent_node", invoke_sragent_agent_node)
+    workflow.add_node("get_metadata_node", create_get_metadata_node())
+    workflow.add_node("router_node", create_router_node())
+    workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_sragent_agent_node)
+    if db_add:
+        workflow.add_node("add2db_node", add2db)
     workflow.add_node("final_state_node", final_state)
 
     # edges
-    workflow.add_edge(START, "convert_graph_node")
-    workflow.add_conditional_edges("convert_graph_node", continue_to_metadata, ["metadata_graph_node"])
-    workflow.add_edge("metadata_graph_node", "final_state_node")
-    workflow.add_edge("final_state_node", END)
+    workflow.add_edge(START, "sragent_agent_node")
+    workflow.add_edge("sragent_agent_node", "get_metadata_node")
+    workflow.add_edge("get_metadata_node", "router_node")
+    workflow.add_conditional_edges("router_node", route_retry_metadata)
+    if db_add:
+        workflow.add_edge("SRX2SRR_node", "add2db_node")
+        workflow.add_edge("add2db_node", "final_state_node")
+    else:
+        workflow.add_edge("SRX2SRR_node", "final_state_node")
 
     # compile the graph
     graph = workflow.compile()
     return graph
+
+def invoke_metadata_graph(
+    state: GraphState, 
+    graph: StateGraph,
+    to_return: List[str] = MetadataEnum.__fields__.keys()
+) -> Annotated[dict, "Response from the graph"]:
+    """
+    Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions
+    """
+    response = graph.invoke(state)
+    filtered_response = {key: [response[key]] for key in to_return}
+    return filtered_response
+
+# main
+if __name__ == "__main__":
+    from functools import partial
+    from Bio import Entrez
+
+    #-- setup --#
+    from dotenv import load_dotenv
+    load_dotenv()
+    Entrez.email = os.getenv("EMAIL")
+ 
+    #-- graph --#
+    SRX_accession = "SRX25994842"
+    #SRX_accession = "SRX20554856"
+    #SRX_accession = "SRX25994842"
+    #SRX_accession = "ERX11887200"
+    #SRX_accession = "ERX11157721"
+    prompt = "\n".join([
+        f"For the SRA accession {SRX_accession}, find the following information:",
+        ] + [f" - {x}" for x in list(get_metadata_items().values())]
+    )
+    input = {
+        "SRX": SRX_accession,
+        "database": "sra",
+        "entrez_id": "",
+        "messages": [HumanMessage(content=prompt)],
+    }
+    graph = create_metadata_graph(db_add=False)
+    for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
+        print(step)
+
+    ## invoke with graph object directly provided
+    #invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
+    #print(invoke_metadata_graph(input))
+
+    #-- nodes --#
+    state = {"messages": [HumanMessage(content=prompt)]}
+    #invoke_sragent_agent_node(state)

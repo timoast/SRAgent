@@ -7,7 +7,7 @@ import argparse
 from Bio import Entrez
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.agents.entrez import create_entrez_agent_stream
+from SRAgent.agents_OLD.fetch import create_entrez_agent_stream
 
 # functions
 def entrez_agent_parser(subparsers):

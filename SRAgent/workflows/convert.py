@@ -9,8 +9,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 ## package
-from SRAgent.tools.convert import create_convert_agent
-from SRAgent.agents.entrez import create_entrez_agent
+from SRAgent.agents.sragent import create_sragent_agent
 
 
 # state
@@ -29,7 +28,7 @@ class GraphState(TypedDict):
 # functions
 ## convert agent
 def create_convert_agent_node() -> Callable:
-    convert_agent = create_convert_agent()
+    convert_agent = create_sragent_agent()
     def invoke_convert_agent_node(state: GraphState) -> Dict[str, List[str]]:
         """
         Invoke the Entrez convert agent to obtain SRA accessions
@@ -168,6 +167,8 @@ if __name__ == "__main__":
 
     #-- graph --#
     entrez_id = "34748561"
+    #entrez_id = "30749595"
+    #entrez_id = "307495950000"
     msg = f"Obtain all SRX accessions for the Entrez ID {entrez_id}"
     input = {"messages" : [HumanMessage(content=msg)]}
     graph = create_convert_graph()

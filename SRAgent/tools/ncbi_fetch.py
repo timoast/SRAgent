@@ -4,10 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 from langchain_core.tools import tool
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import HumanMessage, AIMessage
-
 
 # functions
 def _fetch_ncbi_record(
@@ -135,58 +131,11 @@ def fetch_geo_record(
         time.sleep(0.34)
     return "\n\n".join(data)
 
-def create_ncbi_fetch_agent(model_name: str="gpt-4o-mini") -> Callable:
-    """
-    Create an agent that queries the NCBI website 
-    """
-    model = ChatOpenAI(model_name=model_name, temperature=0.0)
-    agent = create_react_agent(
-        model=model,
-        tools=[fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record],
-        state_modifier="\n".join([
-            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-            "You will use tools that directly request data from the NCBI website.",
-            "You can query with both Entrez IDs and accessions.",
-            "Use the following tools:",
-            " - fetch_ncbi_record: fetch NCBI information on SRA and GEO records (SRA and GEO accessions or Entrez IDs).",
-            "   - If no records are found for the provided database, try the other database.",
-            " - fetch_pubmed_record: fetch information on PubMed records (SRA acccessions or Entrez IDs).",
-            " - fetch_geo_record: fetch information on GEO accessions (do not provide Entrez IDs).",
-            "General instructions:",
-            " - Continue calling tools until you have all the information you need.",
-            " - Provide a concise summary of your findings.",
-            " - Use lists when possible.",
-            " - Do not include helpful wording",
-        ])
-    )
-
-    @tool
-    def invoke_ncbi_fetch_agent(
-        message: Annotated[str, "Message to the ncbi-fetch agent"]
-    ) -> Annotated[str, "Response from the ncbi-fetch agent"]:
-        """
-        Invoke the ncbi-fetch agent to query the NCBI website for information 
-        on Entrez IDs, SRA accessions, and GEO accessions.
-        """
-        # Invoke the agent with the message
-        result = agent.invoke({"messages": [HumanMessage(content=message)]})
-        return {
-            "messages": [AIMessage(content=result["messages"][-1].content, name="ncbi-fetch_agent")]
-        }
-    return invoke_ncbi_fetch_agent
-
-
 # main
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
     load_dotenv()
-
-    # test agent
-    invoke_ncbi_fetch_agent = create_ncbi_fetch_agent()
-    #message = "Fetch information for Entrez ID 35447314"
-    #message = "Fetch information for Entrez ID 200277303. The accession is associated with the gds database"
-    #print(invoke_ncbi_fetch_agent.invoke(message))
 
     # test GEO fetch
     input = {"GEO_accessions" : ["GSE110878"]}

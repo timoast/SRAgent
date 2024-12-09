@@ -6,8 +6,8 @@ import argparse
 from typing import List
 from Bio import Entrez
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.workflows.metadata import create_metadata_workflow
-from SRAgent.agents.utils import create_step_summary_chain
+from SRAgent.workflows.convert2metadata import create_metadata_workflow
+from SRAgent.agents_OLD.utils import create_step_summary_chain
 from SRAgent.utils import filter_by_db
 
 # functions

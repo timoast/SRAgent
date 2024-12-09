@@ -27,6 +27,7 @@ pip install .
 pip install -e .
 ```
 
+
 # Usage
 
 ## Entrez Agent
@@ -60,6 +61,58 @@ Example of querying metadata for a GEO dataset (Entrez ID 200254051):
 ```bash
 SRAgent metadata --database gds 200254051
 ```
+
+## Network proxy
+
+Install via (assuming `${HOME}/bin` is in your path):
+
+```
+curl -o ${HOME}/bin/cloud-sql-proxy \
+  https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
+  && chmod u+x ${HOME}/bin/cloud-sql-proxy
+```
+
+Run via:
+
+```
+SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
+cloud-sql-proxy c-tc-429521:us-west1:sragent-test \
+  --unix-socket ${HOME}/cloudsql \
+  --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
+```
+
+# CRON Jobs
+
+```bash
+./cron/find-datasets.py --database sra
+```
+
+# Evals
+
+* Select eval dataset 
+  * Google sheet tab
+* Run eval
+  * `./scripts/eval.py --experiment test_exp --eval-sheet SRAgent_evals --truth-sheet SRAgent_database --truth-tab ground_truth metadata`
+* Write to eval Google sheet
+
+# Workflows
+
+* Obtain studes
+  * esearch
+* Convert to SRX
+  * entrez
+  * ncbi-fetch
+  * sra-bigquery
+* Get SRX metadata
+  * entrez
+  * ncbi-fetch
+  * sra-bigquery
+  * seq
+* Get SRR accessions per SRX
+  * entrez
+  * ncbi-fetch
+  * sra-bigquery
+
 
 # About
 
@@ -152,3 +205,7 @@ Multi-stage workflow for processing sequencing datasets:
 * Handles both SRA and GEO database records
 * Supports batched processing of large datasets
 
+
+# resources
+
+* https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud-based-metadata-table/

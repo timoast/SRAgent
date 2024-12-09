@@ -13,7 +13,7 @@ import pandas as pd
 from Bio import Entrez
 from SRAgent.tools.esearch import esearch_batch
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.workflows.metadata import create_metadata_workflow
+from SRAgent.workflows.convert2metadata import create_metadata_workflow
 from SRAgent.utils import filter_by_db
 
 
@@ -26,11 +26,11 @@ ORGANISMS = {
     'macaque': 'Macaca mulatta',
     'marmoset': 'Callithrix jacchus',
     'horse': 'Equus caballus',
-    'dog': 'Canis lupus familiaris',
+    'dog': 'Canis lupus',
     'bovine': 'Bos taurus',
-    'chicken': 'Gallus gallus domesticus',
+    'chicken': 'Gallus gallus',
     'sheep': 'Ovis aries',
-    'pig': 'Sus scrofa domesticus',
+    'pig': 'Sus scrofa',
     'fruit_fly': 'Drosophila melanogaster',
     'roundworm': 'Caenorhabditis elegans',
     'zebrafish': 'Danio rerio'
@@ -151,6 +151,7 @@ def main(args):
             print(f"Step {i+1}: {step}")
         # print final state
         if final_state:
+            print("")
             try:
                 print(final_state["final_state_node"]["messages"][-1].content)
             except KeyError:
