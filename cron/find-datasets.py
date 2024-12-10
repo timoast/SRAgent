@@ -13,7 +13,8 @@ from SRAgent.workflows.SRX_info import create_SRX_info_graph
 from SRAgent.record_db import db_connect, db_get_processed_records
 
 
-# variable
+# global variables
+## organism names
 ORGANISMS = {
     'human': 'Homo sapiens',
     'mouse': 'Mus musculus',
@@ -31,7 +32,7 @@ ORGANISMS = {
     'roundworm': 'Caenorhabditis elegans',
     'zebrafish': 'Danio rerio'
 }
-# 7 days ago
+## default time span limits
 MAX_DATE = datetime.now()
 MIN_DATE = datetime.now() - timedelta(days=5 * 365) 
 
@@ -66,7 +67,7 @@ to the Metadata Agent Workflow.
                         help='Email address for Entrez')
     parser.add_argument('--max-concurrency', type=int, default=3, 
                         help='Maximum number of concurrent processes')
-    parser.add_argument('--recursion-limit', type=int, default=200,
+    parser.add_argument('--recursion-limit', type=int, default=100,
                         help='Maximum recursion limit')
     return parser.parse_args()
 
@@ -105,10 +106,7 @@ def esearch(
     if organisms:
         esearch_query += f" AND ({organisms})"
 
-    # add sequencer
-    #esearch_query += ' AND ("Illumina" OR "HiSeq" OR "NovaSeq" OR "NextSeq")'
-
-    # limit to study
+    # other filters
     esearch_query += ' AND "transcriptomic single cell"[Source]'
     esearch_query += ' AND "public"[Access]'
     esearch_query += ' AND "has data"[Properties]'

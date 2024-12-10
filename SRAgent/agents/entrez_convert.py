@@ -17,7 +17,7 @@ from SRAgent.tools.ncbi_fetch import fetch_geo_record, fetch_ncbi_record
 
 # functions
 def create_entrez_convert_agent(
-    model_name="gpt-4o",
+    model_name: str="gpt-4o",
     return_tool: bool=True,
 ) -> Callable:
     # create model
