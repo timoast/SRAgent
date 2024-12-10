@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Tuple, Optional
 ## 3rd party
 import psycopg2
 import pandas as pd
-from pypika import Query, Table, Field, Column
+from pypika import Query, Table, Field, Column, Criterion
 from psycopg2.extras import execute_values
 from psycopg2.extensions import connection
 
@@ -75,7 +75,7 @@ def execute_query(stmt, conn: connection) -> Optional[List[Tuple]]:
     except psycopg2.errors.DuplicateTable as e:
         print(f"Table already exists: {e}")
 
-def db_get_processed_records(conn: connection, column: str="entrez_id", database: str="sra") -> List[int]:
+def db_get_srx_records(conn: connection, column: str="entrez_id", database: str="sra") -> List[int]:
     """
     Get the entrez_id values of all SRX records that have not been processed.
     Args:
@@ -90,11 +90,46 @@ def db_get_processed_records(conn: connection, column: str="entrez_id", database
         .from_(srx_metadata) \
         .select(target_column) \
         .distinct() \
-        .where((srx_metadata.processed != "complete") | (srx_metadata.processed.isnull())) \
         .where(srx_metadata.database == database)
         
     # Fetch the results and return a list of {target_column} values
     return [row[0] for row in execute_query(stmt, conn)]
+
+def db_get_unprocessed_records(conn: connection, database: str="sra") -> pd.DataFrame:
+    """
+    Get all suitable unprocessed SRX records
+    Args:
+        conn: Connection to the database.
+        database: Name of the database to query.
+    Returns:
+        Table of unprocessed SRX records.
+    """
+    srx_metadata = Table("srx_metadata")
+    srx_srr = Table("srx_srr")
+
+    stmt = Query \
+        .from_(srx_metadata) \
+        .inner_join(srx_srr) \
+        .on(srx_metadata.srx_accession == srx_srr.srx_accession) \
+        .where(Criterion.all([
+            (srx_metadata.processed != "complete") | (srx_metadata.processed.isnull()),
+            srx_metadata.database == database,
+            srx_metadata.is_illumina == "yes",
+            srx_metadata.is_single_cell == "yes",
+            srx_metadata.is_paired_end == "yes",
+            srx_metadata.is_10x.isin(["yes", "unsure"])
+        ])) \
+        .select(
+            srx_metadata.srx_accession.as_("Sample"),
+            srx_srr.srr_accession.as_("Accession"),
+            srx_metadata.entrez_id.as_("Entrez_ID"),
+            srx_metadata.tech_10x.as_("Lib_prep_method"),
+            srx_metadata.organism.as_("Organism")
+        )
+        
+    # fetch as pandas dataframe
+    return pd.read_sql(str(stmt), conn)
+    
 
 def db_add(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
     """
@@ -134,13 +169,14 @@ if __name__ == '__main__':
     load_dotenv()
 
     # glimpse tables
-    with db_connect() as conn:
-        db_glimpse_tables(conn)
-    exit();
+    #with db_connect() as conn:
+    #    db_glimpse_tables(conn)
 
     # get processed entrez ids
-    # with db_connect() as conn:
-    #     print(db_get_processed_records(conn, "srx_accession"))
+    with db_connect() as conn:
+        #print(db_get_srx_records(conn, "srx_accession"))
+        print(db_get_unprocessed_records(conn))
+    exit();
 
     data = [{
         "database": "sra",
