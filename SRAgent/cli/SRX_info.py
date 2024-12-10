@@ -8,7 +8,8 @@ from Bio import Entrez
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.workflows.SRX_info import create_SRX_info_graph
 from SRAgent.agents.utils import create_step_summary_chain
-from SRAgent.utils import filter_by_db
+from SRAgent.record_db import db_connect, db_get_processed_records
+#from SRAgent.utils import filter_by_db
 
 # functions
 def SRX_info_agent_parser(subparsers):
@@ -39,7 +40,10 @@ def SRX_info_agent_main(args):
     """
     # filter entrez_ids
     if not args.no_filter:
-        args.entrez_ids = filter_by_db(args.entrez_ids)
+        existing_ids = set()
+        with db_connect() as conn:
+            existing_ids = set(db_get_processed_records(conn))
+        args.entrez_ids = [x for x in args.entrez_ids if x not in existing_ids]
         if len(args.entrez_ids) == 0:
             print("All Entrez IDs are already in the metadata database.", file=sys.stderr)
             return 0

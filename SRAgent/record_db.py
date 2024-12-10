@@ -93,7 +93,7 @@ def db_get_processed_records(conn: connection, column: str="entrez_id", database
         .where((srx_metadata.processed != "complete") | (srx_metadata.processed.isnull())) \
         .where(srx_metadata.database == database)
         
-    # Fetch the results and return a list of entrez_id values
+    # Fetch the results and return a list of {target_column} values
     return [row[0] for row in execute_query(stmt, conn)]
 
 def db_add(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
@@ -134,8 +134,9 @@ if __name__ == '__main__':
     load_dotenv()
 
     # glimpse tables
-    #with db_connect() as conn:
-    #    db_glimpse_tables(conn)
+    with db_connect() as conn:
+        db_glimpse_tables(conn)
+    exit();
 
     # get processed entrez ids
     # with db_connect() as conn:

@@ -19,18 +19,17 @@ dependencies = [
     "langchain==0.3.7",
     "langchainhub==0.1.21",
     "langchain_community==0.3.5",
-    "openai==1.54.3",
+    "openai==1.57.2",
     "langchain_openai==0.2.6",
     "langgraph==0.2.45",
     "biopython==1.84",
     "xmltodict==0.14.2",
-    "gspread==6.1.4",
-    "gspread-dataframe==4.0.0",
     "beautifulsoup4==4.12.3",
     "google-cloud-bigquery==3.27.0",
     "google-cloud-bigquery-storage==2.27.0",
     "db-dtypes==1.3.1",
-    "pypika==0.48.9"
+    "pypika==0.48.9",
+    "psycopg2-binary==2.9.10"
 ]
 
 [project.scripts]

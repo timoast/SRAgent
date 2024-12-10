@@ -6,8 +6,8 @@ from functools import partial
 from typing import Annotated, List, Dict, Any, TypedDict, Sequence
 ## 3rd party
 import pandas as pd
-import gspread
-from gspread_dataframe import set_with_dataframe
+#import gspread
+#from gspread_dataframe import set_with_dataframe
 from langgraph.types import Send
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import START, END, StateGraph
@@ -167,8 +167,8 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    #input = {"entrez_id": 25576380, "database": "sra"}
     input = {"entrez_id": 36106630, "database": "sra"}
+    #input = {"entrez_id": 25576380, "database": "sra"}
     graph = create_SRX_info_graph()
     for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 100}):
         print(step)

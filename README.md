@@ -4,7 +4,23 @@ SRAgent
 LLM agents for working with the SRA and associated bioinformatics databases.
 
 
-# Install 
+# Install
+
+Create a conda environment [optional]: 
+
+```bash
+mamba create -n sragent-env -y python=3.12 \
+  && conda activate sragent-env
+```
+
+Clone the repository:
+
+```bash
+git clone git@github.com:ArcInstitute/SRAgent.git \
+  && cd SRAgent
+```
+
+Install the package:
     
 ```bash
 pip install .
@@ -15,7 +31,7 @@ pip install .
 * `OPENAI_API_KEY` = API key for using the OpenAI API
   * **required**
 * `EMAIL` = email for using the Entrez API
-  * optional, but HIGHLY recommended
+  * optional, but **HIGHLY** recommended
 * `NCBI_API_KEY` = API key for using the Entrez API
   * optional, increases rate limits
 
@@ -26,7 +42,6 @@ pip install .
 ```bash
 pip install -e .
 ```
-
 
 # Usage
 
@@ -97,16 +112,18 @@ SRAgent entrez "Obtain any available publications for GSE196830"
 Install via (assuming `${HOME}/bin` is in your path):
 
 ```bash
-curl -o ${HOME}/bin/cloud-sql-proxy \
-  https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
-  && chmod u+x ${HOME}/bin/cloud-sql-proxy
+mkdir -p ${HOME}/bin/ \
+  && curl -o ${HOME}/bin/cloud-sql-proxy \
+    https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
+  && chmod u+x ${HOME}/bin/cloud-sql-proxy \
+  && mkdir -p ${HOME}/cloudsql
 ```
 
 Run via:
 
 ```bash
 SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
-PROXY_NAME="c-tc-429521:us-west1:sragent-test"
+PROXY_NAME="c-tc-429521:us-east1:sragent"
 rm -rf ${HOME}/cloudsql/${PROXY_NAME}
 cloud-sql-proxy ${PROXY_NAME} \
   --unix-socket ${HOME}/cloudsql \

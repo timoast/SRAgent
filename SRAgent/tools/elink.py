@@ -47,7 +47,6 @@ def elink(
         id_str = ",".join(id_batch)
         
         for i in range(ntries):
-            print(f"Attempt {i+1} for IDs: {id_str}");
             try:
                 handle = Entrez.elink(
                     id=id_str,
