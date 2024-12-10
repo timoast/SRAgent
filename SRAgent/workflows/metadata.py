@@ -18,17 +18,13 @@ from SRAgent.record_db import db_connect, db_add
 
 # classes
 class YesNo(Enum):
-    """
-    Yes, no, or unsure
-    """
+    """Choices: yes, no, or unsure"""
     YES = "yes"
     NO = "no"
     UNSURE = "unsure"
 
 class OrganismEnum(Enum):
-    """
-    Organism sequenced
-    """
+    """Organism sequenced"""
     HUMAN = "human"
     MOUSE = "mouse"
     RAT = "rat"
@@ -48,6 +44,7 @@ class OrganismEnum(Enum):
     OTHER = "other"
 
 class Tech10XEnum(Enum):
+    """10X Genomics library preparation technology"""
     THREE_PRIME_GEX = "3_prime_gex"
     FIVE_PRIME_GEX = "5_prime_gex"
     ATAC = "atac"
@@ -61,9 +58,7 @@ class Tech10XEnum(Enum):
     OTHER = "other"
 
 class MetadataEnum(BaseModel):
-    """
-    Metadata to extract
-    """
+    """Metadata to extract"""
     is_illumina: YesNo
     is_single_cell: YesNo
     is_paired_end: YesNo
@@ -72,22 +67,20 @@ class MetadataEnum(BaseModel):
     organism: OrganismEnum
 
 class ChoicesEnum(Enum):
+    """Choices for the router"""
     CONTINUE = "Continue"
     STOP = "Stop"
 
 class Choice(BaseModel):
+    """Choice to continue or stop"""
     Choice: ChoicesEnum
 
 class SRR(BaseModel):
-    """
-    SRR accessions
-    """
+    """SRR accessions"""
     SRR: List[str]
 
 class GraphState(TypedDict):
-    """
-    Shared state of the agents in the graph
-    """
+    """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
@@ -106,7 +99,9 @@ class GraphState(TypedDict):
 # functions
 def get_metadata_items() -> Dict[str, str]:
     """
-    Set metadata items based on graph state annotationes
+    Set metadata items based on graph state annotations
+    Return:
+        A dictionary of metadata items
     """
     to_include = ["is_illumina", "is_single_cell", "is_paired_end", "is_10x", "tech_10x", "organism"]
     metadata_items = {}
@@ -117,17 +112,17 @@ def get_metadata_items() -> Dict[str, str]:
     return metadata_items
 
 def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+    """Invoke the SRAgent to get the initial messages"""
     agent = create_sragent_agent()
     response = agent.invoke({"messages" : state["messages"]})
     return {"messages" : [response["messages"][-1]]}
 
 def create_get_metadata_node() -> Callable:
+    """Create a node to extract metadata"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
     def invoke_get_metadata_node(state: GraphState):
-        """
-        Structured data extraction
-        """
+        """Structured data extraction"""
         # format prompt
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
@@ -154,9 +149,7 @@ def create_get_metadata_node() -> Callable:
     return invoke_get_metadata_node
 
 def create_router_node():
-    """
-    Routing based on percieved completion of metadata extraction
-    """
+    """Routing based on percieved completion of metadata extraction"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
     def invoke_router_node(state: GraphState):
@@ -210,15 +203,14 @@ def create_router_node():
     return invoke_router_node
 
 def route_retry_metadata(state: GraphState) -> str:
-    """
-    Determine the route based on the current state of the conversation.
-    """
+    """Determine the route based on the current state of the conversation."""
     #continue_node = "add2db_node" if db_add else END
     if state["rounds"] >= 2:
         return "SRX2SRR_node"
     return "sragent_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
 
 def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+    """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
     # format the message
     if state["SRX"].startswith("SRX"):
         message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions."
@@ -235,9 +227,7 @@ def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     return {"SRR" : list(set(SRR_acc))}
 
 def add2db(state: GraphState):
-    """
-    Add results to the database
-    """
+    """Add results to the records database"""
     # upload SRX metadata to the database
     data = [{
         "database": state["database"],
@@ -270,7 +260,7 @@ def fmt(x: Union[str, List[str]]) -> str:
     return ";".join([str(y) for y in x])
 
 def final_state(state: GraphState):
-    """Final state"""
+    """Provide the final state"""
     message = "\n".join([
         "# SRX accession: " + state["SRX"],
         " - SRR accessions: " + fmt(state["SRR"]),
@@ -283,7 +273,14 @@ def final_state(state: GraphState):
     ])
     return {"messages": [AIMessage(content=message)]}
 
-def create_metadata_graph(db_add: bool=True):
+def create_metadata_graph(db_add: bool=True) -> StateGraph:
+    """
+    Create a graph to extract metadata from an SRX accession
+    Args:
+        db_add: Add the results to the records database
+    Return:
+        A langgraph state graph object
+    """
     #-- graph --#
     workflow = StateGraph(GraphState)
 
@@ -308,8 +305,7 @@ def create_metadata_graph(db_add: bool=True):
         workflow.add_edge("SRX2SRR_node", "final_state_node")
 
     # compile the graph
-    graph = workflow.compile()
-    return graph
+    return workflow.compile()
 
 def invoke_metadata_graph(
     state: GraphState, 
@@ -317,7 +313,13 @@ def invoke_metadata_graph(
     to_return: List[str] = MetadataEnum.__fields__.keys()
 ) -> Annotated[dict, "Response from the graph"]:
     """
-    Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions
+    Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions.
+    Args:
+        state: The graph state
+        graph: The graph object
+        to_return: The metadata items to return
+    Return:
+        A dictionary of the metadata items
     """
     response = graph.invoke(state)
     filtered_response = {key: [response[key]] for key in to_return}
