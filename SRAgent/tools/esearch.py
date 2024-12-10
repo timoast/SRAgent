@@ -3,16 +3,16 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-from typing import Annotated, List, Dict
+from typing import Annotated, List, Dict, Optional
 from Bio import Entrez
 from langchain_core.tools import tool
 
 # functions
-def esearch_batch(esearch_query, database, max_ids):
+def esearch_batch(esearch_query: str, database: str, max_ids: Optional[int], verbose: bool=False) -> List[str]:
     # query
     ids = []
     retstart = 0
-    retmax = 50
+    retmax = 10000
     while True:
         try:
             # search
@@ -28,6 +28,8 @@ def esearch_batch(esearch_query, database, max_ids):
             ids.extend(search_results.get("IdList", []))
             retstart += retmax
             time.sleep(0.34)
+            if verbose:
+                print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
             if max_ids and len(ids) >= max_ids:
                 break
             if retstart >= int(search_results['Count']):
@@ -35,6 +37,9 @@ def esearch_batch(esearch_query, database, max_ids):
         except Exception as e:
             print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
             break 
+        
+    # just unique IDs
+    ids = list(set(ids))
         
     # return IDs
     if max_ids:

@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 # import
 import os
-import io
-import csv
-import sys
 import argparse
-from time import sleep
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Tuple, Annotated
 from dotenv import load_dotenv
@@ -13,8 +9,8 @@ import pandas as pd
 from Bio import Entrez
 from SRAgent.tools.esearch import esearch_batch
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.workflows.convert2metadata import create_metadata_workflow
-from SRAgent.utils import filter_by_db
+from SRAgent.workflows.SRX_info import create_SRX_info_graph
+from SRAgent.record_db import db_connect, db_get_processed_entrez_ids
 
 
 # variable
@@ -37,7 +33,7 @@ ORGANISMS = {
 }
 # 7 days ago
 MAX_DATE = datetime.now()
-MIN_DATE = datetime.now() - timedelta(days=7)
+MIN_DATE = datetime.now() - timedelta(days=5 * 365) 
 
 # argparse
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
@@ -89,6 +85,7 @@ def esearch(
     organisms: Annotated[List[str], "List of organisms to search."],
     min_date: Annotated[str, "Minimum date to search back."],
     max_date: Annotated[str, "Maximum date to search back."],
+    to_exclude: Annotated[List[str], "Entrez IDs to exclude."] = [],
     )-> Annotated[List[str], "Entrez IDs of database records"]:
     """
     Perform esearch to find database records.
@@ -108,14 +105,40 @@ def esearch(
     if organisms:
         esearch_query += f" AND ({organisms})"
 
-    # combine query
-    print(f"Query: {esearch_query}")
+    # add sequencer
+    #esearch_query += ' AND ("Illumina" OR "HiSeq" OR "NovaSeq" OR "NextSeq")'
+
+    # limit to study
+    esearch_query += ' AND "transcriptomic single cell"[Source]'
+    esearch_query += ' AND "public"[Access]'
+    esearch_query += ' AND "has data"[Properties]'
+    esearch_query += ' AND "library layout paired"[Filter]'
+    esearch_query += ' AND "platform illumina"[Filter]'
+    esearch_query += ' AND "sra bioproject"[Filter]'
+    #esearch_query += ' AND "study"'
+
+    # add exclusions
+    exclusions = " OR ".join([f"{x}[UID]" for x in to_exclude])
+    if exclusions:
+        esearch_query += f" NOT ({exclusions})"
 
     # debug model
     max_ids = 3 if os.getenv("DEBUG_MODE") == "true" else None
 
-    # return entrez IDs 
-    return esearch_batch(esearch_query, database, max_ids)
+    # return entrez IDs
+    return esearch_batch(esearch_query, database, max_ids, verbose=True)
+
+def filter_existing_entrez_ids(entrez_ids: List[str]) -> List[str]:
+    """
+    Filter entrez IDs by checking if they are already in the database.
+    """
+    # get exclusions
+    conn = db_connect()
+    existing_entrez_ids = set(db_get_processed_entrez_ids(conn, database=args.database))
+    conn.close()
+
+    # filter
+    return [x for x in entrez_ids if x not in existing_entrez_ids]
 
 def main(args):
     # set email
@@ -125,16 +148,22 @@ def main(args):
     if 'NCBI_API_KEY' in os.environ:
         Entrez.api_key = os.environ['NCBI_API_KEY']
 
-    # get entrez IDs
-    entrez_ids = esearch(args.query_terms, args.database, args.organisms, args.min_date, args.max_date)
-    print(f"No. of entrez IDs (raw): {len(entrez_ids)}")
+    # get entrez IDs for novel datasets
+    entrez_ids = esearch(
+        args.query_terms, 
+        args.database, 
+        args.organisms, 
+        args.min_date, 
+        args.max_date,
+    )
+    print(f"No. of entrez IDs (all): {len(entrez_ids)}")
 
     # filter 
-    entrez_ids = filter_by_db(entrez_ids)
-    print(f"No. of entrez IDs (filtered): {len(entrez_ids)}")
-
+    entrez_ids = filter_existing_entrez_ids(entrez_ids)
+    print(f"No. of entrez IDs (novel): {len(entrez_ids)}")
+    
     # create supervisor agent
-    graph = create_metadata_workflow()
+    graph = create_SRX_info_graph()
 
     # invoke agent
     config = {
@@ -146,7 +175,7 @@ def main(args):
         input = {"entrez_id": entrez_id, "database": args.database}
         # stream invoke graph
         final_state = None
-        for i,step in enumerate(graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200})):
+        for i,step in enumerate(graph.stream(input, config=config)):
             final_state = step
             print(f"Step {i+1}: {step}")
         # print final state
