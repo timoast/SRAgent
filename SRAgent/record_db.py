@@ -14,7 +14,8 @@ from psycopg2.extensions import connection
 warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy connectable")
 
 # functions
-def db_connect():
+def db_connect() -> connection:
+    """Connect to the sql database"""
     host = os.path.join(os.path.expanduser("~"), "cloudsql", os.environ["GCP_SQL_DB_HOST"])
     db_params = {
         'host': host,
@@ -26,7 +27,14 @@ def db_connect():
     }
     return psycopg2.connect(**db_params)
 
-def db_list_tables(conn):
+def db_list_tables(conn: connection) -> List[Tuple[str]]:
+    """
+    List all tables in the public schema of the database.
+    Args:
+        conn: Connection to the database.
+    Returns:
+        List of table names in the public schema.
+    """
     tables = Table('tables', schema='information_schema')
     query = Query.from_(tables).select('table_name').where(tables.table_schema == 'public')
     with conn.cursor() as cur:
@@ -34,14 +42,27 @@ def db_list_tables(conn):
         tables = cur.fetchall()
         return tables
 
-def db_glimpse_tables(conn):
+def db_glimpse_tables(conn: connection) -> None:
+    """
+    Print the first 5 rows of each table in the database.
+    Args:
+        conn: Connection to the database.
+    """
     for table in db_list_tables(conn):
         table_name = table[0]
         print(f"#-- Table: {table[0]} --#")
         df = pd.read_sql(f"SELECT * FROM {table_name} LIMIT 5", conn)
         print(df)
 
-def execute_query(stmt, conn):
+def execute_query(stmt, conn: connection) -> Optional[List[Tuple]]:
+    """
+    Execute a query and return the results, if any.
+    Args:
+        stmt: Query to execute.
+        conn: Connection to the database.
+    Returns:
+        Results of the query, if any.
+    """
     try:
         with conn.cursor() as cur:
             cur.execute(str(stmt))
@@ -55,6 +76,14 @@ def execute_query(stmt, conn):
         print(f"Table already exists: {e}")
 
 def db_get_processed_entrez_ids(conn: connection, database: str='sra') -> List[int]:
+    """
+    Get the entrez_id values of all SRX records that have not been processed.
+    Args:
+        conn: Connection to the database.
+        database: Name of the database to query.
+    Returns:
+        List of entrez_id values of SRX records that have not been processed.
+    """
     # SRX_SRR
     srx_metadata = Table("srx_metadata")
     stmt = Query \
@@ -66,17 +95,6 @@ def db_get_processed_entrez_ids(conn: connection, database: str='sra') -> List[i
         
     # Fetch the results and return a list of entrez_id values
     return [row[0] for row in execute_query(stmt, conn)]
-
-def db_add_srx_metadata_OLD(data: Dict[str,Any], conn: connection) -> None:
-    srx_metadata = Table("srx_metadata")
-    q = Query.into(srx_metadata) \
-        .columns(list(data.keys())) \
-        .insert(list(data.values()))
-    try:
-        execute_query(q, conn)
-    except psycopg2.errors.UniqueViolation:
-        pass
-
 
 def db_add(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
     """
