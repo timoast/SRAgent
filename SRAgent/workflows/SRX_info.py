@@ -14,6 +14,7 @@ from langgraph.graph import START, END, StateGraph
 ## package
 from SRAgent.workflows.convert import create_convert_graph, invoke_convert_graph
 from SRAgent.workflows.metadata import create_metadata_graph, invoke_metadata_graph, get_metadata_items
+from SRAgent.record_db import db_connect, db_add, db_get_processed_records
 
 # classes
 class GraphState(TypedDict):
@@ -62,6 +63,8 @@ def create_convert_graph_node():
 def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
     """
     Parallel invoke of the metadata graph
+    Return:
+        List of metadata graph outputs
     """
     # format the prompt for the metadata graph
     prompt = "\n".join([
@@ -69,19 +72,21 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
         ] + list(get_metadata_items().values())
     )
     
-    # submit each accession to the metadata graph
+    # submit each accession to the metadata graph    
+    ## filter out existing SRX accessions
+    SRX_filt = []
+    with db_connect() as conn:
+        existing_srx = set(db_get_processed_records(conn, column="srx_accession", database=state["database"]))
+        SRX_filt = [x for x in state["SRX"] if x not in existing_srx]
+
     ## handle case where no SRX accessions are found
-    if len(state["SRX"]) == 0:
-        add_entrez_id_to_db(state["database"], state["entrez_id"])
+    if len(SRX_filt) == 0:
+        add_entrez_id_to_db(state["entrez_id"], state["database"])
         return []
-        # msg = f"No SRX accessions found in the {state['database']} database for Entrez ID {state['entrez_id']}."
-        # return [Send("end", {
-        #     "messages": [AIMessage(content=msg)]
-        # })]
-    
+
     ## submit each SRX accession to the metadata graph
     responses = []
-    for SRX_accession in state["SRX"]:
+    for SRX_accession in SRX_filt:
         input = {
             "database": state["database"],
             "entrez_id": state["entrez_id"],
@@ -91,28 +96,19 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
         responses.append(Send("metadata_graph_node", input))
     return responses
 
-def add_entrez_id_to_db(database: str, entrez_id: str) -> None:
+def add_entrez_id_to_db(entrez_id: int, database: str) -> None:
     """
-    Add just the entrez_id to the gsheet database 
+    Add the entrez ID to the record database.
     Args:
-        database: NCBI database name
-        entrez_id: NCBI entrez ID
+        entrez_id: Entrez ID to add
+        database: Entrez database (e.g., sra or gds)
     """
-    # create dataframe from state
-    results = pd.DataFrame([{
-        "database": str(database),
-        "entrez_id": str(entrez_id)
-    }])
-    # Authenticate and open the Google Sheet
-    db_name = "SRAgent_database"
-    gc = gspread.service_account(filename=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-    sheet = gc.open(db_name)
-    worksheet = sheet.worksheet("database")
-    # Read existing data to find where to append
-    existing_data = pd.DataFrame(worksheet.get_all_values())
-    next_row = len(existing_data) + 1
-    # Append the data starting from the next row
-    set_with_dataframe(worksheet, results, row=next_row, col=1, include_index=False, include_column_header=False)
+    data = [{
+        "database": database,
+        "entrez_id": entrez_id,
+    }]
+    with db_connect() as conn:
+        db_add(data, "srx_metadata", conn)
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """
@@ -171,11 +167,10 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    database = "sra"
-    entrez_id = "25576380"
-    input = {"entrez_id": entrez_id, "database": database}
+    #input = {"entrez_id": 25576380, "database": "sra"}
+    input = {"entrez_id": 36106630, "database": "sra"}
     graph = create_SRX_info_graph()
-    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200}):
+    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 100}):
         print(step)
 
     # save the graph

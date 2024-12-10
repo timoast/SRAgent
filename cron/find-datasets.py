@@ -10,7 +10,7 @@ from Bio import Entrez
 from SRAgent.tools.esearch import esearch_batch
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.workflows.SRX_info import create_SRX_info_graph
-from SRAgent.record_db import db_connect, db_get_processed_entrez_ids
+from SRAgent.record_db import db_connect, db_get_processed_records
 
 
 # variable
@@ -133,9 +133,11 @@ def filter_existing_entrez_ids(entrez_ids: List[str]) -> List[str]:
     Filter entrez IDs by checking if they are already in the database.
     """
     # get exclusions
-    conn = db_connect()
-    existing_entrez_ids = set(db_get_processed_entrez_ids(conn, database=args.database))
-    conn.close()
+    existing_entrez_ids = set()
+    with db_connect() as conn:
+        existing_entrez_ids = set(
+            db_get_processed_records(conn, column="entrez_id", database=args.database)
+        )
 
     # filter
     return [x for x in entrez_ids if x not in existing_entrez_ids]

@@ -75,7 +75,7 @@ def execute_query(stmt, conn: connection) -> Optional[List[Tuple]]:
     except psycopg2.errors.DuplicateTable as e:
         print(f"Table already exists: {e}")
 
-def db_get_processed_entrez_ids(conn: connection, database: str='sra') -> List[int]:
+def db_get_processed_records(conn: connection, column: str="entrez_id", database: str="sra") -> List[int]:
     """
     Get the entrez_id values of all SRX records that have not been processed.
     Args:
@@ -84,11 +84,11 @@ def db_get_processed_entrez_ids(conn: connection, database: str='sra') -> List[i
     Returns:
         List of entrez_id values of SRX records that have not been processed.
     """
-    # SRX_SRR
     srx_metadata = Table("srx_metadata")
+    target_column = getattr(srx_metadata, column)
     stmt = Query \
         .from_(srx_metadata) \
-        .select(srx_metadata.entrez_id) \
+        .select(target_column) \
         .distinct() \
         .where((srx_metadata.processed != "complete") | (srx_metadata.processed.isnull())) \
         .where(srx_metadata.database == database)
@@ -138,8 +138,8 @@ if __name__ == '__main__':
     #    db_glimpse_tables(conn)
 
     # get processed entrez ids
-    #with db_connect() as conn:
-    #    print(db_get_processed_entrez_ids(conn))
+    # with db_connect() as conn:
+    #     print(db_get_processed_records(conn, "srx_accession"))
 
     data = [{
         "database": "sra",

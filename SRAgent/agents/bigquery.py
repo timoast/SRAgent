@@ -9,6 +9,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
 from SRAgent.tools.bigquery import create_get_study_experiment_run, create_get_study_metadata, create_get_experiment_metadata, create_get_run_metadata
+from SRAgent.agents.entrez_convert import create_entrez_convert_agent
 
 # functions
 def create_bigquery_agent(model_name="gpt-4o") -> Callable:
@@ -23,7 +24,8 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
         create_get_study_experiment_run(client),
         create_get_study_metadata(client),
         create_get_experiment_metadata(client),
-        create_get_run_metadata(client)
+        create_get_run_metadata(client),
+        create_entrez_convert_agent()
     ]
   
     # state modifier
@@ -36,7 +38,10 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
         " 2. get_study_metadata: Retrieves study and associated experiment accessions",
         " 3. get_experiment_metadata: Retrieves experiment details and associated run accessions",
         " 4. get_run_metadata: Retrieves detailed run-level information",
+        " 5. entrez_convert: Converts Entrez IDs to SRA accessions",
         "# Tool usage guidelines",
+        " - If your are provided with an Entrez ID, use the entrez_convert tool to convert it to SRA or ENA accessions.",
+        "   - IMPORTANT: All get_*_metadata tools require SRA or ENA accessions"
         " - Use the get_study_experiment_run tool to convert accessions between study, experiment, and run levels.",
         " - Use the get_*_metadata tools to retrieve metadata for a specific accession type.",
         " - Chain the tools as needed to gather complete information for a given study, experiment, or run.",
@@ -81,7 +86,8 @@ if __name__ == "__main__":
 
     # test agent
     bigquery_agent = create_bigquery_agent()
-    print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
+    # print(bigquery_agent.invoke({"message" : "Get the library layout for Entrez ID 35087715"}))
+    # print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
     # print(bigquery_agent.invoke({"message" : "Get experiment metadata for SRP548813"}))
     # print(bigquery_agent.invoke({"message" : "Get the number of base pairs for all runs in SRP548813"}))
     # print(bigquery_agent.invoke({"message" : "Convert SRP548813 to SRR"}))

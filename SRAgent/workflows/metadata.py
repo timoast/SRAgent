@@ -231,7 +231,7 @@ def add2db(state: GraphState):
     # upload SRX metadata to the database
     data = [{
         "database": state["database"],
-        "entrez_id": state["entrez_id"],
+        "entrez_id": int(state["entrez_id"]),
         "srx_accession": state["SRX"],
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
