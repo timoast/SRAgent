@@ -16,7 +16,7 @@ from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
 def efetch(
     entrez_ids: Annotated[List[str], "List of Entrez IDs"],
     database: Annotated[str, "Database name (e.g., sra, gds, or pubmed)"],
-) -> Annotated[str, "eFetch results in XML format"]:
+) -> Annotated[str, "efetch results in XML format"]:
     """
     Run an Entrez efetch query on Entrez IDs to obtain metadata for the records.
     Useful for obtaining metadata for specific records.

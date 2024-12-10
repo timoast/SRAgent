@@ -96,7 +96,7 @@ SRAgent entrez "Obtain any available publications for GSE196830"
 
 Install via (assuming `${HOME}/bin` is in your path):
 
-```
+```bash
 curl -o ${HOME}/bin/cloud-sql-proxy \
   https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
   && chmod u+x ${HOME}/bin/cloud-sql-proxy
@@ -104,9 +104,11 @@ curl -o ${HOME}/bin/cloud-sql-proxy \
 
 Run via:
 
-```
+```bash
 SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
-cloud-sql-proxy c-tc-429521:us-west1:sragent-test \
+PROXY_NAME="c-tc-429521:us-west1:sragent-test"
+rm -rf ${HOME}/cloudsql/${PROXY_NAME}
+cloud-sql-proxy ${PROXY_NAME} \
   --unix-socket ${HOME}/cloudsql \
   --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
 ```

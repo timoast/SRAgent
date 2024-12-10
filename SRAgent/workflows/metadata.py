@@ -2,20 +2,19 @@
 import os
 import re
 import operator
-from functools import partial
 from enum import Enum
-from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, get_args, get_origin
-import gspread
-from gspread_dataframe import set_with_dataframe
+from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, Union, get_args, get_origin
+#import gspread
+#from gspread_dataframe import set_with_dataframe
 import pandas as pd
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from pydantic import BaseModel, Field
-from langchain_core.tools import tool
+from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
 ## package
 from SRAgent.agents.sragent import create_sragent_agent
+from SRAgent.record_db import db_connect, db_add
 
 # classes
 class YesNo(Enum):
@@ -235,46 +234,43 @@ def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     SRR_acc = regex.findall(response["messages"][-1].content)
     return {"SRR" : list(set(SRR_acc))}
 
-def fmt(x):
-    if type(x) != list:
-        return x
-    return ";".join([str(y) for y in x])
-
 def add2db(state: GraphState):
     """
     Add results to the database
     """
-    # create dataframe from state
-    SRX = fmt(state["SRX"])
-    results = pd.DataFrame([{
+    # upload SRX metadata to the database
+    data = [{
         "database": state["database"],
         "entrez_id": state["entrez_id"],
-        "SRX": SRX,
-        "SRR": fmt(state["SRR"]),
+        "srx_accession": state["SRX"],
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
         "is_10x": state["is_10x"],
         "tech_10x": state["tech_10x"],
         "organism": state["organism"]
-    }])
-    # Authenticate and open the Google Sheet
-    db_name = "SRAgent_database"
-    gc = gspread.service_account(filename=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-    sheet = gc.open(db_name)
-    worksheet = sheet.worksheet("database")
-    # Read existing data to find where to append
-    existing_data = pd.DataFrame(worksheet.get_all_values())
-    next_row = len(existing_data) + 1
-    # Append the data starting from the next row
-    set_with_dataframe(worksheet, results, row=next_row, col=1, include_index=False, include_column_header=False)
-    # Return
-    return {"messages": [AIMessage(content=f"{SRX} added to database \"{db_name}\"")]}
+    }]
+    with db_connect() as conn:
+        db_add(data, "srx_metadata", conn)
+
+    # Upload SRR accessions to the database
+    data = []
+    for srr_acc in state["SRR"]:
+        data.append({
+            "srx_accession" : state["SRX"],
+            "srr_accession" : srr_acc
+        })
+    with db_connect() as conn:
+        db_add(data, "srx_srr", conn)
+
+def fmt(x: Union[str, List[str]]) -> str:
+    """If a list, join them with a semicolon into one string"""
+    if type(x) != list:
+        return x
+    return ";".join([str(y) for y in x])
 
 def final_state(state: GraphState):
-    """
-    Final state
-    """
+    """Final state"""
     message = "\n".join([
         "# SRX accession: " + state["SRX"],
         " - SRR accessions: " + fmt(state["SRR"]),
@@ -350,12 +346,17 @@ if __name__ == "__main__":
     input = {
         "SRX": SRX_accession,
         "database": "sra",
-        "entrez_id": "",
+        "entrez_id": 123456,
         "messages": [HumanMessage(content=prompt)],
     }
-    graph = create_metadata_graph(db_add=False)
-    for step in graph.stream(input, subgraphs=True, config={"max_concurrency" : 3, "recursion_limit": 40}):
+    graph = create_metadata_graph(db_add=True)
+    config = {"max_concurrency" : 3, "recursion_limit": 50}
+    for step in graph.stream(input, subgraphs=False, config=config):
         print(step)
+
+    # Save the graph image
+    #from SRAgent.utils import save_graph_image
+    #save_graph_image(graph)
 
     ## invoke with graph object directly provided
     #invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)

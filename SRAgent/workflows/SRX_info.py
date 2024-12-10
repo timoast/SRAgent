@@ -177,3 +177,7 @@ if __name__ == "__main__":
     graph = create_SRX_info_graph()
     for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 200}):
         print(step)
+
+    # save the graph
+    # from SRAgent.utils import save_graph_image
+    # save_graph_image(graph)

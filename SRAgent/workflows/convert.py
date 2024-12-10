@@ -175,6 +175,10 @@ if __name__ == "__main__":
     for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
         print(step)
 
+    # save graph image
+    # from SRAgent.utils import save_graph_image
+    # save_graph_image(graph)
+    
     ## invoke with graph object directly provided
     #invoke_convert_graph = partial(invoke_convert_graph, graph=graph)
     #print(invoke_convert_graph(input))
