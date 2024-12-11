@@ -120,11 +120,11 @@ def db_get_unprocessed_records(conn: connection, database: str="sra", max_record
             srx_metadata.is_10x.isin(["yes", "unsure"])
         ])) \
         .select(
-            srx_metadata.srx_accession.as_("Sample"),
-            srx_srr.srr_accession.as_("Accession"),
-            srx_metadata.entrez_id.as_("Entrez_ID"),
-            srx_metadata.tech_10x.as_("Lib_prep_method"),
-            srx_metadata.organism.as_("Organism")
+            srx_metadata.srx_accession.as_("sample"),
+            srx_srr.srr_accession.as_("accession"),
+            srx_metadata.entrez_id.as_("entrez_id"),
+            srx_metadata.tech_10x.as_("lib_prep_method"),
+            srx_metadata.organism.as_("organism")
         ) \
         .limit(max_records)
         
