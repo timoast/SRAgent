@@ -10,7 +10,7 @@ from Bio import Entrez
 from SRAgent.tools.esearch import esearch_batch
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.workflows.SRX_info import create_SRX_info_graph
-from SRAgent.record_db import db_connect, db_get_processed_records
+from SRAgent.record_db import db_connect, db_get_srx_records
 
 
 # global variables
@@ -121,7 +121,7 @@ def esearch(
         esearch_query += f" NOT ({exclusions})"
 
     # debug model
-    max_ids = 3 if os.getenv("DEBUG_MODE") == "true" else None
+    max_ids = 2 if os.getenv("DEBUG_MODE") == "true" else None
 
     # return entrez IDs
     return esearch_batch(esearch_query, database, max_ids, verbose=True)
@@ -134,7 +134,7 @@ def filter_existing_entrez_ids(entrez_ids: List[str]) -> List[str]:
     existing_entrez_ids = set()
     with db_connect() as conn:
         existing_entrez_ids = set(
-            db_get_processed_records(conn, column="entrez_id", database=args.database)
+            db_get_srx_records(conn, column="entrez_id", database=args.database)
         )
 
     # filter

@@ -14,7 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
 ## package
 from SRAgent.agents.sragent import create_sragent_agent
-from SRAgent.record_db import db_connect, db_add
+from SRAgent.record_db import db_connect, db_add_update
 
 # classes
 class YesNo(Enum):
@@ -123,11 +123,14 @@ def create_get_metadata_node() -> Callable:
 
     def invoke_get_metadata_node(state: GraphState):
         """Structured data extraction"""
+        metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
         # format prompt
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
             "If there is not enough information to determine the metadata, please respond with 'unsure'.",
-            "The specific metadata to extract:"] + list(get_metadata_items().values()))
+            "The specific metadata to extract:",
+            metadata_items
+        ])
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt),
             ("system", "\nHere are the last few messages:"),
@@ -159,9 +162,8 @@ def create_router_node():
         # create prompt
         prompt1 = "\n".join([
             "You determine whether all of appropriate metadata has been extracted.",
-            "If most or all of the metadata is \"unsure\", then the task is incomplete."
-            ]
-        )
+            "Metadata values of \"unsure\" or \"other\" are considered incomplete.",
+        ])
         prompt2 = "\n".join([
             "\nThe extracted metadata:",
             " - Is the study Illumina sequence data?",
@@ -204,7 +206,7 @@ def create_router_node():
 
 def route_retry_metadata(state: GraphState) -> str:
     """Determine the route based on the current state of the conversation."""
-    #continue_node = "add2db_node" if db_add else END
+    # at most, N rounds of metadata extraction
     if state["rounds"] >= 2:
         return "SRX2SRR_node"
     return "sragent_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
@@ -241,7 +243,7 @@ def add2db(state: GraphState):
         "organism": state["organism"]
     }]
     with db_connect() as conn:
-        db_add(data, "srx_metadata", conn)
+        db_add_update(data, "srx_metadata", conn)
 
     # Upload SRR accessions to the database
     data = []
@@ -251,7 +253,7 @@ def add2db(state: GraphState):
             "srr_accession" : srr_acc
         })
     with db_connect() as conn:
-        db_add(data, "srx_srr", conn)
+        db_add_update(data, "srx_srr", conn)
 
 def fmt(x: Union[str, List[str]]) -> str:
     """If a list, join them with a semicolon into one string"""
@@ -310,7 +312,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
 def invoke_metadata_graph(
     state: GraphState, 
     graph: StateGraph,
-    to_return: List[str] = MetadataEnum.__fields__.keys()
+    to_return: List[str] = MetadataEnum.model_fields.keys()
 ) -> Annotated[dict, "Response from the graph"]:
     """
     Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions.
@@ -336,19 +338,20 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
  
     #-- graph --#
-    SRX_accession = "SRX25994842"
-    #SRX_accession = "SRX20554856"
-    #SRX_accession = "SRX25994842"
-    #SRX_accession = "ERX11887200"
-    #SRX_accession = "ERX11157721"
+    Entrez_id = 30749595
+    SRX_accession = "SRX22716300"
+    metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
     prompt = "\n".join([
-        f"For the SRA accession {SRX_accession}, find the following information:",
-        ] + [f" - {x}" for x in list(get_metadata_items().values())]
-    )
+        "# Instructions",
+        f"For the SRA accession {SRX_accession}, find the following dataset metadata:",
+        metadata_items,
+        "# Notes",
+        " - Try to confirm all metadata values with two data sources"
+    ])
     input = {
-        "SRX": SRX_accession,
         "database": "sra",
-        "entrez_id": 123456,
+        "entrez_id": Entrez_id,
+        "SRX": SRX_accession,
         "messages": [HumanMessage(content=prompt)],
     }
     graph = create_metadata_graph(db_add=True)

@@ -95,7 +95,7 @@ def db_get_srx_records(conn: connection, column: str="entrez_id", database: str=
     # Fetch the results and return a list of {target_column} values
     return [row[0] for row in execute_query(stmt, conn)]
 
-def db_get_unprocessed_records(conn: connection, database: str="sra") -> pd.DataFrame:
+def db_get_unprocessed_records(conn: connection, database: str="sra", max_records: int=3) -> pd.DataFrame:
     """
     Get all suitable unprocessed SRX records
     Args:
@@ -112,7 +112,7 @@ def db_get_unprocessed_records(conn: connection, database: str="sra") -> pd.Data
         .inner_join(srx_srr) \
         .on(srx_metadata.srx_accession == srx_srr.srx_accession) \
         .where(Criterion.all([
-            (srx_metadata.processed != "complete") | (srx_metadata.processed.isnull()),
+            srx_metadata.screcounter_status.isnull(),
             srx_metadata.database == database,
             srx_metadata.is_illumina == "yes",
             srx_metadata.is_single_cell == "yes",
@@ -125,22 +125,66 @@ def db_get_unprocessed_records(conn: connection, database: str="sra") -> pd.Data
             srx_metadata.entrez_id.as_("Entrez_ID"),
             srx_metadata.tech_10x.as_("Lib_prep_method"),
             srx_metadata.organism.as_("Organism")
-        )
+        ) \
+        .limit(max_records)
         
     # fetch as pandas dataframe
     return pd.read_sql(str(stmt), conn)
     
-
-def db_add(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
+def get_unique_columns(table: str, conn: connection) -> List[str]:
     """
-    Add a list of dictionaries to a table in the database.
+    Get all unique constraint columns for a table from the database schema.
+    Prioritizes composite unique constraints over primary keys.
+    
     Args:
-        data_list: List of dictionaries to add to the table. If a key is missing from a dictionary, the corresponding column in the table will be NULL.
+        table: Name of the table
+        conn: Database connection
+        
+    Returns:
+        List of column names that form the most appropriate unique constraint
+    """
+    query = """
+    SELECT c.contype, ARRAY_AGG(a.attname ORDER BY array_position(c.conkey, a.attnum)) as columns
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(c.conkey)
+    WHERE t.relname = %s 
+    AND c.contype IN ('p', 'u')  -- primary key or unique constraint
+    GROUP BY c.conname, c.contype
+    ORDER BY c.contype DESC;  -- 'u'nique before 'p'rimary key
+    """
+    
+    with conn.cursor() as cur:
+        cur.execute(query, (table,))
+        constraints = cur.fetchall()
+        
+    if not constraints:
+        raise ValueError(f"No unique constraints found in table {table}")
+    
+    # Prefer composite unique constraints over single-column primary keys
+    for constraint_type, columns in constraints:
+        if len(columns) > 1 or constraint_type == 'u':
+            return columns
+    
+    # Fall back to primary key if no other suitable constraint found
+    return constraints[0][1]
+
+def db_add_update(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
+    """
+    Add or update records in a database table. If a record with matching unique columns exists,
+    it will be updated; otherwise, a new record will be inserted.
+
+    Args:
+        data_list: List of dictionaries to add to the table. If a key is missing from a dictionary,
+                  the corresponding column in the table will be NULL.
         table: Name of the table to add the data to.
         conn: Connection to the database.
     """
     if not data_list:
         return
+
+    # Get unique columns from schema
+    unique_columns = get_unique_columns(table, conn)
 
     # Table and columns
     srx_metadata = Table(table)
@@ -149,18 +193,52 @@ def db_add(data_list: List[Dict[str, Any]], table: str, conn: connection) -> Non
     # Values for batch insert
     values = [tuple(d.get(col) for col in columns) for d in data_list]
 
-    # Build the query
+    # Build the query with ON CONFLICT clause
+    set_columns = [col for col in columns if col not in unique_columns]
+    update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in set_columns)
+    
     query = f"""
         INSERT INTO {srx_metadata} ({', '.join(columns)})
         VALUES %s
+        ON CONFLICT ({', '.join(unique_columns)})
     """
+
+    # Add DO UPDATE SET clause only if there are non-key columns to update
+    if set_columns:
+        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in set_columns)
+        query += f" DO UPDATE SET {update_set}"
+    else:
+        # If all columns are part of the unique constraint, do nothing on conflict
+        query += " DO NOTHING"
+    
+    # Batch insert/update
     try:
         with conn.cursor() as cur:
-            execute_values(cur, query, values)  # Batch insert
+            execute_values(cur, query, values)  
             conn.commit()
-    except psycopg2.errors.UniqueViolation:
-        pass
+    except Exception as e:
+        conn.rollback()
+        raise e
     
+def update_srx_record_status(conn: connection, srx_accession: str, status: str, log_msg: str) -> None:
+    """
+    Update the screcounter_status of a given SRX record.
+    Args:
+        conn: Connection to the database.
+        srx_accession: SRX accession number of the record to update.
+        status: New status of the record.
+    """
+    srx_metadata = Table("srx_metadata")
+    stmt = Query \
+        .update(srx_metadata) \
+        .set(srx_metadata.screcounter_status, status) \
+        .set(srx_metadata.screcounter_log, log_msg) \
+        .where(srx_metadata.srx_accession == srx_accession)
+
+    with conn.cursor() as cur:
+        cur.execute(str(stmt))
+        conn.commit()
+
 
 # main
 if __name__ == '__main__':
@@ -173,10 +251,24 @@ if __name__ == '__main__':
     #    db_glimpse_tables(conn)
 
     # get processed entrez ids
-    with db_connect() as conn:
+    #with db_connect() as conn:
         #print(db_get_srx_records(conn, "srx_accession"))
-        print(db_get_unprocessed_records(conn))
-    exit();
+        #print(db_get_unprocessed_records(conn))
+
+    # update srx record status
+    # with db_connect() as conn:
+    #     update_srx_record_status(conn, "SRX26727599", "complete", "test log")
+
+    # check unique columns
+    # with db_connect() as conn:
+    #     print(get_unique_columns("srx_metadata", conn))
+    # exit();
+
+    # update database
+    # with db_connect() as conn:
+        # db_add_update([{"database": "sra", "entrez_id": 36106630, "is_illumina": "yes"}], "srx_metadata", conn)
+        # db_add_update([{"srx_accession": "SRX22716300", "srr_accession": "SRR27024456"}], "srx_srr", conn)
+    # exit();
 
     data = [{
         "database": "sra",
@@ -189,5 +281,5 @@ if __name__ == '__main__':
         "tech_10x": "other",
         "organism": "other"
     }]
-    with db_connect() as conn:
-        db_add(data, "srx_metadata", conn)
+    #with db_connect() as conn:
+    #    db_add_update(data, "srx_metadata", conn)

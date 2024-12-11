@@ -14,7 +14,7 @@ from langgraph.graph import START, END, StateGraph
 ## package
 from SRAgent.workflows.convert import create_convert_graph, invoke_convert_graph
 from SRAgent.workflows.metadata import create_metadata_graph, invoke_metadata_graph, get_metadata_items
-from SRAgent.record_db import db_connect, db_add, db_get_srx_records
+from SRAgent.record_db import db_connect, db_add_update, db_get_srx_records
 
 # classes
 class GraphState(TypedDict):
@@ -67,10 +67,14 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
         List of metadata graph outputs
     """
     # format the prompt for the metadata graph
+    metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
     prompt = "\n".join([
-        "For the SRA accession {SRX_accession}, find the following information:",
-        ] + list(get_metadata_items().values())
-    )
+        "# Instructions",
+        "For the SRA accession {SRX_accession}, find the following dataset metadata:",
+        metadata_items,
+        "# Notes",
+        " - Try to confirm all metadata values with two data sources"
+    ])
     
     # submit each accession to the metadata graph    
     ## filter out existing SRX accessions
@@ -108,7 +112,7 @@ def add_entrez_id_to_db(entrez_id: int, database: str) -> None:
         "entrez_id": entrez_id,
     }]
     with db_connect() as conn:
-        db_add(data, "srx_metadata", conn)
+        db_add_update(data, "srx_metadata", conn)
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """
@@ -167,8 +171,8 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    input = {"entrez_id": 36106630, "database": "sra"}
-    #input = {"entrez_id": 25576380, "database": "sra"}
+    input = {"entrez_id": 35087715, "database": "sra"}
+    input = {"entrez_id": 36178506, "database": "sra"}
     graph = create_SRX_info_graph()
     for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 100}):
         print(step)
@@ -176,3 +180,7 @@ if __name__ == "__main__":
     # save the graph
     # from SRAgent.utils import save_graph_image
     # save_graph_image(graph)
+
+    #-- nodes --#
+    # continue_to_metadata({"SRX": ["SRX25994842"]}); exit();
+

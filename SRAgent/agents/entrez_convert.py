@@ -94,8 +94,8 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # create entrez agent
-    agent = create_entrez_convert_agent()
+    # agent = create_entrez_convert_agent()
     
     # invoke agent
-    input = {"message": "Convert 35087715 to SRA accessions"}
-    print(agent.invoke(input))
+    # input = {"message": "Convert 35087715 to SRA accessions"}
+    # print(agent.invoke(input))
