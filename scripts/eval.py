@@ -47,6 +47,7 @@ def eval(df, exclude_cols=["database", "entrez_id", "srx_accession"]):
     base_cols = [col.replace("_pred", "") for col in df.columns if col.endswith('_pred')]
 
     # Create comparison for each column pair
+    accuracy = {} 
     for col in base_cols:
         if col in exclude_cols:
             continue
@@ -57,14 +58,28 @@ def eval(df, exclude_cols=["database", "entrez_id", "srx_accession"]):
             
             # Calculate mismatch percentage
             mismatch_pct = (len(mismatches) / len(df)) * 100
+            accuracy[col] = 100.0 - mismatch_pct
             
             print(f"\nComparison for {col}:")
             print(f"Total mismatches: {len(mismatches)} ({mismatch_pct:.2f}%)")
             
             if len(mismatches) > 0:
                 # Display sample of mismatches
-                print("\nSample mismatches:")
-                print(mismatches[[col, pred_col]].head())
+                print("\n--Mismatches--")
+                mismatches[[col, pred_col]].head(10).transpose().to_csv(sys.stdout, sep="\t", header=False)
+
+    # convert to dataframe
+    accuracy = pd.DataFrame(accuracy.items(), columns=["column", "accuracy_percent"])
+    accuracy["accuracy_percent"] = accuracy["accuracy_percent"].round(2)
+    accuracy["count"] = df.shape[0]
+
+    # write to stdout
+    print("\n#-- Accuracy Table --#")
+    accuracy.to_csv(sys.stdout, index=False, sep="\t")
+
+    # overall accuracy
+    overall_accuracy = accuracy["accuracy_percent"].mean()
+    print(f"\nOverall accuracy: {overall_accuracy:.2f}%")
 
 def main(args):
     # load evaluation dataset
