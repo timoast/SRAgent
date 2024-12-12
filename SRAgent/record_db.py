@@ -240,6 +240,50 @@ def update_srx_record_status(conn: connection, srx_accession: str, status: str, 
         conn.commit()
 
 
+def upsert_df(df: pd.DataFrame, table_name: str, conn: connection) -> None:
+    """
+    Upload a pandas DataFrame to PostgreSQL, performing an upsert operation.
+    If records exist (based on unique constraints), update them; otherwise insert new records.
+    
+    Args:
+        df: pandas DataFrame to upload
+        table_name: name of the target table
+        conn: psycopg2 connection object
+    """    
+    # Get DataFrame columns
+    columns = list(df.columns)
+    
+    # Create ON CONFLICT clause based on unique constraints
+    # For your ground_truth table, the unique constraints are (dataset_id, database, entrez_id)
+    unique_columns = ["dataset_id", "database", "entrez_id"]
+
+    # Drop duplicate records based on unique columns
+    df.drop_duplicates(subset=unique_columns, keep='first', inplace=True)
+
+        # Convert DataFrame to list of tuples
+    values = [tuple(x) for x in df.to_numpy()]
+    
+    # Create the INSERT statement with ON CONFLICT clause
+    insert_stmt = f"""
+        INSERT INTO {table_name} ({', '.join(columns)})
+        VALUES %s
+        ON CONFLICT ({', '.join(unique_columns)})
+        DO UPDATE SET
+        {', '.join(f"{col} = EXCLUDED.{col}" 
+                   for col in columns 
+                   if col not in unique_columns + ['id'])}
+    """
+    
+    try:
+        with conn.cursor() as cur:
+            # Use execute_values for better performance with multiple records
+            execute_values(cur, insert_stmt, values)
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise Exception(f"Error uploading data to {table_name}: {str(e)}")
+
+
 # main
 if __name__ == '__main__':
     # connect to database
@@ -283,3 +327,10 @@ if __name__ == '__main__':
     }]
     #with db_connect() as conn:
     #    db_add_update(data, "srx_metadata", conn)
+
+
+    df = pd.read_csv("data/ground_truth1.csv")
+    df["dataset_id"] = "ground_truth1"
+    #print(df.head())
+    with db_connect() as conn:
+        upsert_df(df, "ground_truth", conn)
