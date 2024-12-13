@@ -255,6 +255,14 @@ def create_router_node() -> Callable:
         """
         Router for the graph
         """
+        # no need to evaluate secondary metadata
+        if state["metadata_level"] != "primary":
+            return {
+                "route": "STOP", 
+                "attempts": state.get("attempts", 0) + 1, 
+                "messages": [AIMessage(content="No evaluation needed for secondary metadata")]
+            }
+
         # create prompt
         ## sub-prompt
         prompt1 = "\n".join([
@@ -462,8 +470,9 @@ if __name__ == "__main__":
         print(step)
 
     # Save the graph image
-    #from SRAgent.utils import save_graph_image
-    #save_graph_image(graph)
+    # from SRAgent.utils import save_graph_image
+    # save_graph_image(graph)
+    # exit();
 
     ## invoke with graph object directly provided
     #invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
