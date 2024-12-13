@@ -55,16 +55,43 @@ class Tech10XEnum(Enum):
     CELLPLEX = "cellplex"
     CNV = "cnv"
     FEATURE_BARCODING = "feature_barcoding"
+    NA = "not_applicable"
     OTHER = "other"
+
+class LibPrepEnum(Enum):
+    """scRNA-seq library preparation technology"""
+    TENX = "10x_Genomics"
+    CHROMIUM = "Chromium"
+    SMART_SEQ = "Smart-seq"
+    SMART_SEQ2 = "Smart-seq2"
+    SMART_SEQ3 = "Smart-seq3"
+    CEL_SEQ = "CEL-seq"
+    CEL_SEQ2 = "CEL-seq2"
+    DROP_SEQ = "Drop-seq"
+    IN_DROPS = "indrops"
+    PARSE = "Parse"
+    SCALE_BIO = "Scale Bio"
+    PARSE_EVERCODE = "Parse_evercode"
+    PARSE_SPLIT_SEQ = "Parse_split-seq"
+    Fluent = "Fluent"
+    OTHER = "other"
+
+class CellPrepEnum(Enum):
+    """Distinguishes between single nucleus and single cell RNA sequencing methods"""
+    SINGLE_NUCLEUS = "single_nucleus"
+    SINGLE_CELL = "single_cell" 
+    UNSURE = "unsure"   
 
 class MetadataEnum(BaseModel):
     """Metadata to extract"""
     is_illumina: YesNo
     is_single_cell: YesNo
     is_paired_end: YesNo
-    is_10x: YesNo
+    lib_prep: LibPrepEnum
     tech_10x: Tech10XEnum
+    cell_prep: CellPrepEnum
     organism: OrganismEnum
+    tissue: str
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
@@ -82,6 +109,7 @@ class SRR(BaseModel):
 class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
+    extracted_metadata: Annotated[Sequence[BaseMessage], "extractd metadata"]
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
@@ -89,13 +117,14 @@ class GraphState(TypedDict):
     is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
-    is_10x: Annotated[str, "Is the dataset 10X Genomics data?"]
-    tech_10x: Annotated[str, "Which 10X Genomics library preparation technology?"]
+    lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
+    tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
+    cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
     organism: Annotated[str, "Which organism was sequenced?"]
+    tissue: Annotated[str, "Which tissue was sequenced?"]
     route: Annotated[str, "Route"]
     rounds: Annotated[int, operator.add]
     
-
 # functions
 def get_metadata_items() -> Dict[str, str]:
     """
@@ -103,7 +132,10 @@ def get_metadata_items() -> Dict[str, str]:
     Return:
         A dictionary of metadata items
     """
-    to_include = ["is_illumina", "is_single_cell", "is_paired_end", "is_10x", "tech_10x", "organism"]
+    to_include = [
+        "is_illumina", "is_single_cell", "is_paired_end", 
+        "lib_prep", "tech_10x", "cell_prep", "organism", "tissue"
+    ]
     metadata_items = {}
     for key, value in GraphState.__annotations__.items():
         if key not in to_include or not get_origin(value) is Annotated:
@@ -127,7 +159,9 @@ def create_get_metadata_node() -> Callable:
         # format prompt
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
-            "If there is not enough information to determine the metadata, please respond with 'unsure'.",
+            "The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
+            "If there are multiple sources, use majority rules to determine the metadata values, but weigh 'unsure' or 'other' values less.",
+            "If there is not enough information to determine the metadata, respond with 'unsure' or 'other', depending on the metadata field.",
             "The specific metadata to extract:",
             metadata_items
         ])
@@ -136,19 +170,27 @@ def create_get_metadata_node() -> Callable:
             ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
         ])
-        prompt = prompt.format_messages(history=state["messages"])
+        prompt = prompt.format_messages(history=state["messages"])   # all messages in the workflow state
 
         # call the model
         response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
-        return {
+        extracted_fields = {
             "is_illumina" : response.is_illumina.value,
             "is_single_cell" : response.is_single_cell.value,
             "is_paired_end" : response.is_paired_end.value,
-            "is_10x" : response.is_10x.value,
+            "lib_prep" : response.lib_prep.value,
             "tech_10x" : response.tech_10x.value,
-            "organism" : response.organism.value
+            "cell_prep" : response.cell_prep.value,
+            "organism" : response.organism.value,
+            "tissue" : response.tissue
         }
-    
+        message = "\n".join(
+            ["# The extracted metadata:"] + [f" - {k}: {v}" for k,v in extracted_fields.items()]
+        )
+        return {
+            "extracted_metadata" : [AIMessage(content=message)],
+            **extracted_fields
+        }
     return invoke_get_metadata_node
 
 def create_router_node():
@@ -160,43 +202,35 @@ def create_router_node():
         Router for the graph
         """
         # create prompt
+        ## sub-prompt
         prompt1 = "\n".join([
-            "You determine whether all of appropriate metadata has been extracted.",
-            "Metadata values of \"unsure\" or \"other\" are considered incomplete.",
+            "# Instructions",
+            " - You determine whether all of appropriate metadata has been extracted.",
+            " - Metadata values of \"unsure\" or \"other\" are considered incomplete."
         ])
-        prompt2 = "\n".join([
-            "\nThe extracted metadata:",
-            " - Is the study Illumina sequence data?",
-            "    - " + state['is_illumina'],
-            " - Is the study single cell RNA-seq data?",
-            "    - " + state['is_single_cell'],
-            " - Is the study paired-end sequencing data?",
-            "    - " + state['is_paired_end'],
-            " - Is the study 10X Genomics data?",
-            "    - " + state['is_10x'],
-            " - Which 10X Genomics technology was used?",
-            "    - " + state['tech_10x'],
-            " - Which organism was sequenced?",
-            "    - " + state['organism']
-        ])
-
+        ## sub-prompt
+        prompt2 = ["\n# The required metadata fields:"]
+        for k,v in get_metadata_items().items():
+            prompt2.append(f" - {v}: {state[k]}")
+        prompt2 = "\n".join(prompt2)
+        ## full prompt
         prompt = ChatPromptTemplate.from_messages([
             # First add any static system message if needed
             ("system", prompt1),
-            ("system", "\nHere are the last few messages:"),
+            #("system", "\n\n# The extracted metadata:"),
             MessagesPlaceholder(variable_name="history"),
             ("system", prompt2),
             # Add the final instruction
             ("human", "Based on the information above, select STOP if the task is complete or CONTINUE if more information is needed."),
         ])
-        formatted_prompt = prompt.format_messages(history=state["messages"])
+        formatted_prompt = prompt.format_messages(history=state["extracted_metadata"])
         # call the model
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
         # format the response
         if response.Choice.value == ChoicesEnum.CONTINUE.value:
             message = "\n".join([
-                f"At least some of the metadata for {state['SRX']} is still uncertain." 
-                "Please try to provide more information by using a different approach (e.g., different tool calls)."
+                f"At least some of the metadata for {state['SRX']} is incomplete (uncertain).",
+                "Please try to provide more information by using a different approach (e.g., different agent calls)."
             ])
         else:
             message = f"Enough of the metadata has been extracted for {state['SRX']}."
@@ -207,7 +241,7 @@ def create_router_node():
 def route_retry_metadata(state: GraphState) -> str:
     """Determine the route based on the current state of the conversation."""
     # at most, N rounds of metadata extraction
-    if state["rounds"] >= 2:
+    if state["rounds"] >= 3:
         return "SRX2SRR_node"
     return "sragent_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
 
@@ -238,9 +272,11 @@ def add2db(state: GraphState):
         "is_illumina": state["is_illumina"],
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
-        "is_10x": state["is_10x"],
+        "lib_prep": state["lib_prep"],
         "tech_10x": state["tech_10x"],
-        "organism": state["organism"]
+        "cell_prep": state["cell_prep"],
+        "organism": state["organism"],
+        "tissue": state["tissue"]
     }]
     with db_connect() as conn:
         db_add_update(data, "srx_metadata", conn)
@@ -269,9 +305,11 @@ def final_state(state: GraphState):
         " - Is the study Illumina sequence data? " + state["is_illumina"],
         " - Is the study single cell RNA-seq data? " + state["is_single_cell"],
         " - Is the study paired-end sequencing data? " + state["is_paired_end"],
-        " - Is the study 10X Genomics data? " + state["is_10x"],
-        " - Which 10X Genomics technology was used? " + state["tech_10x"],
-        " - Which organism was sequenced? " + state["organism"]
+        " - Which scRNA-seq library preparation technology? " + state["lib_prep"],
+        " - If 10X Genomics, which particular 10X technology? " + state["tech_10x"],
+        " - Single nucleus or single cell RNA sequencing? " + state["cell_prep"],
+        " - Which organism was sequenced? " + state["organism"],
+        " - Which tissue was sequenced? " + state["tissue"]
     ])
     return {"messages": [AIMessage(content=message)]}
 
@@ -337,6 +375,13 @@ if __name__ == "__main__":
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
  
+    # test
+
+    # prompt2 = ["\nThe extracted metadata:"]
+    # for k,v in get_metadata_items().items():
+    #     prompt2.append(f" - {v}: {k}")
+    # print("\n".join(prompt2)); exit();
+
     #-- graph --#
     Entrez_id = 30749595
     SRX_accession = "SRX22716300"
@@ -354,7 +399,7 @@ if __name__ == "__main__":
         "SRX": SRX_accession,
         "messages": [HumanMessage(content=prompt)],
     }
-    graph = create_metadata_graph(db_add=True)
+    graph = create_metadata_graph(db_add=False)
     config = {"max_concurrency" : 3, "recursion_limit": 50}
     for step in graph.stream(input, subgraphs=False, config=config):
         print(step)
