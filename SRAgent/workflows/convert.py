@@ -50,8 +50,8 @@ def create_get_accessions_node() -> Callable:
         # create prompt
         message = state["messages"][-1].content
         prompt = "\n".join([
-            f"Extract SRX accessions (e.g., \"SRX123456\") from the message below.",
-            "If you cannot find any SRX (or ERX) accessions (must have the SRX or ERX prefix), do not provide any accessions.",
+            f"Extract SRX and ERX accessions (e.g., \"SRX123456\" or \"ERX223344\") from the message below.",
+            "If you cannot find any SRX or ERX accessions (must have the \"SRX\" or \"ERX\" prefix), do not provide any accessions.",
             "#-- START OF MESSAGE --#",
             message,
             "#-- END OF MESSAGE --#"
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     entrez_id = "34748561"
     #entrez_id = "30749595"
     #entrez_id = "307495950000"
-    msg = f"Obtain all SRX accessions for the Entrez ID {entrez_id}"
+    msg = f"Obtain all SRX and ERX accessions for the Entrez ID {entrez_id}"
     input = {"messages" : [HumanMessage(content=msg)]}
     graph = create_convert_graph()
     for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):

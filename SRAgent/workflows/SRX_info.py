@@ -53,7 +53,7 @@ def create_convert_graph_node():
         entrez_id = state["entrez_id"]
         database = state["database"]
         message = "\n".join([
-            f"Convert Entrez ID {entrez_id} to SRX (or ERX) accessions.",
+            f"Convert Entrez ID {entrez_id} to SRX or ERX accessions.",
             f"The Entrez ID is associated with the {database} database."
         ])
         input = {"messages": [HumanMessage(message)]}
@@ -70,7 +70,7 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
     metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
     prompt = "\n".join([
         "# Instructions",
-        "For the SRA accession {SRX_accession}, find the following dataset metadata:",
+        "For the SRA experiment accession {SRX_accession}, find the following dataset metadata:",
         metadata_items,
         "# Notes",
         " - Try to confirm all metadata values with two data sources"
@@ -118,7 +118,7 @@ def final_state(state: GraphState) -> Dict[str, Any]:
     """
     Return the final state of the graph
     """
-    # filter to messages that 
+    # filter to messages that contain the SRX accession
     messages = []
     for msg in state["messages"]:
         try:
@@ -129,7 +129,10 @@ def final_state(state: GraphState) -> Dict[str, Any]:
             if x.startswith("# SRX accession: "):
                 messages.append(x)
     # final message
-    message = "\n".join(messages)
+    if len(messages) == 0:
+        message = "No novel SRX accessions found."
+    else:
+        message = "\n".join(messages)
     return {
         "messages": [AIMessage(content=message)]
     }

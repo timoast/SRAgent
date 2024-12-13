@@ -82,7 +82,7 @@ class CellPrepEnum(Enum):
     SINGLE_CELL = "single_cell" 
     UNSURE = "unsure"   
 
-class MetadataEnum(BaseModel):
+class PrimaryMetadataEnum(BaseModel):
     """Metadata to extract"""
     is_illumina: YesNo
     is_single_cell: YesNo
@@ -90,13 +90,23 @@ class MetadataEnum(BaseModel):
     lib_prep: LibPrepEnum
     tech_10x: Tech10XEnum
     cell_prep: CellPrepEnum
+
+class SecondaryMetadataEnum(BaseModel):
     organism: OrganismEnum
     tissue: str
+    disease: str
+    purturbation: str
+    cell_line: str
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
     CONTINUE = "Continue"
     STOP = "Stop"
+
+class MetadataLevelsEnum(Enum):
+    """Choices for the router"""
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
 
 class Choice(BaseModel):
     """Choice to continue or stop"""
@@ -110,32 +120,45 @@ class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
     extracted_metadata: Annotated[Sequence[BaseMessage], "extractd metadata"]
+    route: Annotated[str, "Route"]
+    attempts: Annotated[int, "Number of attempts to extract metadata"]
+    metadata_level: Annotated[str, "Metadata level"]
+    # metadata
+    ## IDs
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
     SRR: Annotated[List[str], "SRR accessions for the SRX"]
+    ## primary metadata
     is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
     tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
+    ## secondary metadata
     organism: Annotated[str, "Which organism was sequenced?"]
     tissue: Annotated[str, "Which tissue was sequenced?"]
-    route: Annotated[str, "Route"]
-    rounds: Annotated[int, operator.add]
-    
+    disease: Annotated[str, "Any disease information?"]
+    purturbation: Annotated[str, "Any treatment/purturbation information?"]
+    cell_line: Annotated[str, "Any cell line information?"]
+
 # functions
-def get_metadata_items() -> Dict[str, str]:
+def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
     """
-    Set metadata items based on graph state annotations
+    Get primary metadata items based on graph state annotations
     Return:
         A dictionary of metadata items
     """
-    to_include = [
-        "is_illumina", "is_single_cell", "is_paired_end", 
-        "lib_prep", "tech_10x", "cell_prep", "organism", "tissue"
-    ]
+    # which metadata items to include?
+    if metadata_level == "primary":
+        to_include = PrimaryMetadataEnum.model_fields.keys()
+    elif metadata_level == "secondary":
+        to_include = SecondaryMetadataEnum.model_fields.keys()
+    else:
+        raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
+
+    # get the metadata items
     metadata_items = {}
     for key, value in GraphState.__annotations__.items():
         if key not in to_include or not get_origin(value) is Annotated:
@@ -145,9 +168,43 @@ def get_metadata_items() -> Dict[str, str]:
 
 def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     """Invoke the SRAgent to get the initial messages"""
+    # create the agent
     agent = create_sragent_agent()
-    response = agent.invoke({"messages" : state["messages"]})
-    return {"messages" : [response["messages"][-1]]}
+    # create message prompt
+    metadata_level = state.get("metadata_level", "primary")
+    metadata_items = get_metadata_items(metadata_level).values()
+    prompt = "\n".join([
+        "# Instructions",
+        f"For the SRA experiment accession {state['SRX']}, find the following dataset metadata:",
+        "\n".join([f" - {x}" for x in metadata_items]),
+        "# Notes",
+        " - Try to confirm all metadata values with two data sources"
+    ])
+    # call the agent
+    response = agent.invoke({"messages" : [HumanMessage(content=prompt)]})
+    # return the last message in the response
+    return {
+        "messages" : [response["messages"][-1]],
+        "metadata_level" : metadata_level
+    }
+
+
+def max_str_len(x: str, max_len:int = 100) -> str:
+    """Find the maximum length string in a list"""
+    if not isinstance(x, str):
+        return x
+    return x if len(x) <= max_len else x[:max_len-3] + "..."
+    
+def get_extracted_fields(response):
+    """Dynamically extract fields from the response model"""
+    fields = {}
+    for field_name in response.model_fields.keys():
+        field_value = getattr(response, field_name)
+        if hasattr(field_value, 'value'):
+            fields[field_name] = max_str_len(field_value.value)
+        else:
+            fields[field_name] = max_str_len(field_value)
+    return fields
 
 def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
@@ -155,7 +212,7 @@ def create_get_metadata_node() -> Callable:
 
     def invoke_get_metadata_node(state: GraphState):
         """Structured data extraction"""
-        metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
+        metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
         prompt = "\n".join([
             "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
@@ -171,19 +228,16 @@ def create_get_metadata_node() -> Callable:
             MessagesPlaceholder(variable_name="history"),
         ])
         prompt = prompt.format_messages(history=state["messages"])   # all messages in the workflow state
-
-        # call the model
-        response = model.with_structured_output(MetadataEnum, strict=True).invoke(prompt)
-        extracted_fields = {
-            "is_illumina" : response.is_illumina.value,
-            "is_single_cell" : response.is_single_cell.value,
-            "is_paired_end" : response.is_paired_end.value,
-            "lib_prep" : response.lib_prep.value,
-            "tech_10x" : response.tech_10x.value,
-            "cell_prep" : response.cell_prep.value,
-            "organism" : response.organism.value,
-            "tissue" : response.tissue
-        }
+        # call the model with a certain enum
+        if state["metadata_level"] == "primary":
+            selected_enum = PrimaryMetadataEnum
+        elif state["metadata_level"] == "secondary":
+            selected_enum = SecondaryMetadataEnum
+        else:
+            raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
+        response = model.with_structured_output(selected_enum, strict=True).invoke(prompt)
+        extracted_fields = get_extracted_fields(response)
+        # call the model        
         message = "\n".join(
             ["# The extracted metadata:"] + [f" - {k}: {v}" for k,v in extracted_fields.items()]
         )
@@ -193,7 +247,7 @@ def create_get_metadata_node() -> Callable:
         }
     return invoke_get_metadata_node
 
-def create_router_node():
+def create_router_node() -> Callable:
     """Routing based on percieved completion of metadata extraction"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
@@ -210,14 +264,13 @@ def create_router_node():
         ])
         ## sub-prompt
         prompt2 = ["\n# The required metadata fields:"]
-        for k,v in get_metadata_items().items():
+        for k,v in get_metadata_items(state["metadata_level"]).items():
             prompt2.append(f" - {v}: {state[k]}")
         prompt2 = "\n".join(prompt2)
         ## full prompt
         prompt = ChatPromptTemplate.from_messages([
-            # First add any static system message if needed
+            # system prompts
             ("system", prompt1),
-            #("system", "\n\n# The extracted metadata:"),
             MessagesPlaceholder(variable_name="history"),
             ("system", prompt2),
             # Add the final instruction
@@ -234,16 +287,30 @@ def create_router_node():
             ])
         else:
             message = f"Enough of the metadata has been extracted for {state['SRX']}."
-        return {"route": response.Choice.value, "rounds": 1, "messages": [AIMessage(content=message)]}
-    
+        return {
+            "route": response.Choice.value, 
+            "attempts": state.get("attempts", 0) + 1, 
+            "messages": [AIMessage(content=message)]
+        }
     return invoke_router_node
 
 def route_retry_metadata(state: GraphState) -> str:
     """Determine the route based on the current state of the conversation."""
-    # at most, N rounds of metadata extraction
-    if state["rounds"] >= 3:
-        return "SRX2SRR_node"
-    return "sragent_agent_node" if state["route"] == "Continue" else "SRX2SRR_node"
+    # move on to which node?
+    next_node = "bump_metadata_level_node" if state["metadata_level"] == "primary" else "SRX2SRR_node"
+    max_attempts = 2 if state["metadata_level"] == "primary" else 1
+    # limit the number of attempts
+    if state["attempts"] >= max_attempts:
+        return next_node
+    # return route choice
+    return "sragent_agent_node" if state["route"] == "Continue" else next_node 
+
+def bump_metadata_level(state: GraphState) -> str:
+    """Bump the metadata level"""
+    return {
+        "metadata_level": "secondary",
+        "attempts" : 0
+    }
 
 def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
@@ -276,7 +343,10 @@ def add2db(state: GraphState):
         "tech_10x": state["tech_10x"],
         "cell_prep": state["cell_prep"],
         "organism": state["organism"],
-        "tissue": state["tissue"]
+        "tissue": state["tissue"],
+        "disease": state["disease"],
+        "purturbation": state["purturbation"],
+        "cell_line": state["cell_line"]
     }]
     with db_connect() as conn:
         db_add_update(data, "srx_metadata", conn)
@@ -299,18 +369,17 @@ def fmt(x: Union[str, List[str]]) -> str:
 
 def final_state(state: GraphState):
     """Provide the final state"""
+    # get the metadata fields
+    metadata = []
+    for k,v in get_metadata_items("primary").items():
+        metadata.append(f" - {v}: {state[k]}")
+    for k,v in get_metadata_items("secondary").items():
+        metadata.append(f" - {v}: {state[k]}")
+    # create the message
     message = "\n".join([
         "# SRX accession: " + state["SRX"],
         " - SRR accessions: " + fmt(state["SRR"]),
-        " - Is the study Illumina sequence data? " + state["is_illumina"],
-        " - Is the study single cell RNA-seq data? " + state["is_single_cell"],
-        " - Is the study paired-end sequencing data? " + state["is_paired_end"],
-        " - Which scRNA-seq library preparation technology? " + state["lib_prep"],
-        " - If 10X Genomics, which particular 10X technology? " + state["tech_10x"],
-        " - Single nucleus or single cell RNA sequencing? " + state["cell_prep"],
-        " - Which organism was sequenced? " + state["organism"],
-        " - Which tissue was sequenced? " + state["tissue"]
-    ])
+    ] + metadata)
     return {"messages": [AIMessage(content=message)]}
 
 def create_metadata_graph(db_add: bool=True) -> StateGraph:
@@ -328,9 +397,10 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow.add_node("sragent_agent_node", invoke_sragent_agent_node)
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
+    workflow.add_node("bump_metadata_level_node", bump_metadata_level)
     workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_sragent_agent_node)
     if db_add:
-        workflow.add_node("add2db_node", add2db)
+       workflow.add_node("add2db_node", add2db)
     workflow.add_node("final_state_node", final_state)
 
     # edges
@@ -338,32 +408,33 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow.add_edge("sragent_agent_node", "get_metadata_node")
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_retry_metadata)
+    workflow.add_edge("bump_metadata_level_node", "sragent_agent_node")
     if db_add:
-        workflow.add_edge("SRX2SRR_node", "add2db_node")
-        workflow.add_edge("add2db_node", "final_state_node")
+       workflow.add_edge("SRX2SRR_node", "add2db_node")
+       workflow.add_edge("add2db_node", "final_state_node")
     else:
-        workflow.add_edge("SRX2SRR_node", "final_state_node")
+       workflow.add_edge("SRX2SRR_node", "final_state_node")
 
     # compile the graph
     return workflow.compile()
 
-def invoke_metadata_graph(
-    state: GraphState, 
-    graph: StateGraph,
-    to_return: List[str] = MetadataEnum.model_fields.keys()
-) -> Annotated[dict, "Response from the graph"]:
-    """
-    Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions.
-    Args:
-        state: The graph state
-        graph: The graph object
-        to_return: The metadata items to return
-    Return:
-        A dictionary of the metadata items
-    """
-    response = graph.invoke(state)
-    filtered_response = {key: [response[key]] for key in to_return}
-    return filtered_response
+# def invoke_metadata_graph(
+#     state: GraphState, 
+#     graph: StateGraph,
+#     to_return: List[str] = MetadataEnum.model_fields.keys()
+# ) -> Annotated[dict, "Response from the graph"]:
+#     """
+#     Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions.
+#     Args:
+#         state: The graph state
+#         graph: The graph object
+#         to_return: The metadata items to return
+#     Return:
+#         A dictionary of the metadata items
+#     """
+#     response = graph.invoke(state)
+#     filtered_response = {key: [response[key]] for key in to_return}
+#     return filtered_response
 
 # main
 if __name__ == "__main__":
@@ -374,32 +445,18 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
- 
-    # test
 
-    # prompt2 = ["\nThe extracted metadata:"]
-    # for k,v in get_metadata_items().items():
-    #     prompt2.append(f" - {v}: {k}")
-    # print("\n".join(prompt2)); exit();
 
     #-- graph --#
-    Entrez_id = 30749595
+    entrez_id = 30749595
     SRX_accession = "SRX22716300"
-    metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
-    prompt = "\n".join([
-        "# Instructions",
-        f"For the SRA accession {SRX_accession}, find the following dataset metadata:",
-        metadata_items,
-        "# Notes",
-        " - Try to confirm all metadata values with two data sources"
-    ])
     input = {
         "database": "sra",
-        "entrez_id": Entrez_id,
+        "entrez_id": entrez_id,
         "SRX": SRX_accession,
-        "messages": [HumanMessage(content=prompt)],
+        #"metadata_level": "primary",
     }
-    graph = create_metadata_graph(db_add=False)
+    graph = create_metadata_graph(db_add=True)
     config = {"max_concurrency" : 3, "recursion_limit": 50}
     for step in graph.stream(input, subgraphs=False, config=config):
         print(step)
@@ -413,5 +470,20 @@ if __name__ == "__main__":
     #print(invoke_metadata_graph(input))
 
     #-- nodes --#
-    state = {"messages": [HumanMessage(content=prompt)]}
-    #invoke_sragent_agent_node(state)
+    # final state
+    state = {
+        "SRX": "SRX22716300",
+        "SRR": [],
+        "is_illumina": "unsure",
+        "is_single_cell": "unsure",
+        "is_paired_end": "unsure",
+        "lib_prep": "other",
+        "tech_10x": "other",
+        "cell_prep": "unsure",
+        "organism": "other",
+        "tissue": "other",
+        "disease": "other",
+        "purturbation": "other",
+        "cell_line": "other", 
+    }
+    # print(final_state(state)); exit();
