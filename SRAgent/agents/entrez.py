@@ -53,6 +53,7 @@ def create_entrez_agent(
         "# Notes",
         " - Bulk RNA-seq is NOT the same as single-cell RNA-seq (scRNA-seq); be sure to distinguish between them.",
         "   - If you do not find evidence of single cell, do not assume it is scRNA-seq.",
+        "   - A single layout does not imply single-cell data.",
         "# Response",
         " - Be very concise; provide simple lists when possible; do not include unnecessary wording.",
         " - Write your output as plain text instead of markdown.",

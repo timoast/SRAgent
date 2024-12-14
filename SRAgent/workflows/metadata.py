@@ -178,10 +178,10 @@ def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
         "# Instructions",
         f"For the SRA experiment accession {state['SRX']}, find the following dataset metadata:",
         "\n".join([f" - {x}" for x in metadata_items]),
-        "# Notes",
-        " - If the dataset is not single cell, then some of the metadata fields may not be applicable",
-        " - Be careful about determining whether the dataset is single cell",
+        "# IMPORTANT NOTES",
+        " - If the dataset is not single cell, then some of the other metadata fields may not be applicable",
         " - Try to confirm all metadata values with two data sources",
+        " - Do NOT make assumptions about the metadata values; find explicit evidence",
     ])
     # call the agent
     response = agent.invoke({"messages" : [HumanMessage(content=prompt)]})
@@ -229,7 +229,7 @@ def create_get_metadata_node() -> Callable:
             "# Instructions",
             " - Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
             " - The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
-            " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\").",
+            " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\", \"likely\", or \"assumed\").",
             " - If there is not enough information to determine the metadata, respond with \"unsure\" or \"other\", depending on the metadata field.",
             " - Keep free text responses short, less than 100 characters.",
             "# The specific metadata to extract",
