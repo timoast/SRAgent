@@ -61,7 +61,6 @@ class Tech10XEnum(Enum):
 class LibPrepEnum(Enum):
     """scRNA-seq library preparation technology"""
     TENX = "10x_Genomics"
-    CHROMIUM = "Chromium"
     SMART_SEQ = "Smart-seq"
     SMART_SEQ2 = "Smart-seq2"
     SMART_SEQ3 = "Smart-seq3"
@@ -100,8 +99,8 @@ class SecondaryMetadataEnum(BaseModel):
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
-    CONTINUE = "Continue"
-    STOP = "Stop"
+    CONTINUE = "CONTINUE"
+    STOP = "STOP"
 
 class MetadataLevelsEnum(Enum):
     """Choices for the router"""
@@ -119,7 +118,7 @@ class SRR(BaseModel):
 class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    extracted_metadata: Annotated[Sequence[BaseMessage], "extractd metadata"]
+    #extracted_metadata: Annotated[Sequence[BaseMessage], "extractd metadata"]
     route: Annotated[str, "Route"]
     attempts: Annotated[int, "Number of attempts to extract metadata"]
     metadata_level: Annotated[str, "Metadata level"]
@@ -134,10 +133,10 @@ class GraphState(TypedDict):
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
-    tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
-    cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
-    ## secondary metadata
+    tech_10x: Annotated[List[str], "If 10X Genomics, which particular 10X technologies?"]
     organism: Annotated[str, "Which organism was sequenced?"]
+    ## secondary metadata
+    cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
     tissue: Annotated[str, "Which tissue was sequenced?"]
     disease: Annotated[str, "Any disease information?"]
     purturbation: Annotated[str, "Any treatment/purturbation information?"]
@@ -197,6 +196,7 @@ def max_str_len(x: str, max_len:int = 100) -> str:
     
 def get_extracted_fields(response):
     """Dynamically extract fields from the response model"""
+    # get the extracted metadata fields
     fields = {}
     for field_name in response.model_fields.keys():
         field_value = getattr(response, field_name)
@@ -205,6 +205,13 @@ def get_extracted_fields(response):
         else:
             fields[field_name] = max_str_len(field_value)
     return fields
+
+def get_annot(key: str, state: dict) -> str:
+    """If the key matches a graph state field, return the field annotation"""
+    try:
+        return get_args(GraphState.__annotations__[key])[1]
+    except KeyError:
+        return key
 
 def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
@@ -227,7 +234,7 @@ def create_get_metadata_node() -> Callable:
             ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
         ])
-        prompt = prompt.format_messages(history=state["messages"])   # all messages in the workflow state
+        prompt = prompt.format_messages(history=state["messages"]) 
         # call the model with a certain enum
         if state["metadata_level"] == "primary":
             selected_enum = PrimaryMetadataEnum
@@ -237,12 +244,13 @@ def create_get_metadata_node() -> Callable:
             raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
         response = model.with_structured_output(selected_enum, strict=True).invoke(prompt)
         extracted_fields = get_extracted_fields(response)
-        # call the model        
+        # create the natural language response message   
         message = "\n".join(
-            ["# The extracted metadata:"] + [f" - {k}: {v}" for k,v in extracted_fields.items()]
+            ["# The extracted metadata:"] + 
+            [f" - {get_annot(k, GraphState)}: {fmt(v)}" for k,v in extracted_fields.items()]
         )
         return {
-            "extracted_metadata" : [AIMessage(content=message)],
+            "messages" : [HumanMessage(content=message)],
             **extracted_fields
         }
     return invoke_get_metadata_node
@@ -264,29 +272,25 @@ def create_router_node() -> Callable:
             }
 
         # create prompt
-        ## sub-prompt
-        prompt1 = "\n".join([
+        prompt = "\n".join([
             "# Instructions",
-            " - You determine whether all of appropriate metadata has been extracted.",
-            " - Metadata values of \"unsure\" or \"other\" are considered incomplete."
+            " - You are a helpful bioinformatican who is evaluating the metadata extracted from the SRA experiment.",
+            " - You will be provided with the extracted metadata and will determine if the metadata is complete.",
+            " - Metadata values of \"unsure\" or \"other\" are considered incomplete.",
+            " - If the metadata is incomplete, you will respond to let the system know if more information is needed.",
+            "# Notes",
+            " - The organism may be \"other\" if the organism is not a common model organism.",
+            " - If the library preparation method is not 10X Genomics, then there is no need to provide a 10X technology.",
+            "# Response",
+            " - Based on your evaluation of the metadata, select \"STOP\" if the task is complete or \"CONTINUE\" if more information is needed.",
         ])
-        ## sub-prompt
-        prompt2 = ["\n# The required metadata fields:"]
-        for k,v in get_metadata_items(state["metadata_level"]).items():
-            prompt2.append(f" - {v}: {state[k]}")
-        prompt2 = "\n".join(prompt2)
-        ## full prompt
         prompt = ChatPromptTemplate.from_messages([
-            # system prompts
-            ("system", prompt1),
-            MessagesPlaceholder(variable_name="history"),
-            ("system", prompt2),
-            # Add the final instruction
-            ("human", "Based on the information above, select STOP if the task is complete or CONTINUE if more information is needed."),
+            ("system", prompt),
+            MessagesPlaceholder(variable_name="history")
         ])
-        formatted_prompt = prompt.format_messages(history=state["extracted_metadata"])
+        prompt = prompt.format_messages(history=[state["messages"][-1]]) 
         # call the model
-        response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
+        response = model.with_structured_output(Choice, strict=True).invoke(prompt)
         # format the response
         if response.Choice.value == ChoicesEnum.CONTINUE.value:
             message = "\n".join([
@@ -298,7 +302,7 @@ def create_router_node() -> Callable:
         return {
             "route": response.Choice.value, 
             "attempts": state.get("attempts", 0) + 1, 
-            "messages": [AIMessage(content=message)]
+            "messages": [HumanMessage(content=message)]
         }
     return invoke_router_node
 
@@ -311,7 +315,7 @@ def route_retry_metadata(state: GraphState) -> str:
     if state["attempts"] >= max_attempts:
         return next_node
     # return route choice
-    return "sragent_agent_node" if state["route"] == "Continue" else next_node 
+    return "sragent_agent_node" if state["route"] == "CONTINUE" else next_node 
 
 def bump_metadata_level(state: GraphState) -> str:
     """Bump the metadata level"""
@@ -348,7 +352,7 @@ def add2db(state: GraphState):
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
         "lib_prep": state["lib_prep"],
-        "tech_10x": state["tech_10x"],
+        "tech_10x": fmt(state["tech_10x"]),
         "cell_prep": state["cell_prep"],
         "organism": state["organism"],
         "tissue": state["tissue"],
@@ -373,7 +377,7 @@ def fmt(x: Union[str, List[str]]) -> str:
     """If a list, join them with a semicolon into one string"""
     if type(x) != list:
         return x
-    return ";".join([str(y) for y in x])
+    return ",".join([str(y) for y in x])
 
 def final_state(state: GraphState):
     """Provide the final state"""
@@ -388,7 +392,7 @@ def final_state(state: GraphState):
         "# SRX accession: " + state["SRX"],
         " - SRR accessions: " + fmt(state["SRR"]),
     ] + metadata)
-    return {"messages": [AIMessage(content=message)]}
+    return {"messages": [HumanMessage(content=message)]}
 
 def create_metadata_graph(db_add: bool=True) -> StateGraph:
     """
@@ -467,7 +471,8 @@ if __name__ == "__main__":
     graph = create_metadata_graph(db_add=True)
     config = {"max_concurrency" : 3, "recursion_limit": 50}
     for step in graph.stream(input, subgraphs=False, config=config):
-        print(step)
+       print(step)
+    exit();
 
     # Save the graph image
     # from SRAgent.utils import save_graph_image
@@ -479,10 +484,19 @@ if __name__ == "__main__":
     #print(invoke_metadata_graph(input))
 
     #-- nodes --#
-    # final state
+    msg = """# The extracted metadata:
+   - Is the dataset Illumina sequence data?: yes
+   - Is the dataset single cell RNA-seq data?: yes
+   - Is the dataset paired-end sequencing data?: yes
+   - Which scRNA-seq library preparation technology?: 10x_Genomics
+   - If 10X Genomics, which particular 10X technologies?: 5_prime_gex
+   - Single nucleus or single cell RNA sequencing?: single_cell
+ """
     state = {
+        "messages" : [HumanMessage(content=msg)],
         "SRX": "SRX22716300",
         "SRR": [],
+        "metadata_level": "primary",
         "is_illumina": "unsure",
         "is_single_cell": "unsure",
         "is_paired_end": "unsure",
@@ -495,4 +509,5 @@ if __name__ == "__main__":
         "purturbation": "other",
         "cell_line": "other", 
     }
-    # print(final_state(state)); exit();
+    node = create_router_node()
+    print(node(state)); exit();
