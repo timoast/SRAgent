@@ -4,6 +4,7 @@ import os
 from pprint import pprint
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
+from dotenv import load_dotenv
 from Bio import Entrez
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
@@ -18,7 +19,7 @@ def create_efetch_agent(model_name: str="gpt-4o-mini") -> Callable:
     """
     Create an agent that uses Entrez efetch to help complete a task.
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    model = ChatOpenAI(model_name=model_name, temperature=0.1)
     agent = create_react_agent(
         model=model,
         tools=[efetch, which_entrez_databases],

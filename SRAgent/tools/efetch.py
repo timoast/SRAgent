@@ -9,7 +9,7 @@ from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 from Bio import Entrez
 from langchain_core.tools import tool
 ## package
-from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
+from SRAgent.tools.utils import batch_ids, truncate_values, xml2json, set_entrez_access
 
 
 @tool 
@@ -21,6 +21,7 @@ def efetch(
     Run an Entrez efetch query on Entrez IDs to obtain metadata for the records.
     Useful for obtaining metadata for specific records.
     """
+    set_entrez_access()
     batch_size = 200  # Maximum number of IDs per request as per NCBI guidelines
     records = []
     regex = re.compile(r'"(PAIRED|SINGLE)": +null')

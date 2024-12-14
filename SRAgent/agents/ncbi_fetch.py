@@ -14,7 +14,7 @@ def create_ncbi_fetch_agent(model_name: str="gpt-4o-mini") -> Callable:
     """
     Create an agent that queries the NCBI website 
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    model = ChatOpenAI(model_name=model_name, temperature=0.1)
     agent = create_react_agent(
         model=model,
         tools=[fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record],

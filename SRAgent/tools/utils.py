@@ -1,11 +1,14 @@
 # import
 ## batteries
+import os
 import json
+import random
 import decimal
 from subprocess import Popen, PIPE
 from typing import Annotated, List, Dict, Tuple, Any
 import xml.etree.ElementTree as ET
 from xml.parsers.expat import ExpatError
+from Bio import Entrez
 ## 3rd party
 import xmltodict
 
@@ -100,3 +103,18 @@ def join_accs(accessions: List[str]) -> str:
         str: comma separated string of accessions
     """
     return ', '.join([f"'{acc}'" for acc in accessions])
+
+def set_entrez_access() -> None:
+    """
+    Set the Entrez access email and API key.
+    The email and API key are stored in the environment variables.
+    """
+    i = 0
+    while True:
+        i += 1
+        if not os.getenv(f"EMAIL{i}"):
+            break
+    # random selection from 1 to i
+    n = random.randint(1, i-1)
+    Entrez.email = os.getenv(f"EMAIL{n}")
+    Entrez.api = os.getenv(f"NCBI_API_KEY{n}")

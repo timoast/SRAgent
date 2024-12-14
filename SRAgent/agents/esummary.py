@@ -17,7 +17,7 @@ def create_esummary_agent(model_name: str="gpt-4o-mini") -> Callable:
     """
     Create an agent that uses Entrez esummary to help complete a task.
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    model = ChatOpenAI(model_name=model_name, temperature=0.1)
     agent = create_react_agent(
         model=model,
         tools=[esummary, which_entrez_databases],

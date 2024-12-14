@@ -14,7 +14,7 @@ def create_sequences_agent(model_name: str="gpt-4o-mini") -> Callable:
     """
     Create an agent to call the sequence-based tools
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    model = ChatOpenAI(model_name=model_name, temperature=0.1)
     agent = create_react_agent(
         model=model,
         tools=[sra_stat, fastq_dump],

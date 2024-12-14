@@ -7,7 +7,7 @@ from typing import Annotated, List, Any
 from Bio import Entrez
 from langchain_core.tools import tool
 ## package
-from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
+from SRAgent.tools.utils import batch_ids, truncate_values, xml2json, set_entrez_access
 
 # functions
 @tool
@@ -19,6 +19,7 @@ def esummary(
     Run an Entrez esummary query on Entrez IDs to obtain summary information for the records.
     Useful for obtaining summary information for specific records.
     """
+    set_entrez_access()
     batch_size = 200  # Maximum number of IDs per request as per NCBI guidelines
     max_string_length = 500  # Maximum length of a string in the record
     records = []

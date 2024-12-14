@@ -81,6 +81,8 @@ def eval(df, exclude_cols=["database", "entrez_id", "srx_accession"]):
     overall_accuracy = accuracy["accuracy_percent"].mean()
     print(f"\nOverall accuracy: {overall_accuracy:.2f}%")
 
+    # TODO: include which records are problematic
+
 def main(args):
     # load evaluation dataset
     df = None

@@ -14,7 +14,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
 from SRAgent.tools.entrez_db import which_entrez_databases
-from SRAgent.tools.utils import batch_ids, truncate_values, xml2json
+from SRAgent.tools.utils import batch_ids, truncate_values, xml2json, set_entrez_access
 
 def elink_error_check(batch_record):
     # Parse XML
@@ -38,6 +38,7 @@ def elink(
     Find related entries between Entrez databases, particularly useful for finding
     BioProject, BioSample, or publication records related to SRA entries.
     """
+    set_entrez_access()
     ntries = 6
     batch_size = 200  # Maximum number of IDs per request as per NCBI guidelines
     records = []

@@ -57,7 +57,7 @@ def create_entrez_agent(
         "# Response",
         " - Be very concise; provide simple lists when possible; do not include unnecessary wording.",
         " - Write your output as plain text instead of markdown.",
-        "#Example workflows",
+        "# Example workflows",
         "## Task: Convert GSE123456 to SRX, SRP, or SRR accessions",
         "  1. esearch agent: eSearch of the GSE accession to obtain Entrez IDs",
         "  2. esummary agent: eSummary of the Entrez IDs to get the SRX accessions",
@@ -136,7 +136,8 @@ if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
     load_dotenv()
-    Entrez.email = os.getenv("EMAIL")
+    Entrez.email = os.getenv("EMAIL1")
+    Entrez.api_key = os.getenv("NCBI_API_KEY1")
 
     # create entrez agent
     agent = create_entrez_agent()
@@ -145,5 +146,5 @@ if __name__ == "__main__":
     #input = {"message": "Convert GSE121737 to SRX accessions"}
     #input = {"message": "Is SRX20554853 paired-end Illumina data?"}
     #input = {"message": "List the collaborators for the SRX20554853 dataset"}
-    input = {"messages": [HumanMessage(content="How many bases per run in SRX20554853?")]}
-    print(agent.invoke(input))
+    #input = {"message": "How many bases per run in SRX20554853?"}
+    #print(agent.invoke(input))

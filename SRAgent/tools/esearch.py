@@ -1,15 +1,19 @@
-# langchain custom tools
+# import
+## batteries
 import os
 import sys
 import time
 from datetime import datetime, timedelta
 from typing import Annotated, List, Dict, Optional
+## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
+## package
+from SRAgent.tools.utils import set_entrez_access
 
 # functions
 def esearch_batch(esearch_query: str, database: str, max_ids: Optional[int], verbose: bool=False) -> List[str]:
-    # query
+    # query 
     ids = []
     retstart = 0
     retmax = 10000
@@ -65,6 +69,7 @@ def esearch_scrna(
         database: Database name ('sra' or 'gds').
         previous_days: Number of days to search back (default = 7).
     """
+    set_entrez_access()
     # add date range
     start_date = datetime.now() - timedelta(days=previous_days)
     end_date = datetime.now()
@@ -94,6 +99,8 @@ def esearch(
     Example query for a GEO accession number (database = gds):
         `GSE51372`
     """
+    set_entrez_access()
+
     # debug model
     max_records = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
 
@@ -155,7 +162,7 @@ if __name__ == "__main__":
     query = '("bulk RNA sequencing")'
     #input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
     input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
-    #print(esearch_scrna.invoke(input))
+    # print(esearch_scrna.invoke(input))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}

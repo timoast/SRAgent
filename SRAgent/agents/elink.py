@@ -17,7 +17,7 @@ def create_elink_agent(model_name: str="gpt-4o") -> Callable:
     """
     Create an agent that uses Entrez elink to help complete a task.
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.0)
+    model = ChatOpenAI(model_name=model_name, temperature=0.1)
     agent = create_react_agent(
         model=model,
         tools=[elink, which_entrez_databases],
