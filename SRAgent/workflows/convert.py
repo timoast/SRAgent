@@ -23,7 +23,7 @@ class GraphState(TypedDict):
     SRX: Annotated[List[str], operator.add]
     SRR: Annotated[List[str], operator.add]
     route: Annotated[str, "Route choice"]
-    rounds: Annotated[int, operator.add]
+    attempts: Annotated[int, operator.add]
 
 # functions
 ## convert agent
@@ -63,8 +63,8 @@ def create_get_accessions_node() -> Callable:
 
 ## router
 class Choices(Enum):
-    CONTINUE = "Continue"
-    STOP = "Stop"
+    CONTINUE = "CONTINUE"
+    STOP = "STOP"
 
 class Choice(BaseModel):
     Choice: Choices
@@ -109,7 +109,11 @@ def create_router_node() -> Callable:
         # call the model
         response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
         # format the response
-        return {"route": response.Choice.value,  "messages": [AIMessage(content=response.Message)], "rounds": 1}
+        return {
+            "route": response.Choice.value,  
+            "messages": [AIMessage(content=response.Message)], 
+            "attempts": 1
+        }
     
     return invoke_router
 
@@ -117,9 +121,9 @@ def route_interpret(state: GraphState) -> str:
     """
     Determine the route based on the current state of the conversation.
     """
-    if state["rounds"] >= 2:
+    if state["attempts"] >= 2:
         return END
-    return "convert_agent_node" if state["route"] == "Continue" else END
+    return "convert_agent_node" if state["route"] == "CONTINUE" else END
 
 def create_convert_graph() -> StateGraph:
     """
@@ -171,9 +175,9 @@ if __name__ == "__main__":
     #entrez_id = "307495950000"
     msg = f"Obtain all SRX and ERX accessions for the Entrez ID {entrez_id}"
     input = {"messages" : [HumanMessage(content=msg)]}
-    graph = create_convert_graph()
-    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
-        print(step)
+    # graph = create_convert_graph()
+    # for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
+    #     print(step)
 
     # save graph image
     # from SRAgent.utils import save_graph_image

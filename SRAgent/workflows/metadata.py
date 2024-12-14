@@ -55,8 +55,8 @@ class Tech10XEnum(Enum):
     CELLPLEX = "cellplex"
     CNV = "cnv"
     FEATURE_BARCODING = "feature_barcoding"
-    NA = "not_applicable"
     OTHER = "other"
+    NA = "not_applicable"
 
 class LibPrepEnum(Enum):
     """scRNA-seq library preparation technology"""
@@ -74,12 +74,14 @@ class LibPrepEnum(Enum):
     PARSE_SPLIT_SEQ = "Parse_split-seq"
     Fluent = "Fluent"
     OTHER = "other"
+    NA = "not_applicable"
 
 class CellPrepEnum(Enum):
     """Distinguishes between single nucleus and single cell RNA sequencing methods"""
     SINGLE_NUCLEUS = "single_nucleus"
     SINGLE_CELL = "single_cell" 
     UNSURE = "unsure"   
+    NA = "not_applicable"
 
 class PrimaryMetadataEnum(BaseModel):
     """Metadata to extract"""
@@ -177,7 +179,9 @@ def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
         f"For the SRA experiment accession {state['SRX']}, find the following dataset metadata:",
         "\n".join([f" - {x}" for x in metadata_items]),
         "# Notes",
-        " - Try to confirm all metadata values with two data sources"
+        " - If the dataset is not single cell, then some of the metadata fields may not be applicable",
+        " - Be careful about determining whether the dataset is single cell",
+        " - Try to confirm all metadata values with two data sources",
     ])
     # call the agent
     response = agent.invoke({"messages" : [HumanMessage(content=prompt)]})
@@ -222,11 +226,13 @@ def create_get_metadata_node() -> Callable:
         metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
         prompt = "\n".join([
-            "Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
-            "The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
-            "If there are multiple sources, use majority rules to determine the metadata values, but weigh 'unsure' or 'other' values less.",
-            "If there is not enough information to determine the metadata, respond with 'unsure' or 'other', depending on the metadata field.",
-            "The specific metadata to extract:",
+            "# Instructions",
+            " - Your job is to extract metadata from the provided text on a Sequence Read Archive (SRA) experiment.",
+            " - The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
+            " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\").",
+            " - If there is not enough information to determine the metadata, respond with \"unsure\" or \"other\", depending on the metadata field.",
+            " - Keep free text responses short, less than 100 characters.",
+            "# The specific metadata to extract",
             metadata_items
         ])
         prompt = ChatPromptTemplate.from_messages([
@@ -277,6 +283,7 @@ def create_router_node() -> Callable:
             " - You are a helpful bioinformatican who is evaluating the metadata extracted from the SRA experiment.",
             " - You will be provided with the extracted metadata and will determine if the metadata is complete.",
             " - Metadata values of \"unsure\" or \"other\" are considered incomplete.",
+            " - \"not_applicable\" is considered complete.",
             " - If the metadata is incomplete, you will respond to let the system know if more information is needed.",
             "# Notes",
             " - The organism may be \"other\" if the organism is not a common model organism.",
@@ -430,23 +437,24 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     # compile the graph
     return workflow.compile()
 
-# def invoke_metadata_graph(
-#     state: GraphState, 
-#     graph: StateGraph,
-#     to_return: List[str] = MetadataEnum.model_fields.keys()
-# ) -> Annotated[dict, "Response from the graph"]:
-#     """
-#     Invoke the graph to convert Entrez IDs & non-SRA accessions to SRA accessions.
-#     Args:
-#         state: The graph state
-#         graph: The graph object
-#         to_return: The metadata items to return
-#     Return:
-#         A dictionary of the metadata items
-#     """
-#     response = graph.invoke(state)
-#     filtered_response = {key: [response[key]] for key in to_return}
-#     return filtered_response
+def invoke_metadata_graph(
+    state: GraphState, 
+    graph: StateGraph,
+    to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys())
+) -> Annotated[dict, "Response from the metadata graph"]:
+    """
+    Invoke the graph to obtain metadata for an SRX accession
+    Args:
+        state: The graph state
+        graph: The graph object
+        to_return: The metadata items to return
+    Return:
+        A dictionary of the metadata items
+    """
+    response = graph.invoke(state)
+    # filter the response to just certain graph state fields
+    filtered_response = {key: [response[key]] for key in to_return}
+    return filtered_response
 
 # main
 if __name__ == "__main__":
@@ -460,19 +468,18 @@ if __name__ == "__main__":
 
 
     #-- graph --#
-    entrez_id = 30749595
-    SRX_accession = "SRX22716300"
+    entrez_id = 18060880
+    SRX_accession = "SRX13201194"
     input = {
         "database": "sra",
         "entrez_id": entrez_id,
         "SRX": SRX_accession,
         #"metadata_level": "primary",
     }
-    graph = create_metadata_graph(db_add=True)
+    graph = create_metadata_graph(db_add=False)
     config = {"max_concurrency" : 3, "recursion_limit": 50}
     for step in graph.stream(input, subgraphs=False, config=config):
        print(step)
-    exit();
 
     # Save the graph image
     # from SRAgent.utils import save_graph_image
