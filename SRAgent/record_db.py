@@ -18,12 +18,13 @@ warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy conne
 # functions
 def db_connect() -> connection:
     """Connect to the sql database"""
-    host = os.path.join(os.path.expanduser("~"), "cloudsql", os.environ["GCP_SQL_DB_HOST"])
+    host = get_secret("GCP_SQL_DB_HOST", False)
+    host = os.path.join(os.path.expanduser("~"), "cloudsql", host)
     db_params = {
         'host': host,
-        'database': get_env("GCP_SQL_DB_NAME"),
-        'user': get_env("GCP_SQL_DB_USERNAME"),
-        'password': os.getenv("GCP_SQL_DB_PASSWORD", get_secret("GCP_SQL_DB_PASSWORD")),
+        'database': get_secret("GCP_SQL_DB_NAME"),
+        'user':  get_secret("GCP_SQL_DB_USERNAME"),
+        'password': get_secret("GCP_SQL_DB_PASSWORD"),
         'port': '5432',
         'connect_timeout': 10 
     }
@@ -293,9 +294,9 @@ if __name__ == '__main__':
     load_dotenv()
 
     # glimpse tables
-    # with db_connect() as conn:
-    #     db_glimpse_tables(conn)
-    # exit();
+    with db_connect() as conn:
+        db_glimpse_tables(conn)
+    #exit();
 
     # get processed entrez ids
     #with db_connect() as conn:

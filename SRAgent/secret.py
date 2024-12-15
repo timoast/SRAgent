@@ -4,19 +4,26 @@ import os
 ## 3rd party
 from google.cloud import secretmanager
 
-def get_secret(secret_name: str, add_suffix: bool=True) -> str:
+def get_secret(secret_name: str, add_suffix: bool=True, return_env: bool=True) -> str:
     """
     Fetch secret from GCP Secret Manager.
     Rquired environment variables: GCP_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS
     Args:
         secret_id: The secret id
         add_suffix: Add suffix to secret name based on PY_CONFIG_ACTIVE
+        return_env: Return secret value from env if already present
     Returns:
         The secret value
     """
+    # if secret is already in env, return it
+    if return_env and os.getenv(secret_name):
+        return os.environ[secret_name]
     # get secret version
     if add_suffix:
         secret_name = add_secret_suffix(secret_name)
+        if return_env and os.getenv(secret_name):
+            return os.environ[secret_name]
+    # fetch secret from GCP Secret Manager
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{os.environ['GCP_PROJECT_ID']}/secrets/{secret_name}/versions/latest"
     response = client.access_secret_version(request={"name": name})
