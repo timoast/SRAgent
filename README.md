@@ -64,7 +64,7 @@ docker run -it --rm \
   --env GOOGLE_APPLICATION_CREDENTIALS="$GOOGLE_APPLICATION_CREDENTIALS" \
   --env GCP_PROJECT_ID=${GCP_PROJECT_ID} \
   --env OPENAI_API_KEY="${OPENAI_API_KEY}" \
-  --env PY_CONFIG_ACTIVE="test" \
+  --env PY_CONFIG_ACTIVE="TEST" \
   --platform linux/amd64 \
   ${IMG_NAME}:${IMG_VERSION}
 ```

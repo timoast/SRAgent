@@ -37,18 +37,8 @@ def add_secret_suffix(secret_name: str) -> str:
     Returns:
         The secret name with suffix
     """
-    suffix = "TEST" if os.getenv("PY_CONFIG_ACTIVE") == "TEST" else "PROD"
+    suffix = "TEST" if os.getenv("PY_CONFIG_ACTIVE", "").upper() == "TEST" else "PROD"
     return f"{secret_name}_{suffix}"
-
-def get_env(env_var: str, add_suffix: bool=True) -> str:
-    """
-    """
-    if os.getenv(env_var):
-        return os.environ[env_var]
-    if add_suffix:
-        suffix = "TEST" if os.getenv("PY_CONFIG_ACTIVE") == "TEST" else "PROD"
-        env_var = f"{env_var}_{suffix}"
-    return os.environ[env_var]
 
 # main
 if __name__ == '__main__':

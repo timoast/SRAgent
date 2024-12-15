@@ -10,7 +10,7 @@ from pypika import Query, Table, Field, Column, Criterion
 from psycopg2.extras import execute_values
 from psycopg2.extensions import connection
 ## package
-from SRAgent.secret import get_secret, get_env
+from SRAgent.secret import get_secret
 
 # Suppress the specific warning
 warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy connectable")
