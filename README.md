@@ -130,19 +130,15 @@ cloud-sql-proxy ${PROXY_NAME} \
   --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
 ```
 
+# Evaluations
+
+See the `eval.py` script for running evaluations.
+
 # CRON Jobs
 
 ```bash
 ./cron/find-datasets.py --database sra
 ```
-
-# Evals
-
-* Select eval dataset 
-  * Google sheet tab
-* Run eval
-  * `./scripts/eval.py --experiment test_exp --eval-sheet SRAgent_evals --truth-sheet SRAgent_database --truth-tab ground_truth metadata`
-* Write to eval Google sheet
 
 # Workflows
 
