@@ -56,7 +56,7 @@ def add_suffix(columns: list, suffix: str="_x") -> list:
     return result
 
 def eval(
-    df: pd.dataframe, 
+    df: pd.DataFrame, 
     exclude_cols: List[str]=["database", "entrez_id", "srx_accession"], 
     outfile: str="incorrect.tsv"
     ) -> None:
@@ -126,7 +126,7 @@ def list_datasets() -> pd.DataFrame:
         DataFrame  of dataset IDs and record counts.
     """
     with db_connect() as conn:
-        tbl = Table("ground_truth")
+        tbl = Table("eval")
         stmt = Query \
             .from_(tbl) \
             .select(tbl.dataset_id, fn.Count(tbl.dataset_id).as_("record_count")) \
@@ -153,7 +153,7 @@ def add_update_dataset(csv_file: str) -> None:
     action = "Updated existing" if dataset_id in existing_datasets else "Added new"
     # add to database
     with db_connect() as conn:
-        upsert_df(df, "ground_truth", conn)
+        upsert_df(df, "eval", conn)
     print(f"{action} dataset: {dataset_id}")
 
 def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
@@ -166,7 +166,7 @@ def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
     """
     df = None
     with db_connect() as conn:
-        tbl_eval = Table("ground_truth")
+        tbl_eval = Table("eval")
         tbl_pred = Table("srx_metadata")
         stmt = Query \
             .from_(tbl_eval) \
@@ -183,6 +183,10 @@ def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
     return df
 
 def main(args):
+    # set pandas options
+    pd.set_option("display.max_columns", 40)
+    pd.set_option("display.width", 100)
+
     # add evaluation dataset
     if args.add_dataset:
         add_update_dataset(args.add_dataset)
@@ -193,10 +197,12 @@ def main(args):
         print(list_datasets())
         return None
 
+    # evaluation
     if not args.eval_dataset:
         print("Please provide an evaluation dataset ID")
-
-    # load evaluation dataset
+    if args.eval_dataset not in list_datasets()["dataset_id"].tolist():
+        print(f"Dataset not found: {args.eval_dataset}")
+        return None
     df = load_eval_dataset(args.eval_dataset)
     eval(df, outfile=args.outfile)
 
