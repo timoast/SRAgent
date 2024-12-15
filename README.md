@@ -9,7 +9,7 @@ LLM agents for working with the SRA and associated bioinformatics databases.
 Create a conda environment [optional]: 
 
 ```bash
-mamba create -n sragent-env -y python=3.12 \
+mamba create -n sragent-env -y python=3.12 sra-tools=3.1 \
   && conda activate sragent-env
 ```
 

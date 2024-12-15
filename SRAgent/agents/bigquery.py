@@ -1,5 +1,6 @@
 # import
 ## batteries
+import asyncio
 from typing import Annotated, Any, Callable
 ## 3rd party
 from google.cloud import bigquery
@@ -69,7 +70,7 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
         state_modifier=state_mod
     )
     @tool
-    def invoke_bigquery_agent(
+    async def invoke_bigquery_agent(
         message: Annotated[str, "Message to send to the BigQuery agent"],
     ) -> Annotated[dict, "Response from the BigQuery agent"]:
         """
@@ -77,7 +78,7 @@ def create_bigquery_agent(model_name="gpt-4o") -> Callable:
         The BigQuery agent will search the SRA database with BigQuery.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages" : [AIMessage(content=message)]})
+        result = await agent.ainvoke({"messages" : [AIMessage(content=message)]})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="bigquery_agent")]
         }
@@ -89,8 +90,13 @@ if __name__ == "__main__":
     load_dotenv()
 
     # test agent
-    bigquery_agent = create_bigquery_agent()
-    # print(bigquery_agent.invoke({"message" : "Get the library layout for Entrez ID 35087715"}))
+    async def main():
+        bigquery_agent = create_bigquery_agent()
+        input = {"message" : "Get the library layout for Entrez ID 35087715"}
+        result = await bigquery_agent.ainvoke(input)
+        print(result)
+    asyncio.run(main())
+
     # print(bigquery_agent.invoke({"message" : "Get study metadata for SRP548813"}))
     # print(bigquery_agent.invoke({"message" : "Get experiment metadata for SRP548813"}))
     # print(bigquery_agent.invoke({"message" : "Get the number of base pairs for all runs in SRP548813"}))

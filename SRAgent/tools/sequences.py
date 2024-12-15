@@ -3,6 +3,7 @@
 import os
 import time
 import tempfile
+from shutil import which
 from typing import Annotated, List, Dict
 ## 3rd party
 from langchain_core.tools import tool
@@ -19,6 +20,10 @@ def fastq_dump(
     Use fastq-dump to download the first few lines from the fastq files of the given SRR accession.
     The tool is useful for quickly checking the fastq files of an SRR accession.
     """
+    # check that fastq-dump is installed
+    if not which("fastq-dump"):
+        return "fastq-dump is not installed. Please install SRA Tools"
+
     # check if accession is valid
     incorrect_accessions = [x for x in SRR_accessions if not x.startswith("SRR")]
     if len(incorrect_accessions) > 0:
@@ -65,6 +70,10 @@ def sra_stat(
     Run the sra-stat CLI command (SRA Tools) on a GEO or SRA accession.
     Use this tool to get information about all sequence data associated with the accession.
     """
+    # check that sra-stat is installed
+    if not which("sra-stat"):
+        return "sra-stat is not installed. Please install SRA Tools"
+
     # check if accession is valid
     incorrect_accessions = [x for x in accessions if not x.startswith(("SRP", "SRX", "SRR", "GSE", "GSM"))]
     if len(incorrect_accessions) > 0:
@@ -99,9 +108,9 @@ def sra_stat(
 
 if __name__ == "__main__":
     # fastq-dump
-    #input = {"SRR_accessions" : ["SRR13112659", "SRR13112660"]}
-    input = {"SRR_accessions" : ["ERR12363157"]}
-    #print(fastq_dump.invoke(input))
+    input = {"SRR_accessions" : ["SRR13112659", "SRR13112660"]}
+    #input = {"SRR_accessions" : ["ERR12363157"]}
+    print(fastq_dump.invoke(input))
 
     # sra-stat
     input = {"accessions" : ["SRP359840", "GSE12345"]}

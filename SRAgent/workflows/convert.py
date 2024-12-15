@@ -1,5 +1,6 @@
 # import 
 import os
+import asyncio
 import operator
 from enum import Enum
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Sequence, TypedDict, Callable
@@ -29,11 +30,11 @@ class GraphState(TypedDict):
 ## convert agent
 def create_convert_agent_node() -> Callable:
     convert_agent = create_sragent_agent()
-    def invoke_convert_agent_node(state: GraphState) -> Dict[str, List[str]]:
+    async def invoke_convert_agent_node(state: GraphState) -> Dict[str, List[str]]:
         """
         Invoke the Entrez convert agent to obtain SRA accessions
         """
-        response = convert_agent.invoke({"messages" : state["messages"]})
+        response = await convert_agent.ainvoke({"messages" : state["messages"]})
         return {"messages" : [response["messages"][-1]]}
     return invoke_convert_agent_node
 
@@ -43,7 +44,7 @@ class Acessions(BaseModel):
 
 def create_get_accessions_node() -> Callable:
     model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
-    def invoke_get_accessions_node(state: GraphState):
+    async def invoke_get_accessions_node(state: GraphState):
         """
         Structured data extraction
         """
@@ -57,7 +58,7 @@ def create_get_accessions_node() -> Callable:
             "#-- END OF MESSAGE --#"
         ])
         # invoke model with structured output
-        response = model.with_structured_output(Acessions, strict=True).invoke(prompt)
+        response = await model.with_structured_output(Acessions, strict=True).ainvoke(prompt)
         return {"SRX" : response.srx}
     return invoke_get_accessions_node
 
@@ -76,7 +77,7 @@ def create_router_node() -> Callable:
     """
     model = ChatOpenAI(model="gpt-4o", temperature=0)
 
-    def invoke_router(
+    async def invoke_router(
         state: GraphState
     ) -> Annotated[dict, "Response from the router"]:
         """
@@ -95,19 +96,21 @@ def create_router_node() -> Callable:
         # create prompt
         prompt = ChatPromptTemplate.from_messages([
             # First add any static system message if needed
-            ("system", 
-                "You determine whether Sequence Read Archive SRX accessions (e.g., SRX123456) have been obtained from the Entrez ID."
-                " There should be at least one SRX accession."
-                " ERX accessions are also valid."
-                " If the accessions have been obtained, select STOP. If more information is needed, select CONTINUE."
-                " If more information is needed (CONTINUE), provide one or two sentences of feedback on how to obtain the data (e.g., use esearch instead of efetch)."),
-            ("system", "Here are the last few messages:"),
+            ("system", "\n".join([
+                "# Instructions",
+                " - You determine whether Sequence Read Archive SRX accessions (e.g., SRX123456) have been obtained from the Entrez ID.",
+                " - There should be at least one SRX accession.",
+                " - ERX accessions are also valid.",
+                " - If the accessions have been obtained, select STOP. If more information is needed, select CONTINUE.",
+                " - If more information is needed (CONTINUE), provide one or two sentences of feedback on how to obtain the data (e.g., use esearch instead of efetch).",
+            ])),
+            ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
             ("system", "\nHere are the extracted SRA accessions:\n" + accesions)
         ])
         formatted_prompt = prompt.format_messages(history=state["messages"][-4:])
         # call the model
-        response = model.with_structured_output(Choice, strict=True).invoke(formatted_prompt)
+        response = await model.with_structured_output(Choice, strict=True).ainvoke(formatted_prompt)
         # format the response
         return {
             "route": response.Choice.value,  
@@ -146,7 +149,7 @@ def create_convert_graph() -> StateGraph:
     graph = workflow.compile()
     return graph
 
-def invoke_convert_graph(
+async def invoke_convert_graph(
     state: GraphState, 
     graph: StateGraph,
 ) -> Annotated[dict, "Response from the graph"]:
@@ -155,7 +158,7 @@ def invoke_convert_graph(
     """
     # filter state to just GraphState keys
     state_filt = {k: v for k, v in state.items() if k in graph.state_keys}
-    response = graph.invoke(state_filt)
+    response = await graph.ainvoke(state_filt)
     # filter to just the keys we want to return
     return {"SRX" : response["SRX"]}
 
@@ -170,14 +173,17 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    entrez_id = "34748561"
-    #entrez_id = "30749595"
-    #entrez_id = "307495950000"
-    msg = f"Obtain all SRX and ERX accessions for the Entrez ID {entrez_id}"
-    input = {"messages" : [HumanMessage(content=msg)]}
-    # graph = create_convert_graph()
-    # for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 30}):
-    #     print(step)
+    async def main():
+        entrez_id = "34748561"
+        #entrez_id = "30749595"
+        #entrez_id = "307495950000"
+        msg = f"Obtain all SRX and ERX accessions for the Entrez ID {entrez_id}"
+        input = {"messages" : [HumanMessage(content=msg)]}
+        config = {"max_concurrency" : 3, "recursion_limit": 30}
+        graph = create_convert_graph()
+        async for step in graph.astream(input, config=config):
+            print(step)
+    asyncio.run(main())
 
     # save graph image
     # from SRAgent.utils import save_graph_image

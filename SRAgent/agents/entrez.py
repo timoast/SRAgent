@@ -2,6 +2,7 @@
 ## batteries
 import os
 import sys
+import asyncio
 from typing import Annotated, List, Dict, Any, Callable
 ## 3rd party
 from Bio import Entrez
@@ -83,7 +84,7 @@ def create_entrez_agent(
         return agent
 
     @tool
-    def invoke_entrez_agent(
+    async def invoke_entrez_agent(
         message: Annotated[str, "Message to send to the Entrez agent"],
     ) -> Annotated[dict, "Response from the Entrez agent"]:
         """
@@ -91,7 +92,7 @@ def create_entrez_agent(
         The Entrez agent will perform a task using Entrez tools.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages" : [AIMessage(content=message)]})
+        result = await agent.ainvoke({"messages" : [AIMessage(content=message)]})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="entrez_agent")]
         }
@@ -140,11 +141,15 @@ if __name__ == "__main__":
     Entrez.api_key = os.getenv("NCBI_API_KEY1")
 
     # create entrez agent
-    agent = create_entrez_agent()
+    async def main():
+        agent = create_entrez_agent()
+
+        # invoke agent
+        #input = {"message": "Convert GSE121737 to SRX accessions"}
+        input = {"message": "Is SRX20554853 paired-end Illumina data?"}
+        #input = {"message": "List the collaborators for the SRX20554853 dataset"}
+        #input = {"message": "How many bases per run in SRX20554853?"}
+        result = await agent.ainvoke(input)
+        print(result)
     
-    # invoke agent
-    #input = {"message": "Convert GSE121737 to SRX accessions"}
-    #input = {"message": "Is SRX20554853 paired-end Illumina data?"}
-    #input = {"message": "List the collaborators for the SRX20554853 dataset"}
-    #input = {"message": "How many bases per run in SRX20554853?"}
-    #print(agent.invoke(input))
+    asyncio.run(main())

@@ -1,6 +1,7 @@
 # import
 ## batteries
 import os
+import asyncio
 import operator
 from functools import partial
 from typing import Annotated, List, Dict, Any, TypedDict, Sequence
@@ -49,7 +50,7 @@ def create_convert_graph_node():
     Create a convert graph node
     """
     graph = create_convert_graph()
-    def invoke_convert_graph_node(state: GraphState) -> Dict[str, Any]:
+    async def invoke_convert_graph_node(state: GraphState) -> Dict[str, Any]:
         entrez_id = state["entrez_id"]
         database = state["database"]
         message = "\n".join([
@@ -57,7 +58,7 @@ def create_convert_graph_node():
             f"The Entrez ID is associated with the {database} database."
         ])
         input = {"messages": [HumanMessage(message)]}
-        return graph.invoke(input)
+        return await graph.ainvoke(input)
     return invoke_convert_graph_node
 
 def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
@@ -174,11 +175,15 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
-    input = {"entrez_id": 35087715, "database": "sra"}
-    input = {"entrez_id": 36178506, "database": "sra"}
-    graph = create_SRX_info_graph()
-    for step in graph.stream(input, config={"max_concurrency" : 3, "recursion_limit": 100}):
-        print(step)
+    async def main():
+        #input = {"entrez_id": 35087715, "database": "sra"}
+        #input = {"entrez_id": 36178506, "database": "sra"}
+        input = {"entrez_id": 31679394, "database": "sra"}
+        graph = create_SRX_info_graph()
+        config = {"max_concurrency" : 5, "recursion_limit": 100}
+        async for step in graph.astream(input, config=config):
+            print(step)
+    asyncio.run(main())
 
     # save the graph
     # from SRAgent.utils import save_graph_image

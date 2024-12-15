@@ -1,11 +1,10 @@
 # import 
 import os
 import re
+import asyncio
 import operator
 from enum import Enum
 from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, Union, get_args, get_origin
-#import gspread
-#from gspread_dataframe import set_with_dataframe
 import pandas as pd
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from pydantic import BaseModel
@@ -167,30 +166,34 @@ def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
         metadata_items[key] = get_args(value)[1]
     return metadata_items
 
-def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
-    """Invoke the SRAgent to get the initial messages"""
+def create_sragent_agent_node():
     # create the agent
     agent = create_sragent_agent()
-    # create message prompt
-    metadata_level = state.get("metadata_level", "primary")
-    metadata_items = get_metadata_items(metadata_level).values()
-    prompt = "\n".join([
-        "# Instructions",
-        f"For the SRA experiment accession {state['SRX']}, find the following dataset metadata:",
-        "\n".join([f" - {x}" for x in metadata_items]),
-        "# IMPORTANT NOTES",
-        " - If the dataset is not single cell, then some of the other metadata fields may not be applicable",
-        " - Try to confirm all metadata values with two data sources",
-        " - Do NOT make assumptions about the metadata values; find explicit evidence",
-    ])
-    # call the agent
-    response = agent.invoke({"messages" : [HumanMessage(content=prompt)]})
-    # return the last message in the response
-    return {
-        "messages" : [response["messages"][-1]],
-        "metadata_level" : metadata_level
-    }
 
+    # create the node function
+    async def invoke_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+        """Invoke the SRAgent to get the initial messages"""
+    
+        # create message prompt
+        metadata_level = state.get("metadata_level", "primary")
+        metadata_items = get_metadata_items(metadata_level).values()
+        prompt = "\n".join([
+            "# Instructions",
+            f"For the SRA experiment accession {state['SRX']}, find the following dataset metadata:",
+            "\n".join([f" - {x}" for x in metadata_items]),
+            "# IMPORTANT NOTES",
+            " - If the dataset is not single cell, then some of the other metadata fields may not be applicable",
+            " - Try to confirm all metadata values with two data sources",
+            " - Do NOT make assumptions about the metadata values; find explicit evidence",
+        ])
+        # call the agent
+        response = await agent.ainvoke({"messages" : [HumanMessage(content=prompt)]})
+        # return the last message in the response
+        return {
+            "messages" : [response["messages"][-1]],
+            "metadata_level" : metadata_level
+        }
+    return invoke_sragent_agent_node
 
 def max_str_len(x: str, max_len:int = 100) -> str:
     """Find the maximum length string in a list"""
@@ -221,7 +224,7 @@ def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
-    def invoke_get_metadata_node(state: GraphState):
+    async def invoke_get_metadata_node(state: GraphState):
         """Structured data extraction"""
         metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
@@ -248,7 +251,7 @@ def create_get_metadata_node() -> Callable:
             selected_enum = SecondaryMetadataEnum
         else:
             raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
-        response = model.with_structured_output(selected_enum, strict=True).invoke(prompt)
+        response = await model.with_structured_output(selected_enum, strict=True).ainvoke(prompt)
         extracted_fields = get_extracted_fields(response)
         # create the natural language response message   
         message = "\n".join(
@@ -265,7 +268,7 @@ def create_router_node() -> Callable:
     """Routing based on percieved completion of metadata extraction"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
-    def invoke_router_node(state: GraphState):
+    async def invoke_router_node(state: GraphState):
         """
         Router for the graph
         """
@@ -297,7 +300,7 @@ def create_router_node() -> Callable:
         ])
         prompt = prompt.format_messages(history=[state["messages"][-1]]) 
         # call the model
-        response = model.with_structured_output(Choice, strict=True).invoke(prompt)
+        response = await model.with_structured_output(Choice, strict=True).ainvoke(prompt)
         # format the response
         if response.Choice.value == ChoicesEnum.CONTINUE.value:
             message = "\n".join([
@@ -331,7 +334,7 @@ def bump_metadata_level(state: GraphState) -> str:
         "attempts" : 0
     }
 
-def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
     # format the message
     if state["SRX"].startswith("SRX"):
@@ -342,7 +345,7 @@ def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
         message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRX\" or \"ERR\"."
     # call the agent
     agent = create_sragent_agent()
-    response = agent.invoke({"messages" : [HumanMessage(content=message)]})
+    response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
     # extract all SRR/ERR accessions in the message
     regex = re.compile(r"(?:SRR|ERR)\d{4,}")
     SRR_acc = regex.findall(response["messages"][-1].content)
@@ -413,7 +416,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow = StateGraph(GraphState)
 
     # nodes
-    workflow.add_node("sragent_agent_node", invoke_sragent_agent_node)
+    workflow.add_node("sragent_agent_node", create_sragent_agent_node())
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
     workflow.add_node("bump_metadata_level_node", bump_metadata_level)
@@ -437,7 +440,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     # compile the graph
     return workflow.compile()
 
-def invoke_metadata_graph(
+async def invoke_metadata_graph(
     state: GraphState, 
     graph: StateGraph,
     to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys())
@@ -451,7 +454,7 @@ def invoke_metadata_graph(
     Return:
         A dictionary of the metadata items
     """
-    response = graph.invoke(state)
+    response = await graph.ainvoke(state)
     # filter the response to just certain graph state fields
     filtered_response = {key: [response[key]] for key in to_return}
     return filtered_response
@@ -468,18 +471,20 @@ if __name__ == "__main__":
 
 
     #-- graph --#
-    entrez_id = 18060880
-    SRX_accession = "SRX13201194"
-    input = {
-        "database": "sra",
-        "entrez_id": entrez_id,
-        "SRX": SRX_accession,
-        #"metadata_level": "primary",
-    }
-    graph = create_metadata_graph(db_add=False)
-    config = {"max_concurrency" : 3, "recursion_limit": 50}
-    for step in graph.stream(input, subgraphs=False, config=config):
-       print(step)
+    async def main():
+        entrez_id = 18060880
+        SRX_accession = "SRX13201194"
+        input = {
+            "database": "sra",
+            "entrez_id": entrez_id,
+            "SRX": SRX_accession,
+            #"metadata_level": "primary",
+        }
+        graph = create_metadata_graph(db_add=False)
+        config = {"max_concurrency" : 3, "recursion_limit": 50}
+        async for step in graph.astream(input, subgraphs=False, config=config):
+            print(step)
+    asyncio.run(main())
 
     # Save the graph image
     # from SRAgent.utils import save_graph_image
@@ -516,5 +521,5 @@ if __name__ == "__main__":
         "purturbation": "other",
         "cell_line": "other", 
     }
-    node = create_router_node()
-    print(node(state)); exit();
+    #node = create_router_node()
+    #print(node(state)); exit();

@@ -2,6 +2,7 @@
 ## batteries
 import os
 import sys
+import asyncio
 from typing import Annotated, List, Dict, Any, Callable
 ## 3rd party
 from Bio import Entrez
@@ -72,7 +73,7 @@ def create_entrez_convert_agent(
         return agent
 
     @tool
-    def invoke_entrez_convert_agent(
+    async def invoke_entrez_convert_agent(
         message: Annotated[str, "Message to send to the Entrez Convert agent"],
     ) -> Annotated[dict, "Response from the Entrez Convert agent"]:
         """
@@ -80,7 +81,7 @@ def create_entrez_convert_agent(
         The Entrez agent will convert Entrez IDs to SRA or ENA accessions.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages" : [AIMessage(content=message)]})
+        result = await agent.ainvoke({"messages" : [AIMessage(content=message)]})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="entrez_convert_agent")]
         }
@@ -93,9 +94,10 @@ if __name__ == "__main__":
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
 
-    # create entrez agent
-    # agent = create_entrez_convert_agent()
-    
-    # invoke agent
-    # input = {"message": "Convert 35087715 to SRA accessions"}
-    # print(agent.invoke(input))
+    # test 
+    async def main():
+        agent = create_entrez_convert_agent()
+        input = {"message": "Convert 35087715 to SRA accessions"}
+        result = await agent.ainvoke(input)
+        print(result)
+    asyncio.run(main())

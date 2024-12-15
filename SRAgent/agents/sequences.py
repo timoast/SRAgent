@@ -1,7 +1,9 @@
 # import
 ## batteries
+import asyncio
 from typing import Annotated, Callable
 ## 3rd party
+from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
@@ -30,7 +32,7 @@ def create_sequences_agent(model_name: str="gpt-4o-mini") -> Callable:
     )
 
     @tool
-    def invoke_sequences_agent(
+    async def invoke_sequences_agent(
         message: Annotated[str, "Message to the sequences agent"]
     ) -> Annotated[str, "Response from the sequences agent"]:
         """
@@ -38,14 +40,18 @@ def create_sequences_agent(model_name: str="gpt-4o-mini") -> Callable:
         and provide information the sequence data (fastq files).
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages": [HumanMessage(content=message)]})
+        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="sequence_agent")]
         }
     return invoke_sequences_agent
 
 if __name__ == "__main__":
+    load_dotenv()
     # Create the sequences agent
-    agent = create_sequences_agent()
-    input = {"message": "I need information about the SRA accession SRR18029850."}
-    print(agent.invoke(input))
+    async def main():
+        agent = create_sequences_agent()
+        input = {"message": "I need information about the SRA accession SRR18029850."}
+        result = await agent.ainvoke(input)
+        print(result)
+    asyncio.run(main())

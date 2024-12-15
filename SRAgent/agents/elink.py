@@ -1,6 +1,7 @@
 # import
 ## batteries
 import os
+import asyncio
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
 from Bio import Entrez
@@ -33,14 +34,14 @@ def create_elink_agent(model_name: str="gpt-4o") -> Callable:
     )
 
     @tool
-    def invoke_elink_agent(
+    async def invoke_elink_agent(
         message: Annotated[str, "Message to the elink agent"]
     ) -> Annotated[str, "Response from the elink agent"]:
         """
         Invoke the elink agent to run Entrez elink queries.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages": [HumanMessage(content=message)]})
+        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="elink_agent")]
         }
@@ -55,7 +56,10 @@ if __name__ == "__main__":
     Entrez.api_key = os.getenv('NCBI_API_KEY')
 
     # test elink agent
-    agent = create_elink_agent()
-    input = {"message": "Find SRA Entrez IDs for the GEO Entrez ID 200277303"}
-    print(agent.invoke(input))
+    async def main():
+        agent = create_elink_agent()
+        input = {"message": "Find SRA Entrez IDs for the GEO Entrez ID 200277303"}
+        result = await agent.ainvoke(input)
+        print(result)
+    asyncio.run(main())
     

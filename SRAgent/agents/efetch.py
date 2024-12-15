@@ -1,6 +1,7 @@
 # import
 ## batteries
 import os
+import asyncio
 from pprint import pprint
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
@@ -32,14 +33,14 @@ def create_efetch_agent(model_name: str="gpt-4o-mini") -> Callable:
     )
 
     @tool
-    def invoke_efetch_agent(
+    async def invoke_efetch_agent(
         message: Annotated[str, "Message to the efetch agent"]
     ) -> Annotated[str, "Response from the efetch agent"]:
         """
         Invoke the efetch agent to run Entrez efetch queries.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages": [HumanMessage(content=message)]})
+        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="efetch_agent")]
         }
@@ -52,6 +53,9 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # test agent
-    agent = create_efetch_agent()
-    input = {"message": "I need to find information about 35966237."}
-    print(agent.invoke(input))
+    async def main():
+        agent = create_efetch_agent()
+        input = {"message": "I need to find information about 35966237."}
+        result = await agent.ainvoke(input)
+        pprint(result)
+    asyncio.run(main())

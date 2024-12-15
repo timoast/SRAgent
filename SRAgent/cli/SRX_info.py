@@ -2,6 +2,7 @@
 ## batteries
 import os
 import sys
+import asyncio
 import argparse
 from typing import List
 from Bio import Entrez
@@ -28,12 +29,38 @@ def SRX_info_agent_parser(subparsers):
                             help='Do not filter Entrez IDs already in the metadata database')
     sub_parser.add_argument('--no-summaries', action='store_true', default=False,
                             help='No LLM summaries')
-    sub_parser.add_argument('--max-concurrency', type=int, default=3, 
+    sub_parser.add_argument('--max-concurrency', type=int, default=6, 
                             help='Maximum number of concurrent processes')
     sub_parser.add_argument('--recursion-limit', type=int, default=200,
                             help='Maximum recursion limit')
+    sub_parser.add_argument('--max-parallel', type=int, default=2,
+                            help='Maximum parallel processing of entrez ids')
 
-def SRX_info_agent_main(args):
+async def _process_single_entrez_id(entrez_id, database, graph, step_summary_chain, config, no_summaries):
+    """Process a single entrez_id"""
+    #print(f"#-- Entrez ID: {entrez_id} (database={database}) --#")
+    input = {"entrez_id": entrez_id, "database": database}
+    final_state = None
+    i = 0
+    async for step in graph.astream(input, config=config):
+        i += 1
+        final_state = step
+        if no_summaries:
+            nodes = ",".join(list(step.keys()))
+            print(f"[{entrez_id}] Step {i}: {nodes}")
+        else:
+            msg = await step_summary_chain.ainvoke({"step": step})
+            print(f"[{entrez_id}] Step {i}: {msg.content}")
+
+    if final_state:
+        print(f"#-- Final results for Entrez ID {entrez_id} --#")
+        try:
+            print(final_state["final_state_node"]["messages"][-1].content)
+        except KeyError:
+            print("Processing skipped")
+    print("#---------------------------------------------#")
+
+async def _SRX_info_agent_main(args):
     """
     Main function for invoking the entrez agent
     """
@@ -57,28 +84,32 @@ def SRX_info_agent_main(args):
 
     # invoke agent
     config = {
-        "max_concurrency" : args.max_concurrency,
+        "max_concurrency": args.max_concurrency,
         "recursion_limit": args.recursion_limit
     }
-    for entrez_id in args.entrez_ids:
-        print(f"#-- Entrez ID: {entrez_id} (database={args.database}) --#")
-        input = {"entrez_id": entrez_id, "database": args.database}
-        # stream invoke graph
-        final_state = None
-        for i,step in enumerate(graph.stream(input, config=config)):
-            final_state = step
-            if args.no_summaries:
-                print(f"Step {i+1}: {step}")
-            else:
-                msg = step_summary_chain.invoke({"step": step})
-                print(f"Step {i+1}: {msg.content}")
-        # print final state
-        if final_state:
-            try:
-                print(final_state["final_state_node"]["messages"][-1].content)
-            except KeyError:
-                print("No final state message.")
-        print("")
+
+    # Create semaphore to limit concurrent processing
+    semaphore = asyncio.Semaphore(args.max_parallel)
+
+    async def _process_with_semaphore(entrez_id):
+        async with semaphore:
+            await _process_single_entrez_id(
+                entrez_id,
+                args.database,
+                graph,
+                step_summary_chain,
+                config,
+                args.no_summaries
+            )
+
+    # Create tasks for each entrez_id
+    tasks = [_process_with_semaphore(entrez_id) for entrez_id in args.entrez_ids]
+    
+    # Run tasks concurrently with limited concurrency
+    await asyncio.gather(*tasks)
+
+def SRX_info_agent_main(args):
+    asyncio.run(_SRX_info_agent_main(args))
 
 # main
 if __name__ == '__main__':

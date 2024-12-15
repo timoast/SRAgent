@@ -1,6 +1,7 @@
 # import
 ## batteries
 import os
+import asyncio
 from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
 ## 3rd party
 from Bio import Entrez
@@ -102,7 +103,7 @@ def create_sragent_agent(
 
     # create tool
     @tool
-    def invoke_sragent_agent(
+    async def invoke_sragent_agent(
         messages: Annotated[List[BaseMessage], "Messages to send to the SRAgent agent"],
     ) -> Annotated[dict, "Response from the SRAgent agent"]:
         """
@@ -110,12 +111,11 @@ def create_sragent_agent(
         The SRAgent agent will perform a task using Entrez and other tools.
         """
         # Invoke the agent with the message
-        result = agent.invoke({"messages" : messages})
+        result = await agent.ainvoke({"messages" : messages})
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="sragent_agent")]
         }
     return invoke_sragent_agent
-
 
 
 # main
@@ -125,22 +125,27 @@ if __name__ == "__main__":
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
 
-    # create entrez agent
-    agent = create_sragent_agent()
+
+    async def main():
+        # create entrez agent
+        agent = create_sragent_agent()
     
-    # invoke agent
-    msg = "Convert GSE121737 to SRX accessions"
-    # msg = "Is SRX20554853 paired-end Illumina data?"
-    # msg = "Obtain all SRR accessions for SRX20554853"
-    # msg = "List the collaborators for the SRX20554853 dataset"
-    # msg = "\n".join([
-    #     "For the SRA accession SRX25994842, find the following information:"
-    #     " - Is the dataset Illumina sequence data?",
-    #     " - Is the dataset single cell RNA-seq data?", 
-    #     " - Is the dataset paired-end sequencing data?",
-    #     " - Is the dataset 10X Genomics data?",
-    #     " - Which 10X Genomics technology?",
-    #     " - Which organism was sequenced?"
-    # ])
-    input = {"messages": [HumanMessage(content=msg)]}
-    print(agent.invoke(input))
+        # invoke agent
+        msg = "Convert GSE121737 to SRX accessions"
+        # msg = "Is SRX20554853 paired-end Illumina data?"
+        # msg = "Obtain all SRR accessions for SRX20554853"
+        # msg = "List the collaborators for the SRX20554853 dataset"
+        # msg = "\n".join([
+        #     "For the SRA accession SRX25994842, find the following information:"
+        #     " - Is the dataset Illumina sequence data?",
+        #     " - Is the dataset single cell RNA-seq data?", 
+        #     " - Is the dataset paired-end sequencing data?",
+        #     " - Is the dataset 10X Genomics data?",
+        #     " - Which 10X Genomics technology?",
+        #     " - Which organism was sequenced?"
+        # ])
+        input = {"messages": [HumanMessage(content=msg)]}
+        result = await agent.ainvoke(input)
+        print(result)
+        
+    asyncio.run(main())

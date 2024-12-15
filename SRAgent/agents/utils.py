@@ -1,8 +1,8 @@
 import sys
+import asyncio
 from typing import List, Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
-
 
 def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):
     """
