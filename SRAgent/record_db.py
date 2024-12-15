@@ -9,6 +9,8 @@ import pandas as pd
 from pypika import Query, Table, Field, Column, Criterion
 from psycopg2.extras import execute_values
 from psycopg2.extensions import connection
+## package
+from SRAgent.secret import get_secret, get_env
 
 # Suppress the specific warning
 warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy connectable")
@@ -19,9 +21,9 @@ def db_connect() -> connection:
     host = os.path.join(os.path.expanduser("~"), "cloudsql", os.environ["GCP_SQL_DB_HOST"])
     db_params = {
         'host': host,
-        'database': os.environ["GCP_SQL_DB_NAME"],
-        'user': os.environ["GCP_SQL_DB_USERNAME"],
-        'password': os.environ["GCP_SQL_DB_PASSWORD"],
+        'database': get_env("GCP_SQL_DB_NAME"),
+        'user': get_env("GCP_SQL_DB_USERNAME"),
+        'password': os.getenv("GCP_SQL_DB_PASSWORD", get_secret("GCP_SQL_DB_PASSWORD")),
         'port': '5432',
         'connect_timeout': 10 
     }
@@ -291,8 +293,9 @@ if __name__ == '__main__':
     load_dotenv()
 
     # glimpse tables
-    #with db_connect() as conn:
-    #    db_glimpse_tables(conn)
+    # with db_connect() as conn:
+    #     db_glimpse_tables(conn)
+    # exit();
 
     # get processed entrez ids
     #with db_connect() as conn:
@@ -328,9 +331,7 @@ if __name__ == '__main__':
     #with db_connect() as conn:
     #    db_add_update(data, "srx_metadata", conn)
 
-
     df = pd.read_csv("data/ground_truth1.csv")
     df["dataset_id"] = "ground_truth1"
-    #print(df.head())
-    with db_connect() as conn:
-        upsert_df(df, "ground_truth", conn)
+    # with db_connect() as conn:
+    #     upsert_df(df, "ground_truth", conn)
