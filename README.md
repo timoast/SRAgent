@@ -43,6 +43,29 @@ pip install .
 pip install -e .
 ```
 
+## Docker 
+
+Build the image:
+
+```bash
+IMG_NAME=sragent
+IMG_VERSION=0.1.0
+docker build --platform linux/amd64 \
+  -t ${IMG_NAME}:${IMG_VERSION} .
+```
+
+Run the image:
+
+```bash
+docker run -it --rm \
+  -u $(id -u):$(id -g) \
+  -v ${PWD}:/data \
+  -v ${HOME}/.gcp/:/.gcp \
+  --env GOOGLE_APPLICATION_CREDENTIALS="/.gcp/c-tc-429521-6f6f5b8ccd93.json" \
+  --platform linux/amd64 \
+  ${IMG_NAME}:${IMG_VERSION}
+```
+
 # Usage
 
 ## SRX-info agent

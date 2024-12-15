@@ -53,7 +53,10 @@ def main():
     args = arg_parse()
     
     # which subcommand
-    if args.command == "entrez":
+    if not args.command:
+        print("Provide a subcommand or use -h/--help for help")
+        sys.exit(0)
+    elif args.command == "entrez":
         entrez_agent_main(args)
     elif args.command == "sragent":
         sragent_main(args)

@@ -38,5 +38,5 @@ SRAgent = "SRAgent.cli.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["SRAgent"]
+include = ["SRAgent", "SRAgent.*"]
 exclude = ["tmp", "data", "tests", "*.tests", "*.tests.*", "tests.*", "tests"]
