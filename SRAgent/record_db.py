@@ -21,8 +21,6 @@ def db_connect() -> connection:
     s_path = None
     with resources.path("SRAgent", "settings.yml") as settings_path:
         s_path = str(settings_path)
-    print(s_path);
-
     settings = Dynaconf(
         settings_files=["settings.yml", s_path], 
         environments=True, 
