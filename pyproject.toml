@@ -28,10 +28,10 @@ dependencies = [
     "beautifulsoup4==4.12.3",
     "google-cloud-bigquery==3.27.0",
     "google-cloud-bigquery-storage==2.27.0",
-    "google-cloud-secret-manager==2.22.0",
     "db-dtypes==1.3.1",
     "pypika==0.48.9",
-    "psycopg2-binary==2.9.10"
+    "psycopg2-binary==2.9.10",
+    "dynaconf==3.2.6"
 ]
 
 [project.scripts]
@@ -41,3 +41,8 @@ SRAgent = "SRAgent.cli.__main__:main"
 where = ["."]
 include = ["SRAgent", "SRAgent.*"]
 exclude = ["tmp", "data", "tests", "*.tests", "*.tests.*", "tests.*", "tests"]
+
+[tool.dynaconf]
+default_environment = "default"
+env_switcher = "DYNACONF"
+settings_files = ["settings.yml"]

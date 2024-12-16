@@ -9,8 +9,7 @@ import pandas as pd
 from pypika import Query, Table, Field, Column, Criterion
 from psycopg2.extras import execute_values
 from psycopg2.extensions import connection
-## package
-from SRAgent.secret import get_secret
+from dynaconf import Dynaconf
 
 # Suppress the specific warning
 warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy connectable")
@@ -18,21 +17,19 @@ warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy conne
 # functions
 def db_connect() -> connection:
     """Connect to the sql database"""
-    # get db host
-    host = get_secret("GCP_SQL_DB_HOST", False)
-    ## determine proxy location
-    proxy = os.path.join(os.path.expanduser("~"), "cloudsql")
-    if not os.path.exists(proxy):
-        proxy = "/cloudsql"
-    host = os.path.join(proxy, host)
+    settings = Dynaconf(
+        settings_files=["settings.yml"], 
+        environments=True, 
+        env_switcher="DYNACONF"
+    )
     # connect to db
     db_params = {
-        'host': host,
-        'database': get_secret("GCP_SQL_DB_NAME"),
-        'user':  get_secret("GCP_SQL_DB_USERNAME"),
-        'password': get_secret("GCP_SQL_DB_PASSWORD"),
-        'port': '5432',
-        'connect_timeout': 30
+        'host': settings.db_host,
+        'database': settings.db_name,
+        'user': settings.db_user,
+        'password': os.environ["GCP_SQL_DB_PASSWORD"],
+        'port': settings.db_port,
+        'connect_timeout': settings.db_timeout
     }
     return psycopg2.connect(**db_params)
 
@@ -302,7 +299,7 @@ if __name__ == '__main__':
     # glimpse tables
     with db_connect() as conn:
         db_glimpse_tables(conn)
-    #exit();
+    exit();
 
     # get processed entrez ids
     #with db_connect() as conn:
