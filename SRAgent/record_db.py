@@ -18,15 +18,21 @@ warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy conne
 # functions
 def db_connect() -> connection:
     """Connect to the sql database"""
+    # get db host
     host = get_secret("GCP_SQL_DB_HOST", False)
-    host = os.path.join(os.path.expanduser("~"), "cloudsql", host)
+    ## determine proxy location
+    proxy = os.path.join(os.path.expanduser("~"), "cloudsql")
+    if not os.path.exists(proxy):
+        proxy = "/cloudsql"
+    host = os.path.join(proxy, host)
+    # connect to db
     db_params = {
         'host': host,
         'database': get_secret("GCP_SQL_DB_NAME"),
         'user':  get_secret("GCP_SQL_DB_USERNAME"),
         'password': get_secret("GCP_SQL_DB_PASSWORD"),
         'port': '5432',
-        'connect_timeout': 10 
+        'connect_timeout': 30
     }
     return psycopg2.connect(**db_params)
 
