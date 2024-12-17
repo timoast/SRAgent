@@ -26,7 +26,20 @@ class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 desc = 'Database tools'
 epi = """DESCRIPTION:
+# list all tables
+db-tools.py --list
 
+# glimpse all tables
+db-tools.py --glimpse
+
+# dump all tables
+db-tools.py --dump
+
+# drop >=1 table 
+db-tools.py --drop srx_metadata
+
+# upsert from a csv
+db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_metadata.csv
 """
 parser = argparse.ArgumentParser(description=desc, epilog=epi,
                                  formatter_class=CustomFormatter)

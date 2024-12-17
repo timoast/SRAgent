@@ -79,3 +79,8 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     from SRAgent.db.connect import db_connect
     load_dotenv()
+
+    # connect to db
+    with db_connect() as conn:
+        # create tables
+        create_srx_metadata()
