@@ -60,11 +60,13 @@ Run the image:
 docker run -it --rm \
   -u $(id -u):$(id -g) \
   -v ${PWD}:/data \
-  -v ${HOME}/.gcp/:/.gcp \
-  --env GOOGLE_APPLICATION_CREDENTIALS="$GOOGLE_APPLICATION_CREDENTIALS" \
-  --env GCP_PROJECT_ID=${GCP_PROJECT_ID} \
+  --env DYNACONF="TEST" \
+  --env EMAIL1="${EMAIL1}" \
+  --env EMAIL2="${EMAIL2}" \
+  --env NCBI_API_KEY1="${NCBI_API_KEY1}" \
+  --env NCBI_API_KEY2="${NCBI_API_KEY2}" \
+  --env GCP_SQL_DB_PASSWORD="${GCP_SQL_DB_PASSWORD}" \
   --env OPENAI_API_KEY="${OPENAI_API_KEY}" \
-  --env PY_CONFIG_ACTIVE="TEST" \
   --platform linux/amd64 \
   ${IMG_NAME}:${IMG_VERSION}
 ```
@@ -133,29 +135,6 @@ SRAgent entrez "Convert GSE121737 to SRX accessions"
 SRAgent entrez "Obtain any available publications for GSE196830"
 ```
 
-
-## Network proxy
-
-Install via (assuming `${HOME}/bin` is in your path):
-
-```bash
-mkdir -p ${HOME}/bin/ \
-  && curl -o ${HOME}/bin/cloud-sql-proxy \
-    https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
-  && chmod u+x ${HOME}/bin/cloud-sql-proxy \
-  && mkdir -p ${HOME}/cloudsql
-```
-
-Run via:
-
-```bash
-SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
-PROXY_NAME="c-tc-429521:us-east1:sragent"
-rm -rf ${HOME}/cloudsql/${PROXY_NAME}
-cloud-sql-proxy ${PROXY_NAME} \
-  --unix-socket ${HOME}/cloudsql \
-  --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
-```
 
 # Evaluations
 
@@ -281,3 +260,31 @@ Multi-stage workflow for processing sequencing datasets:
 # resources
 
 * https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud-based-metadata-table/
+
+
+***
+
+# OLD
+
+## Network proxy
+
+Install via (assuming `${HOME}/bin` is in your path):
+
+```bash
+mkdir -p ${HOME}/bin/ \
+  && curl -o ${HOME}/bin/cloud-sql-proxy \
+    https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
+  && chmod u+x ${HOME}/bin/cloud-sql-proxy \
+  && mkdir -p ${HOME}/cloudsql
+```
+
+Run via:
+
+```bash
+SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
+PROXY_NAME="c-tc-429521:us-east1:sragent"
+rm -rf ${HOME}/cloudsql/${PROXY_NAME}
+cloud-sql-proxy ${PROXY_NAME} \
+  --unix-socket ${HOME}/cloudsql \
+  --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
+```

@@ -82,7 +82,7 @@ def esearch_scrna(
     esearch_query += ' AND "sra bioproject"[Filter]'
 
     # debug model
-    max_ids = 2 if os.getenv("DEBUG_MODE") == "true" else max_ids
+    max_ids = 2 if os.getenv("DYNACONF").upper() == "TEST" else max_ids
 
     # return entrez IDs 
     return esearch_batch(esearch_query, database, max_ids, filter_existing=True)

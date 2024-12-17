@@ -95,7 +95,27 @@ def final_state(state: GraphState) -> Dict[str, Any]:
     """
     Final state of the graph
     """
-    return {"messages" : state["messages"]}
+    """
+    Return the final state of the graph
+    """
+    # filter to messages that contain the SRX accession
+    messages = []
+    for msg in state["messages"]:
+        try:
+            msg = [msg.content]
+        except AttributeError:
+            msg = [x.content for x in msg]
+        for x in msg:
+            if x.startswith("# SRX accession: "):
+                messages.append(x)
+    # final message
+    if len(messages) == 0:
+        message = "No novel SRX accessions found."
+    else:
+        message = "\n".join(messages)
+    return {
+        "messages": [AIMessage(content=message)]
+    }
 
 def create_find_datasets_graph():
     #-- graph --#

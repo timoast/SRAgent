@@ -46,14 +46,14 @@ async def _find_datasets_main(args):
     if not args.no_summaries:
         step_summary_chain = create_step_summary_chain()
 
-    # invoke agent
+    # set graph inpu
     config = {
         "max_concurrency": args.max_concurrency,
         "recursion_limit": args.recursion_limit
     }
-
-    #
     input = {"messages" : [HumanMessage(content=args.message)]}
+
+    # call the graph
     final_state = None
     i = 0
     async for step in graph.astream(input, config=config):
@@ -66,11 +66,19 @@ async def _find_datasets_main(args):
             msg = await step_summary_chain.ainvoke({"step": step})
             print(f"Step {i}: {msg.content}")
 
+    # print final results
     if final_state:
         print(f"\n#-- Final results --#")
         try:
             for msg in final_state["final_state_node"]["messages"]:
-                print(msg); 
+                try:
+                    print(msg.content)
+                except AttributeError:
+                    if isinstance(msg, list):
+                        for x in msg:
+                            print(x)
+                    else:
+                        print(msg)
         except KeyError:
             print("Processing skipped")
 

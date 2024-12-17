@@ -23,11 +23,16 @@ def create_find_datasets_agent(model_name: str="gpt-4o") -> Callable:
         model=model,
         tools=[esearch_scrna],
         state_modifier="\n".join([
-            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-            "Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
-            "You will return Entrez IDs.",
-            "Be sure to state which database you searched (e.g., GEO, SRA).",
-            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            "# Instructions",
+            " - You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            " - Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
+            "# Strategy",
+            " - If your initial search does not return any results, try different search terms or databases.",
+            " - You MUST make at least two attempts to find datasets.",
+            "# Response",
+            " - You will return Entrez IDs.",
+            " - Be sure to state which database you searched (e.g., GEO, SRA).",
+            " - Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
     
