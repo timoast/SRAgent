@@ -12,6 +12,24 @@ from psycopg2.extensions import connection
 from SRAgent.db.utils import execute_query
 
 # functions
+def db_find_srx(srx_accessions: List[str], conn: connection) -> List[int]:
+    """
+    Get SRX records on the database
+    Args:
+        conn: Connection to the database.
+        database: Name of the database to query.
+    Returns:
+        List of entrez_id values of SRX records that have not been processed.
+    """
+    srx_metadata = Table("srx_metadata")
+    stmt = Query \
+        .from_(srx_metadata) \
+        .select("*") \
+        .distinct() \
+        .where(srx_metadata.srx_accession.isin(srx_accessions))
+    # return as pandas dataframe
+    return pd.read_sql(str(stmt), conn)
+
 def db_get_srx_records(conn: connection, column: str="entrez_id", database: str="sra") -> List[int]:
     """
     Get the entrez_id values of all SRX records in the database.
@@ -78,4 +96,5 @@ if __name__ == "__main__":
     
     with db_connect() as conn:
         #print(db_get_srx_records(conn))
-        print(db_get_unprocessed_records(conn))
+        #print(db_get_unprocessed_records(conn))
+        print(db_find_srx(["SRX19162973"], conn))
