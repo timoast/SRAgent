@@ -20,7 +20,17 @@ def db_upsert(df: pd.DataFrame, table_name: str, conn: connection) -> None:
         df: pandas DataFrame to upload
         table_name: name of the target table
         conn: psycopg2 connection object
-    """    
+    """   
+    # if df is empty, return
+    if df.empty:
+        return
+    # if df is not dataframe, try to convert
+    if not isinstance(df, pd.DataFrame):
+        try:
+            df = pd.DataFrame(df)
+        except Exception as e:
+            raise Exception(f"Error converting input to DataFrame: {str(e)}")
+
     # Get DataFrame columns
     columns = list(df.columns)
     

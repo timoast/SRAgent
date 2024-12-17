@@ -115,7 +115,7 @@ def add_entrez_id_to_db(entrez_id: int, database: str) -> None:
         "entrez_id": entrez_id,
     }]
     with db_connect() as conn:
-        db_add_update(data, "srx_metadata", conn)
+        db_upsert(pd.DataFrame(data), "srx_metadata", conn)
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """

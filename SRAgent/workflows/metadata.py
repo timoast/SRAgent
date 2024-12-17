@@ -383,7 +383,7 @@ def add2db(state: GraphState):
             "srr_accession" : srr_acc
         })
     with db_connect() as conn:
-        db_add_update(data, "srx_srr", conn)
+        db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
 def fmt(x: Union[str, List[str]]) -> str:
     """If a list, join them with a semicolon into one string"""
