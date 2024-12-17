@@ -5,11 +5,14 @@ import sys
 import asyncio
 import argparse
 from typing import List
+## 3rd party
 from Bio import Entrez
+## package
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.workflows.SRX_info import create_SRX_info_graph
 from SRAgent.agents.utils import create_step_summary_chain
-from SRAgent.record_db import db_connect, db_get_srx_records
+from SRAgent.db.connect import db_connect 
+from SRAgent.db.get import db_get_srx_records
 
 # functions
 def SRX_info_agent_parser(subparsers):

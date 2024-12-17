@@ -4,13 +4,17 @@ import os
 import argparse
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Tuple, Annotated
+## 3rd party
 from dotenv import load_dotenv
 import pandas as pd
 from Bio import Entrez
+## package
 from SRAgent.tools.esearch import esearch_batch
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.workflows.SRX_info import create_SRX_info_graph
-from SRAgent.record_db import db_connect, db_get_srx_records
+from SRAgent.db.connect import db_connect 
+from SRAgent.db.upsert import db_upsert
+from SRAgent.db.get import db_get_srx_records
 
 
 # global variables

@@ -13,7 +13,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
 ## package
 from SRAgent.agents.sragent import create_sragent_agent
-from SRAgent.record_db import db_connect, db_add_update
+from SRAgent.db.connect import db_connect 
+from SRAgent.db.upsert import db_upsert
 
 # classes
 class YesNo(Enum):
@@ -370,8 +371,9 @@ def add2db(state: GraphState):
         "purturbation": state["purturbation"],
         "cell_line": state["cell_line"]
     }]
+    data = pd.DataFrame(data)
     with db_connect() as conn:
-        db_add_update(data, "srx_metadata", conn)
+        db_upsert(data, "srx_metadata", conn)
 
     # Upload SRR accessions to the database
     data = []

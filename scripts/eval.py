@@ -11,7 +11,8 @@ import pandas as pd
 from tabulate import tabulate
 from pypika import Query, Table, Criterion, functions as fn
 ## package
-from SRAgent.record_db import db_connect, upsert_df
+from SRAgent.db.connect import db_connect
+from SRAgent.db.upsert import upsert_df
 
 
 # argparse
