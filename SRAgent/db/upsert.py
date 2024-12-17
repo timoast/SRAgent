@@ -58,6 +58,9 @@ def db_upsert(df: pd.DataFrame, table_name: str, conn: connection) -> None:
         do_update_set = ', '.join(f"{col} = EXCLUDED.{col}" for col in do_update_set)
         insert_stmt += f"\nON CONFLICT ({', '.join(unique_columns)})"
         insert_stmt += f"\nDO UPDATE SET {do_update_set}"
+    else:
+        # if no non-unique columns, add DO NOTHING clause
+        insert_stmt += f"\nON CONFLICT ({', '.join(unique_columns)}) DO NOTHING"
 
     # Execute the query
     try:
@@ -74,5 +77,11 @@ if __name__ == '__main__':
     from SRAgent.db.connect import db_connect
     load_dotenv()
 
+    # test data
+    df = pd.DataFrame({
+        "database" : ["sra"],
+        "entrez_id" : ["25200088"],
+        "srx_accession" : ["SRX18216984"],
+    })
     with db_connect() as conn:
-        print(conn)     
+        db_upsert(df, "srx_metadata", conn)    
