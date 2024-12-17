@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.cli.entrez import entrez_agent_parser, entrez_agent_main
 from SRAgent.cli.sragent import sragent_parser, sragent_main
-from SRAgent.cli.SRX_info import SRX_info_agent_parser, SRX_info_agent_main
+from SRAgent.cli.srx_info import SRX_info_agent_parser, SRX_info_agent_main
 
 
 # functions

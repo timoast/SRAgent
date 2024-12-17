@@ -166,6 +166,21 @@ def create_SRX_info_graph(db_add:bool = True):
     graph = workflow.compile()
     return graph
 
+async def invoke_srx_info_graph(
+    state: GraphState, 
+    graph: StateGraph
+) -> Annotated[dict, "Response from the metadata graph"]:
+    """
+    Invoke the graph to obtain metadata for the SRX accessions.
+    Args:
+        state: The graph state
+        graph: The graph object
+    Return:
+        A dictionary of the 
+    """
+    response = await graph.ainvoke(state)
+    return {"messages" : response.get("messages", [])}
+
 # main
 if __name__ == "__main__":
     from functools import partial

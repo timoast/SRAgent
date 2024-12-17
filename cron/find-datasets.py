@@ -11,7 +11,7 @@ from Bio import Entrez
 ## package
 from SRAgent.tools.esearch import esearch_batch
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.workflows.SRX_info import create_SRX_info_graph
+from SRAgent.workflows.srx_info import create_SRX_info_graph
 from SRAgent.db.connect import db_connect 
 from SRAgent.db.upsert import db_upsert
 from SRAgent.db.get import db_get_srx_records

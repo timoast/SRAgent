@@ -32,7 +32,9 @@ def db_get_srx_records(conn: connection, column: str="entrez_id", database: str=
     # Fetch the results and return a list of {target_column} values
     return [row[0] for row in execute_query(stmt, conn)]
 
-def db_get_unprocessed_records(conn: connection, database: str="sra", max_records: int=3) -> pd.DataFrame:
+def db_get_unprocessed_records(
+    conn: connection, database: str="sra", max_records: int=3
+    ) -> pd.DataFrame:
     """
     Get all suitable unprocessed SRX records
     Args:

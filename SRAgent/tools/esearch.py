@@ -10,9 +10,93 @@ from Bio import Entrez
 from langchain_core.tools import tool
 ## package
 from SRAgent.tools.utils import set_entrez_access
+from SRAgent.db.connect import db_connect
+from SRAgent.db.get import db_get_unprocessed_records
 
 # functions
-def esearch_batch(esearch_query: str, database: str, max_ids: Optional[int], verbose: bool=False) -> List[str]:
+ORGANISMS = {
+    'human': 'Homo sapiens',
+    'mouse': 'Mus musculus',
+    'rat': 'Rattus norvegicus',
+    'monkey': 'Simiiformes', 
+    'macaque': 'Macaca mulatta',
+    'marmoset': 'Callithrix jacchus',
+    'horse': 'Equus caballus',
+    'dog': 'Canis lupus',
+    'bovine': 'Bos taurus',
+    'chicken': 'Gallus gallus',
+    'sheep': 'Ovis aries',
+    'pig': 'Sus scrofa',
+    'fruit_fly': 'Drosophila melanogaster',
+    'roundworm': 'Caenorhabditis elegans',
+    'zebrafish': 'Danio rerio'
+}
+
+def to_sci_name(organism: str) -> str:
+    """
+    Convert organism name to scientific name.
+    """
+    try:
+        return f'"{ORGANISMS[organism]}"'
+    except KeyError:
+        raise ValueError(f"Organism '{organism}' not found in list.")
+
+## default time span limits
+MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
+MIN_DATE = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y/%m/%d')
+
+@tool 
+def esearch_scrna(
+    query_terms: Annotated[List[str], "Entrez query terms"]=["single cell RNA sequencing", "single cell RNA-seq"],
+    database: Annotated[str, "Database name ('sra' or 'gds')"]="sra",
+    organisms: Annotated[List[str], "List of organisms to search."]=["human", "mouse"],
+    min_date: Annotated[str, "Minimum date to search back (%Y/%m/%d)."]=MIN_DATE,
+    max_date: Annotated[str, "Maximum date to search back (%Y/%m/%d)."]=MAX_DATE,
+    max_ids: Annotated[Optional[int], "Maximum number of IDs to return."]=10,
+    )-> Annotated[List[str], "Entrez IDs of database records"]:
+    """
+    Find single cell RNA-seq datasets in the SRA or GEO databases.
+    """
+    set_entrez_access()
+    esearch_query = ""
+
+    # check if query terms are provided
+    query_terms = " OR ".join([f'"{x}"' for x in query_terms])
+    esearch_query += f"({query_terms})"
+    
+    # add date range
+    date_range = f"{min_date}:{max_date}[PDAT]"
+    esearch_query += f" AND ({date_range})"
+    
+    # add organism
+    organisms = " OR ".join([f"{to_sci_name(x)}[Organism]" for x in organisms])
+    if organisms:
+        esearch_query += f" AND ({organisms})"
+
+    # other filters
+    esearch_query += ' AND "transcriptomic single cell"[Source]'
+    esearch_query += ' AND "public"[Access]'
+    esearch_query += ' AND "has data"[Properties]'
+    esearch_query += ' AND "library layout paired"[Filter]'
+    esearch_query += ' AND "platform illumina"[Filter]'
+    esearch_query += ' AND "sra bioproject"[Filter]'
+
+    # debug model
+    max_ids = 2 if os.getenv("DEBUG_MODE") == "true" else max_ids
+
+    # return entrez IDs 
+    return esearch_batch(esearch_query, database, max_ids, filter_existing=True)
+
+def esearch_batch(
+    esearch_query: str, database: str, max_ids: Optional[int], 
+    verbose: bool=False,
+    filter_existing: bool=False
+    ) -> List[str]:
+    # if filter existing, connect to database
+    existing_ids = []
+    if filter_existing:
+        with db_connect() as conn:
+            existing_ids = db_get_unprocessed_records(conn)["entrez_id"].tolist()
     # query 
     ids = []
     retstart = 0
@@ -28,8 +112,10 @@ def esearch_batch(esearch_query: str, database: str, max_ids: Optional[int], ver
             )
             search_results = Entrez.read(search_handle)
             search_handle.close()
-            # add IDs to 
-            ids.extend(search_results.get("IdList", []))
+            # add IDs 
+            ids.extend(
+                [x for x in search_results['IdList'] if x not in existing_ids]
+            )
             retstart += retmax
             time.sleep(0.34)
             if verbose:
@@ -49,41 +135,6 @@ def esearch_batch(esearch_query: str, database: str, max_ids: Optional[int], ver
     if max_ids:
         ids = ids[:max_ids]
     return ids
-
-@tool 
-def esearch_scrna(
-    esearch_query: Annotated[str, "Entrez query string."],
-    database: Annotated[str, "Database name ('sra' or 'gds')"],
-    previous_days: Annotated[int, "Number of days to search back."]=7,
-    )-> Annotated[List[str], "Entrez IDs of database records"]:
-    """
-    Find recent single cell RNA-seq studies in SRA or GEO.
-    sra : Sequence Read Archive (SRA)
-    gds : Gene Expression Omnibus (GEO)
-    
-    Example query for single cell RNA-seq:
-    '("single cell RNA sequencing" OR "single cell RNA-seq")'
-
-    Args:
-        esearch_query: Entrez query string.
-        database: Database name ('sra' or 'gds').
-        previous_days: Number of days to search back (default = 7).
-    """
-    set_entrez_access()
-    # add date range
-    start_date = datetime.now() - timedelta(days=previous_days)
-    end_date = datetime.now()
-    date_range = f"{start_date.strftime('%Y/%m/%d')}:{end_date.strftime('%Y/%m/%d')}[PDAT]"
-    esearch_query += f" AND {date_range}"
-
-    # add mouse and human organism
-    esearch_query += " AND (Homo sapiens[Organism] OR Mus musculus[Organism])"
-
-    # debug model
-    max_ids = 1 if os.getenv("DEBUG_MODE") == "TRUE" else None
-
-    # return entrez IDs 
-    return esearch_batch(esearch_query, database, max_ids)
 
 @tool 
 def esearch(
@@ -159,10 +210,11 @@ if __name__ == "__main__":
 
     # scRNA-seq
     #query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
-    query = '("bulk RNA sequencing")'
+    #query = '("bulk RNA sequencing")'
     #input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
-    input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
-    # print(esearch_scrna.invoke(input))
+    #input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
+    input = {}
+    print(esearch_scrna.invoke(input))
 
     # esearch accession
     input = {"esearch_query" : "GSE51372", "database" : "sra"}
