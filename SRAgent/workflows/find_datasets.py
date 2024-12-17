@@ -92,10 +92,12 @@ def continue_to_srx_info(state: GraphState) -> List[Dict[str, Any]]:
     return responses
 
 def final_state(state: GraphState) -> Dict[str, Any]:
-    # just return the messages in the state
-    return {"messages": state["messages"]}
+    """
+    Final state of the graph
+    """
+    return {"messages" : state["messages"]}
 
-def create_find_dateasets_graph():
+def create_find_datasets_graph():
     #-- graph --#
     workflow = StateGraph(GraphState)
 
@@ -130,8 +132,8 @@ if __name__ == "__main__":
     async def main():
         msg = "Obtain recent single cell RNA-seq datasets in the SRA database"
         input = {"messages" : [HumanMessage(content=msg)]}
-        config = {"max_concurrency" : 2, "recursion_limit": 200}
-        graph = create_find_dateasets_graph()
+        config = {"max_concurrency" : 8, "recursion_limit": 200}
+        graph = create_find_datasets_graph()
         async for step in graph.astream(input, config=config):
             print(step)
     asyncio.run(main())
