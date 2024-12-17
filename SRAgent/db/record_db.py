@@ -16,75 +16,6 @@ from dynaconf import Dynaconf
 warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy connectable")
 
 # functions
-def db_connect() -> connection:
-    """Connect to the sql database"""
-    s_path = None
-    with resources.path("SRAgent", "settings.yml") as settings_path:
-        s_path = str(settings_path)
-    settings = Dynaconf(
-        settings_files=["settings.yml", s_path], 
-        environments=True, 
-        env_switcher="DYNACONF"
-    )
-    # connect to db
-    db_params = {
-        'host': settings.db_host,
-        'database': settings.db_name,
-        'user': settings.db_user,
-        'password': os.environ["GCP_SQL_DB_PASSWORD"],
-        'port': settings.db_port,
-        'connect_timeout': settings.db_timeout
-    }
-    return psycopg2.connect(**db_params)
-
-def db_list_tables(conn: connection) -> List[str]:
-    """
-    List all tables in the public schema of the database.
-    Args:
-        conn: Connection to the database.
-    Returns:
-        List of table names in the public schema.
-    """
-    tables = Table('tables', schema='information_schema')
-    query = Query.from_(tables).select('table_name').where(tables.table_schema == 'public')
-    with conn.cursor() as cur:
-        cur.execute(str(query))
-        tables = cur.fetchall()
-        return [x[0] for x in tables]
-
-def db_glimpse_tables(conn: connection) -> None:
-    """
-    Print the first 5 rows of each table in the database.
-    Args:
-        conn: Connection to the database.
-    """
-    for table in db_list_tables(conn):
-        table_name = table[0]
-        print(f"#-- Table: {table[0]} --#")
-        df = pd.read_sql(f"SELECT * FROM {table_name} LIMIT 5", conn)
-        print(df)
-
-def execute_query(stmt, conn: connection) -> Optional[List[Tuple]]:
-    """
-    Execute a query and return the results, if any.
-    Args:
-        stmt: Query to execute.
-        conn: Connection to the database.
-    Returns:
-        Results of the query, if any.
-    """
-    try:
-        with conn.cursor() as cur:
-            cur.execute(str(stmt))
-            conn.commit() 
-            # Return the results of the query, if any
-            try:
-                return cur.fetchall()
-            except psycopg2.ProgrammingError:
-                return None
-    except psycopg2.errors.DuplicateTable as e:
-        print(f"Table already exists: {e}")
-
 def db_get_srx_records(conn: connection, column: str="entrez_id", database: str="sra") -> List[int]:
     """
     Get the entrez_id values of all SRX records that have not been processed.
@@ -141,52 +72,15 @@ def db_get_unprocessed_records(conn: connection, database: str="sra", max_record
     # fetch as pandas dataframe
     return pd.read_sql(str(stmt), conn)
     
-def get_unique_columns(table: str, conn: connection) -> List[str]:
-    """
-    Get all unique constraint columns for a table from the database schema.
-    Prioritizes composite unique constraints over primary keys.
-    
-    Args:
-        table: Name of the table
-        conn: Database connection
-        
-    Returns:
-        List of column names that form the most appropriate unique constraint
-    """
-    query = """
-    SELECT c.contype, ARRAY_AGG(a.attname ORDER BY array_position(c.conkey, a.attnum)) as columns
-    FROM pg_constraint c
-    JOIN pg_class t ON c.conrelid = t.oid
-    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(c.conkey)
-    WHERE t.relname = %s 
-    AND c.contype IN ('p', 'u')  -- primary key or unique constraint
-    GROUP BY c.conname, c.contype
-    ORDER BY c.contype DESC;  -- 'u'nique before 'p'rimary key
-    """
-    
-    with conn.cursor() as cur:
-        cur.execute(query, (table,))
-        constraints = cur.fetchall()
-        
-    if not constraints:
-        raise ValueError(f"No unique constraints found in table {table}")
-    
-    # Prefer composite unique constraints over single-column primary keys
-    for constraint_type, columns in constraints:
-        if len(columns) > 1 or constraint_type == 'u':
-            return columns
-    
-    # Fall back to primary key if no other suitable constraint found
-    return constraints[0][1]
 
-def db_add_update(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
+
+def db_add_update_OLD(data_list: List[Dict[str, Any]], table: str, conn: connection) -> None:
     """
     Add or update records in a database table. If a record with matching unique columns exists,
     it will be updated; otherwise, a new record will be inserted.
-
     Args:
         data_list: List of dictionaries to add to the table. If a key is missing from a dictionary,
-                  the corresponding column in the table will be NULL.
+                   the corresponding column in the table will be NULL.
         table: Name of the table to add the data to.
         conn: Connection to the database.
     """
@@ -230,6 +124,8 @@ def db_add_update(data_list: List[Dict[str, Any]], table: str, conn: connection)
         conn.rollback()
         raise e
     
+
+
 def update_srx_record_status(conn: connection, srx_accession: str, status: str, log_msg: str) -> None:
     """
     Update the screcounter_status of a given SRX record.
@@ -248,50 +144,6 @@ def update_srx_record_status(conn: connection, srx_accession: str, status: str, 
     with conn.cursor() as cur:
         cur.execute(str(stmt))
         conn.commit()
-
-
-def upsert_df(df: pd.DataFrame, table_name: str, conn: connection) -> None:
-    """
-    Upload a pandas DataFrame to PostgreSQL, performing an upsert operation.
-    If records exist (based on unique constraints), update them; otherwise insert new records.
-    
-    Args:
-        df: pandas DataFrame to upload
-        table_name: name of the target table
-        conn: psycopg2 connection object
-    """    
-    # Get DataFrame columns
-    columns = list(df.columns)
-    
-    # Create ON CONFLICT clause based on unique constraints
-    # For your ground_truth table, the unique constraints are (dataset_id, database, entrez_id)
-    unique_columns = ["dataset_id", "database", "entrez_id"]
-
-    # Drop duplicate records based on unique columns
-    df.drop_duplicates(subset=unique_columns, keep='first', inplace=True)
-
-        # Convert DataFrame to list of tuples
-    values = [tuple(x) for x in df.to_numpy()]
-    
-    # Create the INSERT statement with ON CONFLICT clause
-    insert_stmt = f"""
-        INSERT INTO {table_name} ({', '.join(columns)})
-        VALUES %s
-        ON CONFLICT ({', '.join(unique_columns)})
-        DO UPDATE SET
-        {', '.join(f"{col} = EXCLUDED.{col}" 
-                   for col in columns 
-                   if col not in unique_columns + ['id'])}
-    """
-    
-    try:
-        with conn.cursor() as cur:
-            # Use execute_values for better performance with multiple records
-            execute_values(cur, insert_stmt, values)
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise Exception(f"Error uploading data to {table_name}: {str(e)}")
 
 
 # main

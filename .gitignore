@@ -7,7 +7,7 @@ milvus/
 volumes/
 sandbox/
 archive/
-db/
+db_bkup/
 
 # Streamlit specific
 .streamlit/
