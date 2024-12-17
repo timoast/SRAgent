@@ -51,6 +51,8 @@ parser.add_argument('--list', action="store_true", default=False,
                     help='List all tables in database')
 parser.add_argument('--glimpse', action="store_true", default=False,
                     help='Glimpse all tables in database')
+parser.add_argument('--view', type=str, default=None,
+                    help='View table in database')
 parser.add_argument('--upsert-csv', type=str, default=None,
                     help='CSV file to upsert into database')
 parser.add_argument('--upsert-target', type=str, default=None,
@@ -58,8 +60,7 @@ parser.add_argument('--upsert-target', type=str, default=None,
 parser.add_argument('--drop', type=str, default=None, nargs='+',
                     help='>=1 table to delete from database')
 
-
-
+# functions
 def dump_all_tables(dump_dir: str, conn: connection) -> List[str]:
     """Dump all tables to CSV files
     Args:
@@ -97,6 +98,16 @@ def main(args):
     if args.glimpse:
         with db_connect() as conn:
             db_glimpse_tables(conn)
+
+    # view table
+    if args.view:
+        with db_connect() as conn:
+            tbl_names = db_list_tables(conn)
+            if args.view not in tbl_names:
+                print(f"Table {args.view} not found in database")
+                sys.exit(1)
+            df = pd.read_sql(f"SELECT * FROM {args.view}", conn)
+            df.to_csv(sys.stdout, index=False)
 
     # dump tables
     if args.dump:

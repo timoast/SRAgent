@@ -27,6 +27,11 @@ def db_upsert(df: pd.DataFrame, table_name: str, conn: connection) -> None:
     # Create ON CONFLICT clause based on unique constraints
     unique_columns = get_unique_columns(table_name, conn)
 
+    # Exclude 'id' column from the upsert
+    if "id" in columns:
+        df = df.drop(columns=["id"])
+        columns.remove("id")
+
     # Drop duplicate records based on unique columns
     df.drop_duplicates(subset=unique_columns, keep='first', inplace=True)
 
@@ -38,7 +43,7 @@ def db_upsert(df: pd.DataFrame, table_name: str, conn: connection) -> None:
     insert_stmt += f"\nVALUES %s"
 
     # Add DO UPDATE SET clause for non-unique columns
-    do_update_set = [col for col in columns if col not in unique_columns + ['id']]
+    do_update_set = [col for col in columns if col not in unique_columns]
     if do_update_set:
         do_update_set = ', '.join(f"{col} = EXCLUDED.{col}" for col in do_update_set)
         insert_stmt += f"\nON CONFLICT ({', '.join(unique_columns)})"

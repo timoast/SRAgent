@@ -18,7 +18,7 @@ def create_srx_metadata():
     stmt = Query \
         .create_table("srx_metadata") \
         .columns(
-            Column("id", "SERIAL", nullable=False),
+            #Column("id", "SERIAL", nullable=False),
             Column("database", "VARCHAR(20)", nullable=False),
             Column("entrez_id", "INT", nullable=False),
             Column("srx_accession", "VARCHAR(20)"),
@@ -35,8 +35,7 @@ def create_srx_metadata():
             Column("cell_line", "VARCHAR(100)"),
             Column("notes", "TEXT"),
         ) \
-        .unique("database", "entrez_id") \
-        .primary_key("id")
+        .unique("database", "entrez_id")
     execute_query(stmt, conn)
 
 def create_srr_srx():
