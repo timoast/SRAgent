@@ -37,7 +37,7 @@ def db_connect() -> connection:
     }
     return psycopg2.connect(**db_params)
 
-def db_list_tables(conn: connection) -> List[Tuple[str]]:
+def db_list_tables(conn: connection) -> List[str]:
     """
     List all tables in the public schema of the database.
     Args:
@@ -50,7 +50,7 @@ def db_list_tables(conn: connection) -> List[Tuple[str]]:
     with conn.cursor() as cur:
         cur.execute(str(query))
         tables = cur.fetchall()
-        return tables
+        return [x[0] for x in tables]
 
 def db_glimpse_tables(conn: connection) -> None:
     """
