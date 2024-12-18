@@ -51,39 +51,45 @@ def db_get_srx_records(conn: connection, column: str="entrez_id", database: str=
     return [row[0] for row in execute_query(stmt, conn)]
 
 def db_get_unprocessed_records(
-    conn: connection, database: str="sra", max_records: int=3
+    conn: connection, database: str="sra", max_srx: int=3
     ) -> pd.DataFrame:
     """
-    Get all suitable unprocessed SRX records
+    Get all suitable unprocessed SRX records, limiting by unique srx_accession values.
     Args:
         conn: Connection to the database.
         database: Name of the database to query.
+        max_srx: Maximum number of SRX records to return.
     Returns:
         dataframe of unprocessed SRX records.
     """
     srx_metadata = Table("srx_metadata")
     srx_srr = Table("srx_srr")
 
-    stmt = Query \
+    subquery = Query \
         .from_(srx_metadata) \
-        .inner_join(srx_srr) \
-        .on(srx_metadata.srx_accession == srx_srr.srx_accession) \
+        .select(srx_metadata.srx_accession) \
         .where(Criterion.all([
-            #srx_metadata.screcounter_status.isnull(),
             srx_metadata.database == database,
             srx_metadata.is_illumina == "yes",
             srx_metadata.is_single_cell == "yes",
             srx_metadata.is_paired_end == "yes",
             ~srx_metadata.tech_10x.isin(["other", "not_applicable"])
         ])) \
+        .distinct() \
+        .limit(max_srx)
+
+    stmt = Query \
+        .from_(srx_metadata) \
+        .inner_join(srx_srr) \
+        .on(srx_metadata.srx_accession == srx_srr.srx_accession) \
+        .where(srx_metadata.srx_accession.isin(subquery)) \
         .select(
             srx_metadata.srx_accession.as_("sample"),
             srx_srr.srr_accession.as_("accession"),
             srx_metadata.entrez_id.as_("entrez_id"),
             srx_metadata.tech_10x.as_("tech_10x"),
             srx_metadata.organism.as_("organism")
-        ) \
-        .limit(max_records)
+        )
         
     # fetch as pandas dataframe
     return pd.read_sql(str(stmt), conn)
@@ -123,6 +129,6 @@ if __name__ == "__main__":
     
     with db_connect() as conn:
         #print(db_get_srx_records(conn))
-        #print(db_get_unprocessed_records(conn))
-        print(db_get_srx_accessions(conn))
+        print(db_get_unprocessed_records(conn))
+        #print(db_get_srx_accessions(conn))
         #print(db_find_srx(["SRX19162973"], conn))
