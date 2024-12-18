@@ -13,12 +13,37 @@ from psycopg2.extensions import connection
 from SRAgent.db.utils import execute_query
 
 # functions
-def create_srx_metadata():
-    # SRX_metadata
+def create_updated_at_trigger(tbl_name: str, conn: connection) -> None:
+
+    # Define the raw SQL for the trigger function and trigger
+    trigger_function_sql = """
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+    """
+
+    trigger_sql = f"""
+CREATE TRIGGER set_updated_at
+BEFORE UPDATE ON {tbl_name}
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+    """
+
+    # Execute the SQL statements
+    with conn.cursor() as cur:
+        cur.execute(trigger_function_sql)
+        cur.execute(trigger_sql)
+        conn.commit()
+
+def create_srx_metadata(conn: connection) -> None:
+    tbl_name = "srx_metadata"
     stmt = Query \
-        .create_table("srx_metadata") \
+        .create_table(tbl_name) \
         .columns(
-            #Column("id", "SERIAL", nullable=False),
             Column("database", "VARCHAR(20)", nullable=False),
             Column("entrez_id", "INT", nullable=False),
             Column("srx_accession", "VARCHAR(20)"),
@@ -34,29 +59,48 @@ def create_srx_metadata():
             Column("purturbation", "VARCHAR(100)"),
             Column("cell_line", "VARCHAR(100)"),
             Column("notes", "TEXT"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("database", "entrez_id")
+    
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
+def create_srx_srr(conn: connection) -> None:
+    tbl_name = "srx_srr"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("srx_accession", "VARCHAR(20)", nullable=False),
+            Column("srr_accession", "VARCHAR(20)", nullable=False),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("srx_accession", "srr_accession")
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
+def create_entrez_status(conn: connection) -> None:
+    tbl_name = "srx_status"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("database", "VARCHAR(20)", nullable=False),
+            Column("entrez_id", "INT", nullable=False),
+            Column("status", "VARCHAR(20)"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
         ) \
         .unique("database", "entrez_id")
     execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
 
-def create_srr_srx():
-    # SRX_SRR
+def create_eval(conn: connection) -> None:
+    tbl_name = "eval"
     stmt = Query \
-        .create_table("srx_srr") \
+        .create_table(tbl_name) \
         .columns(
-            Column("id", "SERIAL", nullable=False),
-            Column("srx_accession", "VARCHAR(20)", nullable=False),
-            Column("srr_accession", "VARCHAR(20)", nullable=False)
-        ) \
-        .unique("srx_accession", "srr_accession") \
-        .primary_key("id")
-    execute_query(stmt, conn)
-
-def create_eval():
-    # ground truth
-    stmt = Query \
-        .create_table("eval") \
-        .columns(
-            Column("id", "SERIAL", nullable=False),
             Column("dataset_id", "VARCHAR(30)", nullable=False),
             Column("database", "VARCHAR(20)", nullable=False),
             Column("entrez_id", "INT", nullable=False),
@@ -68,10 +112,24 @@ def create_eval():
             Column("tech_10x", "VARCHAR(30)"),
             Column("organism", "VARCHAR(80)"),
             Column("cell_prep", "VARCHAR(30)"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
         ) \
-        .unique("dataset_id", "database", "entrez_id") \
-        .primary_key("id")
+        .unique("dataset_id", "database", "entrez_id")
     execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
+def create_table(table_name: str, conn: connection) -> None:
+    if table_name == "srx_metadata":
+        create_srx_metadata(conn)
+    elif table_name == "srx_srr":
+        create_srx_srr(conn)
+    elif table_name == "srx_status":
+        create_entrez_status(conn)
+    elif table_name == "eval":
+        create_eval(conn)
+    else:
+        raise ValueError(f"Table {table_name} not recognized")
 
 # main
 if __name__ == "__main__":
@@ -82,4 +140,5 @@ if __name__ == "__main__":
     # connect to db
     with db_connect() as conn:
         # create tables
-        create_srx_metadata()
+        #create_srx_metadata()
+        create_entrez_status()

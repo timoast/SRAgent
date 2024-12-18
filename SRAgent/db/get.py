@@ -1,7 +1,7 @@
 # import
 ## batteries
 import os
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Set
 ## 3rd party
 import psycopg2
 import pandas as pd
@@ -59,7 +59,7 @@ def db_get_unprocessed_records(
         conn: Connection to the database.
         database: Name of the database to query.
     Returns:
-        Table of unprocessed SRX records.
+        dataframe of unprocessed SRX records.
     """
     srx_metadata = Table("srx_metadata")
     srx_srr = Table("srx_srr")
@@ -88,6 +88,33 @@ def db_get_unprocessed_records(
     # fetch as pandas dataframe
     return pd.read_sql(str(stmt), conn)
 
+def db_get_srx_accessions(
+    conn: connection, database: str="sra"
+    ) -> Set[str]:
+    """
+    Get all SRX accessions in the database
+    Args:
+        conn: Connection to the database.
+        database: Name of the database to query.
+    Returns:
+        Set of SRX accessions in the database.
+    """
+    srx_metadata = Table("srx_metadata")
+    stmt = Query \
+        .from_(srx_metadata) \
+        .where(
+            srx_metadata.database == database
+        ) \
+        .select(
+            srx_metadata.srx_accession
+        ) \
+        .distinct()
+        
+    # fetch records
+    with conn.cursor() as cur:
+        cur.execute(str(stmt))
+        return set([row[0] for row in cur.fetchall()])
+
 # main
 if __name__ == "__main__":
     from dotenv import load_dotenv
@@ -97,4 +124,5 @@ if __name__ == "__main__":
     with db_connect() as conn:
         #print(db_get_srx_records(conn))
         #print(db_get_unprocessed_records(conn))
-        print(db_find_srx(["SRX19162973"], conn))
+        print(db_get_srx_accessions(conn))
+        #print(db_find_srx(["SRX19162973"], conn))
