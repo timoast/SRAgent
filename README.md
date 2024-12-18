@@ -43,35 +43,6 @@ pip install .
 pip install -e .
 ```
 
-## Docker 
-
-Build the image:
-
-```bash
-IMG_NAME=sragent
-IMG_VERSION=0.1.0
-docker build --platform linux/amd64 \
-  -t ${IMG_NAME}:${IMG_VERSION} .
-```
-
-Run the image:
-
-```bash
-docker run -it --rm \
-  -u $(id -u):$(id -g) \
-  -v ${PWD}:/data \
-  --env DYNACONF="TEST" \
-  --env EMAIL1="${EMAIL1}" \
-  --env EMAIL2="${EMAIL2}" \
-  --env NCBI_API_KEY1="${NCBI_API_KEY1}" \
-  --env NCBI_API_KEY2="${NCBI_API_KEY2}" \
-  --env GCP_SQL_DB_PASSWORD="${GCP_SQL_DB_PASSWORD}" \
-  --env OPENAI_API_KEY="${OPENAI_API_KEY}" \
-  --platform linux/amd64 \
-  ${IMG_NAME}:${IMG_VERSION}
-```
-
-
 # Usage
 
 ## SRX-info agent

@@ -8,6 +8,7 @@ volumes/
 sandbox/
 archive/
 db_bkup/
+DEPLOY.md
 
 # Streamlit specific
 .streamlit/
