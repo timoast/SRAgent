@@ -16,6 +16,7 @@ from SRAgent.db.connect import db_connect
 from SRAgent.db.upsert import db_upsert
 from SRAgent.db.utils import db_list_tables, db_glimpse_tables, execute_query
 from SRAgent.db.get import db_find_srx
+from SRAgent.db.create import create_table
 
 # get current date in YYYY-MM-DD format
 today = datetime.today().strftime('%Y-%m-%d')
@@ -54,6 +55,8 @@ parser.add_argument('--glimpse', action="store_true", default=False,
                     help='Glimpse all tables in database')
 parser.add_argument('--view', type=str, default=None,
                     help='View table in database')
+parser.add_argument('--create', type=str, default=None,
+                    help='Create table in database')
 parser.add_argument('--find-srx', type=str, default=None, nargs='+',
                     help='Find SRX accessions in the database')
 parser.add_argument('--upsert-csv', type=str, default=None,
@@ -79,7 +82,7 @@ def dump_all_tables(dump_dir: str, conn: connection) -> List[str]:
         df = pd.read_sql(f"SELECT * FROM {table}", conn)
         outfile = os.path.join(dump_dir, f"{table}.csv")
         df.to_csv(outfile, index=False)
-        print(f"Dumped {table} to {dump_dir}/{table}.csv")
+        print(f"Dumped {table} to {outfile}")
         outfiles.append(outfile)
     return outfiles
 
@@ -115,6 +118,11 @@ def main(args):
         with db_connect() as conn:
             df = db_find_srx(args.find_srx, conn)
             df.to_csv(sys.stdout, index=False)
+
+    # create table
+    if args.create:
+        with db_connect() as conn:
+            create_table(args.create, conn)
 
     # dump tables
     if args.dump:
