@@ -369,7 +369,8 @@ def add2db(state: GraphState):
         "tissue": state["tissue"],
         "disease": state["disease"],
         "purturbation": state["purturbation"],
-        "cell_line": state["cell_line"]
+        "cell_line": state["cell_line"],
+        "notes": "Metadata obtained by SRAgent"
     }]
     data = pd.DataFrame(data)
     with db_connect() as conn:

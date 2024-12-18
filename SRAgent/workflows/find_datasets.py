@@ -17,6 +17,9 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 ## package
 from SRAgent.agents.find_datasets import create_find_datasets_agent
 from SRAgent.workflows.srx_info import create_SRX_info_graph
+from SRAgent.db.connect import db_connect
+from SRAgent.db.upsert import db_upsert
+from SRAgent.db.get import db_get_srx_accessions
 
 # state
 class GraphState(TypedDict):
@@ -70,11 +73,35 @@ def create_get_entrez_ids_node() -> Callable:
             "#-- END OF MESSAGE --#"
         ])
         # invoke model with structured output
-        response = await model.with_structured_output(EntrezInfo, strict=True).ainvoke(prompt)
-        return {
-            "entrez_ids" : response.entrez_ids,
-            "database" : str(response.database).lower()
-        }
+        entrez_ids = []
+        database = ""
+        for i in range(3):
+            response = await model.with_structured_output(EntrezInfo, strict=True).ainvoke(prompt)
+            entrez_ids = response.entrez_ids
+            database = str(response.database).lower()
+            if database in ["sra", "gds"]:
+                break
+        ## if no valid database, return no entrez IDs
+        if database not in ["sra", "gds"]:
+            return {"entrez_ids": [], "database": ""}
+
+        # entrez ID check
+        ## make sure that the entrez IDs are not found in the database
+        with db_connect() as conn:
+            existing_ids = db_get_srx_accessions(conn=conn, database=database)
+            entrez_ids = [x for x in entrez_ids if x not in existing_ids]
+        ## update the database
+        if len(entrez_ids) > 0:
+            df = pd.DataFrame({
+                "entrez_id": entrez_ids,
+                "database": database,
+                "notes": "New dataset found by Find-Datasets agent"
+            })
+            with db_connect() as conn:
+                db_upsert(df, "srx_metadata", conn=conn)
+
+        # return the extracted values
+        return {"entrez_ids": entrez_ids, "database": database}
     return invoke_get_entrez_ids_node
 
 def continue_to_srx_info(state: GraphState) -> List[Dict[str, Any]]:
