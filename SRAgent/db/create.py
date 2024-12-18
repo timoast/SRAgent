@@ -81,21 +81,6 @@ def create_srx_srr(conn: connection) -> None:
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
-def create_entrez_status(conn: connection) -> None:
-    tbl_name = "srx_status"
-    stmt = Query \
-        .create_table(tbl_name) \
-        .columns(
-            Column("database", "VARCHAR(20)", nullable=False),
-            Column("entrez_id", "INT", nullable=False),
-            Column("status", "VARCHAR(20)"),
-            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
-            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
-        ) \
-        .unique("database", "entrez_id")
-    execute_query(stmt, conn)
-    create_updated_at_trigger(tbl_name, conn)
-
 def create_eval(conn: connection) -> None:
     tbl_name = "eval"
     stmt = Query \
@@ -124,8 +109,6 @@ def create_table(table_name: str, conn: connection) -> None:
         create_srx_metadata(conn)
     elif table_name == "srx_srr":
         create_srx_srr(conn)
-    elif table_name == "srx_status":
-        create_entrez_status(conn)
     elif table_name == "eval":
         create_eval(conn)
     else:
