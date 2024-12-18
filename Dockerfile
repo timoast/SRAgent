@@ -25,15 +25,18 @@ RUN wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-u
 # Set the working directory
 WORKDIR /app
 
-# Copy the source code
-COPY SRAgent/ /app/SRAgent/
-
 # Copy the pyproject.toml 
 COPY pyproject.toml /app/
 
-# Install the package
+# Install the dependencies
 RUN pip install --upgrade pip setuptools wheel \
     && pip install .
+
+# Copy the source code
+COPY SRAgent/ /app/SRAgent/
+
+# Install the package
+RUN pip install .
 
 # Set the default entry point for the container
 ENTRYPOINT ["SRAgent"]
