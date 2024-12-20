@@ -33,7 +33,7 @@ def db_connect() -> connection:
         'host': settings.db_host,
         'database': settings.db_name,
         'user': settings.db_user,
-        'password': get_secret(settings.db_password),
+        'password': get_secret("GCP_SQL_DB_PASSWORD"),
         'port': settings.db_port,
         'sslmode': 'verify-ca',
         'sslrootcert': certs["server-ca.pem"],
@@ -101,7 +101,7 @@ def get_secret(secret_id: str) -> str:
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
-
+    
     with db_connect() as conn:
         print(conn)
     
