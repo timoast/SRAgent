@@ -35,15 +35,17 @@ pip install .
 * `NCBI_API_KEY` = API key for using the Entrez API
   * optional, increases rate limits
 
-# Development
+# Usage
 
-## Install
+## find-datasets agent
+
+Find datasets in the SRA database and then process them with the SRX-info agent. 
+
+#### Examples
 
 ```bash
-pip install -e .
+SRAgent find-datasets "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
-
-# Usage
 
 ## SRX-info agent
 

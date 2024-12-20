@@ -128,7 +128,7 @@ if __name__ == "__main__":
     from SRAgent.db.connect import db_connect
     
     with db_connect() as conn:
-        #print(db_get_srx_records(conn))
-        print(db_get_unprocessed_records(conn))
+        print(db_get_srx_records(conn))
+        #print(db_get_unprocessed_records(conn))
         #print(db_get_srx_accessions(conn))
         #print(db_find_srx(["SRX19162973"], conn))
