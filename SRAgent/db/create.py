@@ -104,6 +104,51 @@ def create_eval(conn: connection) -> None:
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
+def create_screcounter_log(conn: connection) -> None:
+    tbl_name = "screcounter_log"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("sample", "VARCHAR(20)", nullable=False),
+            Column("accession", "VARCHAR(20)", nullable=False),
+            Column("process", "VARCHAR(40)", nullable=False),
+            Column("step", "VARCHAR(40)", nullable=False),
+            Column("status", "VARCHAR(20)", nullable=False),
+            Column("message", "VARCHAR(200)", nullable=False),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("sample", "accession", "process", "step")
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
+def create_screcounter_star(conn: connection) -> None:
+    tbl_name = "screcounter_star"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("sample", "VARCHAR(20)", nullable=False),
+            Column("accession", "VARCHAR(20)", nullable=False),
+            Column("feature", "VARCHAR(30)", nullable=False),
+            Column("estimated_number_of_cells", "INT"),
+            Column("fraction_of_unique_reads_in_cells", "FLOAT"),
+            Column("mean_gene_per_cell", "FLOAT"),
+            Column("mean_umi_per_cell", "FLOAT"),
+            Column("mean_feature_per_cell", "FLOAT"),
+            Column("median_gene_per_cell", "FLOAT"),
+            Column("median_umi_per_cell", "FLOAT"),
+            Column("median_feature_per_cell", "FLOAT"),
+            Column("number_of_reads", "INT"),
+            Column("reads_with_valid_barcodes", "INT"),
+            Column("sequencing_saturation", "FLOAT"),
+            Column("umis_in_cells", "INT"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("sample", "accession", "feature")
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
 def create_table(table_name: str, conn: connection) -> None:
     if table_name == "srx_metadata":
         create_srx_metadata(conn)
@@ -111,6 +156,10 @@ def create_table(table_name: str, conn: connection) -> None:
         create_srx_srr(conn)
     elif table_name == "eval":
         create_eval(conn)
+    elif table_name == "screcounter_log":
+        create_screcounter_log(conn)
+    elif table_name == "screcounter_star":
+        create_screcounter_star(conn)
     else:
         raise ValueError(f"Table {table_name} not recognized")
 
