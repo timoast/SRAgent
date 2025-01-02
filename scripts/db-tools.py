@@ -16,7 +16,7 @@ from SRAgent.db.connect import db_connect
 from SRAgent.db.upsert import db_upsert
 from SRAgent.db.utils import db_list_tables, db_glimpse_tables, execute_query
 from SRAgent.db.get import db_find_srx
-from SRAgent.db.create import create_table
+from SRAgent.db.create import create_table, create_table_router
 
 # get current date in YYYY-MM-DD format
 today = datetime.today().strftime('%Y-%m-%d')
@@ -58,8 +58,9 @@ parser.add_argument('--glimpse', action="store_true", default=False,
                     help='Glimpse all tables in database')
 parser.add_argument('--view', type=str, default=None,
                     help='View table in database')
-parser.add_argument('--create', type=str, default=None,
-                    help='Create table in database')
+parser.add_argument('--create', type=str, default=None, nargs='+',
+                    choices = list(create_table_router().keys()) + ["ALL"],
+                    help='Create >=1 table in the database')
 parser.add_argument('--find-srx', type=str, default=None, nargs='+',
                     help='Find SRX accessions in the database')
 parser.add_argument('--upsert-csv', type=str, default=None,
@@ -128,7 +129,8 @@ def main(args):
     # create table
     if args.create:
         with db_connect() as conn:
-            create_table(args.create, conn)
+            for table_name in args.create:
+                create_table(table_name, conn)
 
     # dump tables
     if args.dump:
@@ -136,7 +138,10 @@ def main(args):
             dump_all_tables(args.dump_dir, conn)
 
     # upsert tables
-    if args.upsert_csv and args.upsert_target:
+    if args.upsert_csv:
+        if not args.upsert_target:
+            print("Please provide --upsert-target")
+            sys.exit(1)
         with db_connect() as conn:
             tbl_names = db_list_tables(conn)
             if args.upsert_target not in tbl_names:

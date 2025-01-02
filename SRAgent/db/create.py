@@ -151,17 +151,27 @@ def create_screcounter_star(conn: connection) -> None:
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
+def create_table_router() -> Dict[str, Any]:
+    router = {
+        "srx_metadata": create_srx_metadata,
+        "srx_srr": create_srx_srr,
+        "eval": create_eval,
+        "screcounter_log": create_screcounter_log,
+        "screcounter_star": create_screcounter_star,
+    }
+    return router
+
 def create_table(table_name: str, conn: connection) -> None:
-    if table_name == "srx_metadata":
-        create_srx_metadata(conn)
-    elif table_name == "srx_srr":
-        create_srx_srr(conn)
-    elif table_name == "eval":
-        create_eval(conn)
-    elif table_name == "screcounter_log":
-        create_screcounter_log(conn)
-    elif table_name == "screcounter_star":
-        create_screcounter_star(conn)
+    # router
+    router = create_table_router()
+    if table_name == "ALL":
+        for table_name in router.keys():
+            router[table_name](conn)
+        return None
+
+    # create the table
+    if table_name in router:
+        router[table_name](conn)
     else:
         raise ValueError(f"Table {table_name} not recognized")
 
