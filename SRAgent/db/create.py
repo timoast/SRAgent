@@ -58,6 +58,8 @@ def create_srx_metadata(conn: connection) -> None:
             Column("disease", "VARCHAR(100)"),
             Column("purturbation", "VARCHAR(100)"),
             Column("cell_line", "VARCHAR(100)"),
+            Column("czi_collection_id", "VARCHAR(40)"),
+            Column("czi_collection_name", "VARCHAR(300)"),
             Column("notes", "TEXT"),
             Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
             Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),

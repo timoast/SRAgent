@@ -40,6 +40,9 @@ db-tools.py --dump
 # drop >=1 table 
 db-tools.py --drop srx_metadata
 
+# delete >=1 SRX accession
+db-tools.py --delete-srx SRR1234567
+
 # upsert from a csv
 db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_metadata.csv
 """
@@ -64,7 +67,10 @@ parser.add_argument('--upsert-csv', type=str, default=None,
 parser.add_argument('--upsert-target', type=str, default=None,
                     help='Table to upsert into database')
 parser.add_argument('--drop', type=str, default=None, nargs='+',
-                    help='>=1 table to delete from database')
+                    help='>=1 table to delete from database.')
+parser.add_argument('--delete-srx', type=str, default=None, nargs='+',
+                    help='>=1 SRX accession to delete from the database. Eval table NOT included.')
+
 
 # functions
 def dump_all_tables(dump_dir: str, conn: connection) -> List[str]:
@@ -129,7 +135,18 @@ def main(args):
         with db_connect() as conn:
             dump_all_tables(args.dump_dir, conn)
 
-    # delete tables
+    # upsert tables
+    if args.upsert_csv and args.upsert_target:
+        with db_connect() as conn:
+            tbl_names = db_list_tables(conn)
+            if args.upsert_target not in tbl_names:
+                print(f"Table {args.upsert_target} not found in database")
+                sys.exit(1)
+            df = pd.read_csv(args.upsert_csv)
+            db_upsert(df, args.upsert_target, conn)
+            print(f"Upserted {args.upsert_csv} into {args.upsert_target}")
+
+    # drop tables
     if args.drop:
         with db_connect() as conn:
             tbl_names = db_list_tables(conn)
@@ -142,17 +159,22 @@ def main(args):
                     cur.execute(f"DROP TABLE {table}")
                     conn.commit()
                 print(f"Dropped: {table}")
-
-    # upsert tables
-    if args.upsert_csv and args.upsert_target:
+    
+    # delete SRX accessions
+    if args.delete_srx:
         with db_connect() as conn:
-            tbl_names = db_list_tables(conn)
-            if args.upsert_target not in tbl_names:
-                print(f"Table {args.upsert_target} not found in database")
-                sys.exit(1)
-            df = pd.read_csv(args.upsert_csv)
-            db_upsert(df, args.upsert_target, conn)
-            print(f"Upserted {args.upsert_csv} into {args.upsert_target}")
+            for srx in args.delete_srx:
+                # srx metadata & srx_srr
+                for tbl_name in ["srx_metadata", "srx_srr"]:
+                    with conn.cursor() as cur:
+                        cur.execute(f"DELETE FROM {tbl_name} WHERE srx_accession = '{srx}'")
+                        conn.commit()
+                # screcounter_log & screcounter_star
+                for tbl_name in ["screcounter_log", "screcounter_star"]:
+                    with conn.cursor() as cur:
+                        cur.execute(f"DELETE FROM {tbl_name} WHERE sample = '{srx}'")
+                        conn.commit()
+                print(f"Deleted: {srx}")
 
 
 # Example usage

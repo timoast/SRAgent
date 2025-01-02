@@ -74,7 +74,7 @@ gcloud run jobs update ${JOB_NAME} \
   --set-secrets=NCBI_API_KEY2=NCBI_API_KEY_YUSUF:latest \
   --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD_TEST:latest \
   --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_MOTC:latest \
-  --task-timeout=10m \
+  --task-timeout=60m \
   --cpu=2 \
   --memory=2Gi \
   --args="find-datasets","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
