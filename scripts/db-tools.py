@@ -147,7 +147,8 @@ def main(args):
             if args.upsert_target not in tbl_names:
                 print(f"Table {args.upsert_target} not found in database")
                 sys.exit(1)
-            df = pd.read_csv(args.upsert_csv)
+            # determine separator from file extension
+            df = pd.read_csv(args.upsert_csv, sep=get_sep(args.upsert_csv))
             db_upsert(df, args.upsert_target, conn)
             print(f"Upserted {args.upsert_csv} into {args.upsert_target}")
 
@@ -156,10 +157,10 @@ def main(args):
         with db_connect() as conn:
             tbl_names = db_list_tables(conn)
             for table in args.drop:
+                print(f"Attempting to drop: {table}")
                 if table not in tbl_names:
                     print(f"Table {table} not found in database")
                     continue
-                #execute_query(f"DROP TABLE {table}", conn)
                 with conn.cursor() as cur:
                     cur.execute(f"DROP TABLE {table}")
                     conn.commit()
@@ -181,6 +182,23 @@ def main(args):
                         conn.commit()
                 print(f"Deleted: {srx}")
 
+
+def get_sep(infile: str) -> str:
+    """Determine separator from file extension
+    Args:
+        infile: Input file
+    Returns:
+        Separator
+    """
+    sep = ","
+    if infile.endswith(".csv"):
+        sep = ","
+    elif infile.endswith(".tsv"):
+        sep = "\t"
+    else:
+        print("Input file must be CSV or TSV")
+        sys.exit(1)
+    return sep
 
 # Example usage
 if __name__ == "__main__":
