@@ -3,10 +3,7 @@ default:
   db_port: 5432
   db_name: "sragent-prod"
   db_user: "postgres"
-  #db_password: "GCP_SQL_DB_PASSWORD_PROD"
   db_timeout: 30
 
 test:
   db_name: "sragent-test"
-  #db_password: "GCP_SQL_DB_PASSWORD_TEST"
-

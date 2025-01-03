@@ -26,6 +26,7 @@ def db_connect() -> connection:
         environments=True, 
         env_switcher="DYNACONF"
     )
+
     # get db certs
     certs = get_db_certs()
     # connect to db

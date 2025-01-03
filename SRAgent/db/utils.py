@@ -68,6 +68,18 @@ def db_list_tables(conn: connection) -> List[str]:
             ret = [x[0] for x in ret]
         return ret
 
+def db_get_table(table_name: str, conn: connection) -> pd.DataFrame:
+    """
+    Return all records in a table as a pandas dataframe
+    Args:
+        table_name: Name of the table.
+        conn: Connection to the database.
+    Returns:
+        Pandas dataframe of the table
+    """
+    query = f"SELECT * FROM {table_name}"
+    return pd.read_sql(query, conn)
+
 def db_glimpse_tables(conn: connection) -> None:
     """
     Print the first 5 rows of each table in the database.

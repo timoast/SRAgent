@@ -18,16 +18,18 @@ from SRAgent.db.utils import db_list_tables, db_glimpse_tables, execute_query
 from SRAgent.db.get import db_find_srx
 from SRAgent.db.create import create_table, create_table_router
 
-# get current date in YYYY-MM-DD format
-today = datetime.today().strftime('%Y-%m-%d')
+def parse_cli_args():
 
-# argparse
-class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
-                      argparse.RawDescriptionHelpFormatter):
-    pass
+    # get current date in YYYY-MM-DD format
+    today = datetime.today().strftime('%Y-%m-%d')
 
-desc = 'Database tools'
-epi = """DESCRIPTION:
+    # argparse
+    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                          argparse.RawDescriptionHelpFormatter):
+        pass
+
+    desc = 'Database tools'
+    epi = """DESCRIPTION:
 # list all tables
 db-tools.py --list
 
@@ -45,33 +47,49 @@ db-tools.py --delete-srx SRR1234567
 
 # upsert from a csv
 db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_metadata.csv
-"""
-parser = argparse.ArgumentParser(description=desc, epilog=epi,
-                                 formatter_class=CustomFormatter)
-parser.add_argument('--dump', action="store_true", default=False, 
-                    help='Dump all tables to CSV files')
-parser.add_argument('--dump-dir', type=str, default=os.path.join("db_bkup", today),
-                    help='Directory to dump CSV files')
-parser.add_argument('--list', action="store_true", default=False,
-                    help='List all tables in database')
-parser.add_argument('--glimpse', action="store_true", default=False,
-                    help='Glimpse all tables in database')
-parser.add_argument('--view', type=str, default=None,
-                    help='View table in database')
-parser.add_argument('--create', type=str, default=None, nargs='+',
-                    choices = list(create_table_router().keys()) + ["ALL"],
-                    help='Create >=1 table in the database')
-parser.add_argument('--find-srx', type=str, default=None, nargs='+',
-                    help='Find SRX accessions in the database')
-parser.add_argument('--upsert-csv', type=str, default=None,
-                    help='CSV file to upsert into database')
-parser.add_argument('--upsert-target', type=str, default=None,
-                    help='Table to upsert into database')
-parser.add_argument('--drop', type=str, default=None, nargs='+',
-                    help='>=1 table to delete from database.')
-parser.add_argument('--delete-srx', type=str, default=None, nargs='+',
-                    help='>=1 SRX accession to delete from the database. Eval table NOT included.')
-
+    """
+    parser = argparse.ArgumentParser(
+        description=desc, epilog=epi, formatter_class=CustomFormatter
+    )
+    parser.add_argument(
+        '--dump', action="store_true", default=False, help='Dump all tables to CSV files'
+    )
+    parser.add_argument(
+        '--dump-dir', type=str, default=os.path.join("db_bkup", today), help='Directory to dump CSV files'
+    )
+    parser.add_argument(
+        '--list', action="store_true", default=False, help='List all tables in database'
+    )
+    parser.add_argument(
+        '--glimpse', action="store_true", default=False, help='Glimpse all tables in database'
+    )
+    parser.add_argument(
+        '--view', type=str, default=None, help='View table in database'
+    )
+    parser.add_argument(
+        '--create', type=str, default=None, nargs='+',
+        choices=list(create_table_router().keys()) + ["ALL"],
+        help='Create >=1 table in the database'
+    )
+    parser.add_argument(
+        '--find-srx', type=str, default=None, nargs='+', help='Find SRX accessions in the database'
+    )
+    parser.add_argument(
+        '--upsert-csv', type=str, default=None, help='CSV file to upsert into database'
+    )
+    parser.add_argument(
+        '--upsert-target', type=str, default=None, help='Table to upsert into database'
+    )
+    parser.add_argument(
+        '--drop', type=str, default=None, nargs='+', help='>=1 table to delete from database.'
+    )
+    parser.add_argument(
+        '--delete-srx', type=str, default=None, nargs='+', help='>=1 SRX accession to delete from the database. Eval table NOT included.'
+    )
+    parser.add_argument(
+        '--tenant', type=str, default=os.getenv("DYNACONF"), help='Database tenant to connect to. Defaults to DYNACONF env variable'
+    )
+    return parser.parse_args()
 
 # functions
 def dump_all_tables(dump_dir: str, conn: connection) -> List[str]:
@@ -98,6 +116,10 @@ def main(args):
     # set pandas options
     pd.set_option("display.max_columns", 40)
     pd.set_option("display.width", 100)
+
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
 
     # list tables
     if args.list:
@@ -202,6 +224,6 @@ def get_sep(infile: str) -> str:
 
 # Example usage
 if __name__ == "__main__":
-    args = parser.parse_args()
     load_dotenv()
+    args = parse_cli_args()
     main(args)
