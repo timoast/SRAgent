@@ -68,11 +68,14 @@ class LibPrepEnum(Enum):
     CEL_SEQ2 = "CEL-seq2"
     DROP_SEQ = "Drop-seq"
     IN_DROPS = "indrops"
-    PARSE = "Parse"
     SCALE_BIO = "Scale Bio"
+    PARSE = "Parse"
     PARSE_EVERCODE = "Parse_evercode"
     PARSE_SPLIT_SEQ = "Parse_split-seq"
-    Fluent = "Fluent"
+    FLUENT = "Fluent"
+    PLEXWELL = "plexWell"
+    MARS_SEQ = "MARS-seq"
+    BD_RHAPSODY = "BD_Rhapsody"
     OTHER = "other"
     NA = "not_applicable"
 
@@ -235,7 +238,8 @@ def create_get_metadata_node() -> Callable:
             " - The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
             " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\", \"likely\", or \"assumed\").",
             " - If there is not enough information to determine the metadata, respond with \"unsure\" or \"other\", depending on the metadata field.",
-            " - Keep free text responses short, less than 100 characters.",
+            " - If a 10X Genomics library preparation method is not selected, then the 10X technology should be \"not_applicable\".",
+            " - Keep free text responses short; use less than 100 characters.",
             "# The specific metadata to extract",
             metadata_items
         ])

@@ -2,7 +2,7 @@
 
 ```bash
 IMG_NAME=sragent
-IMG_VERSION=0.1.0
+IMG_VERSION=0.1.1
 REGION="us-east1"
 GCP_PROJECT_ID="c-tc-429521"
 SERVICE_ACCOUNT_EMAIL="nick-nextflow@c-tc-429521.iam.gserviceaccount.com"
@@ -24,7 +24,7 @@ Run the image:
 docker run -it --rm \
   -u $(id -u):$(id -g) \
   -v ${PWD}:/data \
-  --env DYNACONF="TEST" \
+  --env DYNACONF="prod" \
   --env EMAIL1="${EMAIL1}" \
   --env EMAIL2="${EMAIL2}" \
   --env NCBI_API_KEY1="${NCBI_API_KEY1}" \
@@ -67,13 +67,13 @@ gcloud run jobs update ${JOB_NAME} \
   --region=${REGION} \
   --image=${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${IMG_NAME}/${IMG_NAME}:${IMG_VERSION} \
   --set-env-vars=TZ=America/Los_Angeles \
-  --set-env-vars=DYNACONF="TEST" \
+  --set-env-vars=DYNACONF="prod" \
   --set-env-vars=EMAIL1="nick.youngblut@arcinstitute.org" \
   --set-env-vars=EMAIL2="yusuf.roohani@arcinstitute.org" \
   --set-secrets=NCBI_API_KEY1=NCBI_API_KEY_NICK:latest \
   --set-secrets=NCBI_API_KEY2=NCBI_API_KEY_YUSUF:latest \
-  --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD_TEST:latest \
-  --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_MOTC:latest \
+  --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD:latest \
+  --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_SCRECOUNTER:latest \
   --task-timeout=60m \
   --cpu=2 \
   --memory=2Gi \

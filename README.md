@@ -34,6 +34,8 @@ pip install .
   * optional, but **HIGHLY** recommended
 * `NCBI_API_KEY` = API key for using the Entrez API
   * optional, increases rate limits
+* `DYNACONF` = switch between "test" and "prod" environments
+  * optional, default is "prod"
 
 # Usage
 
