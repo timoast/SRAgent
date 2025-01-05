@@ -30,6 +30,8 @@ class GraphState(TypedDict):
     database: str
     # dataset entrez ID
     entrez_id: str
+    # filter out existing SRX accessions
+    filter_existing: bool
     # accessions
     SRX: Annotated[List[str], operator.add]
     # is_illumina
@@ -81,10 +83,13 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
     
     # submit each accession to the metadata graph    
     ## filter out existing SRX accessions
-    SRX_filt = []
-    with db_connect() as conn:
-        existing_srx = set(db_get_srx_records(conn, column="srx_accession", database=state["database"]))
-        SRX_filt = [x for x in state["SRX"] if x not in existing_srx]
+    if state["filter_existing"]:
+        SRX_filt = []
+        with db_connect() as conn:
+            existing_srx = set(db_get_srx_records(conn, column="srx_accession", database=state["database"]))
+            SRX_filt = [x for x in state["SRX"] if x not in existing_srx]
+    else:
+        SRX_filt = state["SRX"]
 
     ## handle case where no SRX accessions are found
     if len(SRX_filt) == 0:

@@ -179,14 +179,14 @@ def main(args):
         with db_connect() as conn:
             tbl_names = db_list_tables(conn)
             for table in args.drop:
-                print(f"Attempting to drop: {table}")
+                print(f"Attempting to drop: \"{table}\"...")
                 if table not in tbl_names:
-                    print(f"Table {table} not found in database")
+                    print(f"  Table {table} not found in database")
                     continue
                 with conn.cursor() as cur:
                     cur.execute(f"DROP TABLE {table}")
                     conn.commit()
-                print(f"Dropped: {table}")
+                print(f"  Dropped: {table}")
     
     # delete SRX accessions
     if args.delete_srx:

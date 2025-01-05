@@ -38,11 +38,18 @@ def SRX_info_agent_parser(subparsers):
                             help='Maximum recursion limit')
     sub_parser.add_argument('--max-parallel', type=int, default=2,
                             help='Maximum parallel processing of entrez ids')
+    sub_parser.add_argument('--eval-dataset', type=str, default=None, nargs='+',
+                            help='>=1 eval dataset of Entrez IDs to query')
 
-async def _process_single_entrez_id(entrez_id, database, graph, step_summary_chain, config, no_summaries):
+async def _process_single_entrez_id(entrez_id, database, graph, step_summary_chain, config: dict, 
+                                    no_summaries: bool, no_filter: bool):
     """Process a single entrez_id"""
     #print(f"#-- Entrez ID: {entrez_id} (database={database}) --#")
-    input = {"entrez_id": entrez_id, "database": database}
+    input = {
+        "entrez_id": entrez_id, 
+        "database": database,
+        "filter_existing": not no_filter
+    }
     final_state = None
     i = 0
     async for step in graph.astream(input, config=config):
@@ -102,7 +109,8 @@ async def _SRX_info_agent_main(args):
                 graph,
                 step_summary_chain,
                 config,
-                args.no_summaries
+                args.no_summaries,
+                args.no_filter
             )
 
     # Create tasks for each entrez_id

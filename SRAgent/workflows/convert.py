@@ -83,6 +83,7 @@ def create_router_node() -> Callable:
         """
         Route the conversation to the appropriate tool based on the current state of the conversation.
         """
+        # format accessions
         def format_accessions(accessions):
             if not accessions:
                 return "No accessions found"

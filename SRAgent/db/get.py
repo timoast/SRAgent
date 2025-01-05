@@ -121,6 +121,25 @@ def db_get_srx_accessions(
         cur.execute(str(stmt))
         return set([row[0] for row in cur.fetchall()])
 
+def db_get_eval(conn: connection, dataset_ids: List[str]) -> pd.DataFrame:
+    """
+    Get the entrez_id values of all SRX records in the database.
+    Args:
+        conn: Connection to the database.
+        dataset_ids: List of dataset_ids to return
+    Returns:
+        List of entrez_id values of SRX records that have not been processed.
+    """
+    tbl = Table("eval")
+    stmt = Query \
+        .from_(tbl) \
+        .select(target_column) \
+        .distinct() \
+        .where(tbl.dataset_id.isin(dataset_ids))
+        
+    # Fetch the results and return a list of {target_column} values
+    return [row[0] for row in execute_query(stmt, conn)]
+
 # main
 if __name__ == "__main__":
     from dotenv import load_dotenv
@@ -128,7 +147,9 @@ if __name__ == "__main__":
     from SRAgent.db.connect import db_connect
     
     with db_connect() as conn:
-        print(db_get_srx_records(conn))
+        print(db_get_eval(conn, ["eval1"]))
+
+        #print(db_get_srx_records(conn))
         #print(db_get_unprocessed_records(conn))
         #print(db_get_srx_accessions(conn))
         #print(db_find_srx(["SRX19162973"], conn))

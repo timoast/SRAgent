@@ -124,13 +124,30 @@ def create_screcounter_log(conn: connection) -> None:
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
-def create_screcounter_star(conn: connection) -> None:
-    tbl_name = "screcounter_star"
+def create_screcounter_star_params(conn: connection) -> None:
+    tbl_name = "screcounter_star_params"
     stmt = Query \
         .create_table(tbl_name) \
         .columns(
             Column("sample", "VARCHAR(20)", nullable=False),
-            Column("accession", "VARCHAR(20)", nullable=False),
+            Column("barcodes", "VARCHAR(100)"),
+            Column("star_index", "VARCHAR(100)"),
+            Column("cell_barcode_length", "INT"),
+            Column("umi_length", "INT"),
+            Column("strand", "VARCHAR(20)"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("sample")
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
+def create_screcounter_star_results(conn: connection) -> None:
+    tbl_name = "screcounter_star_results"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("sample", "VARCHAR(20)", nullable=False),
             Column("feature", "VARCHAR(30)", nullable=False),
             Column("estimated_number_of_cells", "INT"),
             Column("fraction_of_unique_reads_in_cells", "FLOAT"),
@@ -147,7 +164,7 @@ def create_screcounter_star(conn: connection) -> None:
             Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
             Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
         ) \
-        .unique("sample", "accession", "feature")
+        .unique("sample", "feature")
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
@@ -157,7 +174,8 @@ def create_table_router() -> Dict[str, Any]:
         "srx_srr": create_srx_srr,
         "eval": create_eval,
         "screcounter_log": create_screcounter_log,
-        "screcounter_star": create_screcounter_star,
+        "screcounter_star_params": create_screcounter_star_params,
+        "screcounter_star_results": create_screcounter_star_results,
     }
     return router
 
