@@ -77,5 +77,6 @@ gcloud run jobs update ${JOB_NAME} \
   --task-timeout=60m \
   --cpu=2 \
   --memory=2Gi \
+  --max-retries=0 \
   --args="find-datasets","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```

@@ -185,7 +185,7 @@ def esearch(
             records.append(str(search_results))
             # update retstart
             retstart += retmax
-            time.sleep(0.34)
+            time.sleep(0.5)
             if max_records and len(records) >= max_records:
                 break
             if retstart >= int(search_results['Count']):
