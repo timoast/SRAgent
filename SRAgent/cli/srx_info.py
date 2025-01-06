@@ -44,7 +44,6 @@ def SRX_info_agent_parser(subparsers):
 async def _process_single_entrez_id(entrez_id, database, graph, step_summary_chain, config: dict, 
                                     no_summaries: bool, no_filter: bool):
     """Process a single entrez_id"""
-    #print(f"#-- Entrez ID: {entrez_id} (database={database}) --#")
     input = {
         "entrez_id": entrez_id, 
         "database": database,

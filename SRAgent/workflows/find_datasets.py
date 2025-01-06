@@ -113,7 +113,8 @@ def continue_to_srx_info(state: GraphState) -> List[Dict[str, Any]]:
     for entrez_id in state["entrez_ids"]:
         input = {
             "database": state["database"],
-            "entrez_id": entrez_id
+            "entrez_id": entrez_id,
+            "filter_existing": True
         }
         responses.append(Send("srx_info_node", input))
     return responses

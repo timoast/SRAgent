@@ -83,7 +83,11 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
     
     # submit each accession to the metadata graph    
     ## filter out existing SRX accessions
-    if state["filter_existing"]:
+    try: 
+        filter_existing = state["filter_existing"]
+    except KeyError:
+        filter_existing = True
+    if filter_existing:
         SRX_filt = []
         with db_connect() as conn:
             existing_srx = set(db_get_srx_records(conn, column="srx_accession", database=state["database"]))
@@ -200,7 +204,7 @@ if __name__ == "__main__":
     async def main():
         #input = {"entrez_id": 35087715, "database": "sra"}
         #input = {"entrez_id": 36178506, "database": "sra"}
-        input = {"entrez_id": 31679394, "database": "sra"}
+        input = {"entrez_id": 31679394, "database": "sra", "filter_existing": True}
         graph = create_SRX_info_graph()
         config = {"max_concurrency" : 5, "recursion_limit": 100}
         async for step in graph.astream(input, config=config):
