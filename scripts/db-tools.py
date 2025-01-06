@@ -198,7 +198,7 @@ def main(args):
                         cur.execute(f"DELETE FROM {tbl_name} WHERE srx_accession = '{srx}'")
                         conn.commit()
                 # screcounter_log & screcounter_star
-                for tbl_name in ["screcounter_log", "screcounter_star"]:
+                for tbl_name in ["screcounter_log", "screcounter_star_params", "screcounter_star_results"]:
                     with conn.cursor() as cur:
                         cur.execute(f"DELETE FROM {tbl_name} WHERE sample = '{srx}'")
                         conn.commit()
