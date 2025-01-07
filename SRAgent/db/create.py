@@ -112,7 +112,7 @@ def create_screcounter_log(conn: connection) -> None:
         .create_table(tbl_name) \
         .columns(
             Column("sample", "VARCHAR(20)", nullable=False),
-            Column("accession", "VARCHAR(20)", nullable=False),
+            Column("accession", "VARCHAR(20)"),
             Column("process", "VARCHAR(40)", nullable=False),
             Column("step", "VARCHAR(40)", nullable=False),
             Column("status", "VARCHAR(20)", nullable=False),

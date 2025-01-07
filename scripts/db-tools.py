@@ -52,19 +52,24 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
         description=desc, epilog=epi, formatter_class=CustomFormatter
     )
     parser.add_argument(
-        '--dump', action="store_true", default=False, help='Dump all tables to CSV files'
+        '--dump', action="store_true", default=False, 
+        help='Dump all tables to CSV files'
     )
     parser.add_argument(
-        '--dump-dir', type=str, default=os.path.join("db_bkup", today), help='Directory to dump CSV files'
+        '--dump-dir', type=str, default=os.path.join("db_bkup", today), 
+        help='Directory to dump CSV files'
     )
     parser.add_argument(
-        '--list', action="store_true", default=False, help='List all tables in database'
+        '--list', action="store_true", default=False,
+        help='List all tables in database'
     )
     parser.add_argument(
-        '--glimpse', action="store_true", default=False, help='Glimpse all tables in database'
+        '--glimpse', action="store_true", default=False,
+        help='Glimpse all tables in database'
     )
     parser.add_argument(
-        '--view', type=str, default=None, help='View table in database'
+        '--view', type=str, default=None,
+        help='View table in database'
     )
     parser.add_argument(
         '--create', type=str, default=None, nargs='+',
@@ -72,35 +77,43 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
         help='Create >=1 table in the database'
     )
     parser.add_argument(
-        '--find-srx', type=str, default=None, nargs='+', help='Find SRX accessions in the database'
+        '--find-srx', type=str, default=None, nargs='+', 
+        help='Find SRX accessions in the database'
     )
     parser.add_argument(
-        '--upsert-csv', type=str, default=None, help='CSV file to upsert into database'
+        '--upsert-csv', type=str, default=None, 
+        help='CSV file to upsert into database'
     )
     parser.add_argument(
-        '--upsert-target', type=str, default=None, help='Table to upsert into database'
+        '--upsert-target', type=str, default=None, 
+        help='Table to upsert into database'
     )
     parser.add_argument(
-        '--drop', type=str, default=None, nargs='+', help='>=1 table to delete from database.'
+        '--drop', type=str, default=None, nargs='+', 
+        help='>=1 table to delete from database.'
     )
     parser.add_argument(
-        '--delete-srx', type=str, default=None, nargs='+', help='>=1 SRX accession to delete from the database. Eval table NOT included.'
+        '--delete-srx', type=str, default=None, nargs='+', 
+        help='>=1 SRX accession to delete from the database. Eval table NOT included.'
     )
     parser.add_argument(
-        '--tenant', type=str, default=os.getenv("DYNACONF"), help='Database tenant to connect to. Defaults to DYNACONF env variable'
+        '--tenant', type=str, default=os.getenv("DYNACONF"), 
+        help='Database tenant to connect to. Defaults to DYNACONF env variable'
     )
     return parser.parse_args()
 
 # functions
-def dump_all_tables(dump_dir: str, conn: connection) -> List[str]:
+def dump_all_tables(dump_dir: str, tenant: str, conn: connection) -> List[str]:
     """Dump all tables to CSV files
     Args:
         dump_dir: Directory to dump CSV files
+        tenant: Database tenant
         conn: Database connection
     Returns:
         List of paths to dumped CSV files
     """
     db_tables = db_list_tables(conn)
+    dump_dir = os.path.join(dump_dir, tenant)
     os.makedirs(dump_dir, exist_ok=True)
     outfiles = []
     for table in db_tables:
@@ -157,7 +170,7 @@ def main(args):
     # dump tables
     if args.dump:
         with db_connect() as conn:
-            dump_all_tables(args.dump_dir, conn)
+            dump_all_tables(args.dump_dir, args.tenant, conn)
 
     # upsert tables
     if args.upsert_csv:
