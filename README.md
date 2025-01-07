@@ -4,6 +4,7 @@ SRAgent
 LLM agents for working with the SRA and associated bioinformatics databases.
 
 
+
 # Install
 
 Create a conda environment [optional]: 
@@ -71,6 +72,13 @@ Multiple SRA datasets:
 SRAgent srx-info 36404865 36106630 32664033
 ```
 
+#### Running evaluations on specific accessions
+
+```bash
+SRAgent srx-info --no-summaries --no-filter 18060880 27454880 27454942 27694586
+```
+
+
 ## SRAgent agent
 
 General tool for working with the SRA database via Entrez tools, SRA BigQuery, fetching NCBI webpages, and other methods.
@@ -114,12 +122,6 @@ SRAgent entrez "Obtain any available publications for GSE196830"
 # Evaluations
 
 See the `eval.py` script for running evaluations.
-
-# CRON Jobs
-
-```bash
-./cron/find-datasets.py --database sra
-```
 
 # Workflows
 

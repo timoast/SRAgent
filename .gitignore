@@ -8,6 +8,8 @@ volumes/
 sandbox/
 archive/
 db_bkup/
+*ChrisC_metadata*
+counted_SRX.txt
 
 # Streamlit specific
 .streamlit/
