@@ -2,7 +2,7 @@
 
 ```bash
 IMG_NAME=sragent
-IMG_VERSION=0.1.1
+IMG_VERSION=0.1.2
 REGION="us-east1"
 GCP_PROJECT_ID="c-tc-429521"
 SERVICE_ACCOUNT_EMAIL="nick-nextflow@c-tc-429521.iam.gserviceaccount.com"
@@ -73,11 +73,13 @@ gcloud run jobs update ${JOB_NAME} \
   --set-env-vars=EMAIL3="chris.carpenter@arcinstitute.org" \
   --set-env-vars=EMAIL4="alexander.dobin@arcinstitute.org" \
   --set-env-vars=EMAIL5="hani.goodarzi@arcinstitute.org" \
+  --set-env-vars=EMAIL6="dave@daveburke.org" \
   --set-secrets=NCBI_API_KEY1=NCBI_API_KEY_NICK:latest \
   --set-secrets=NCBI_API_KEY2=NCBI_API_KEY_YUSUF:latest \
   --set-secrets=NCBI_API_KEY3=NCBI_API_KEY_CHRIS:latest \
   --set-secrets=NCBI_API_KEY4=NCBI_API_KEY_ALEX:latest \
   --set-secrets=NCBI_API_KEY5=NCBI_API_KEY_HANI:latest \
+  --set-secrets=NCBI_API_KEY6=NCBI_API_KEY_DAVE:latest \
   --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD:latest \
   --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_SCRECOUNTER:latest \
   --task-timeout=60m \
