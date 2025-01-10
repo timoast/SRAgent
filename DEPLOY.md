@@ -70,8 +70,14 @@ gcloud run jobs update ${JOB_NAME} \
   --set-env-vars=DYNACONF="prod" \
   --set-env-vars=EMAIL1="nick.youngblut@arcinstitute.org" \
   --set-env-vars=EMAIL2="yusuf.roohani@arcinstitute.org" \
+  --set-env-vars=EMAIL3="chris.carpenter@arcinstitute.org" \
+  --set-env-vars=EMAIL4="alexander.dobin@arcinstitute.org" \
+  --set-env-vars=EMAIL5="hani.goodarzi@arcinstitute.org" \
   --set-secrets=NCBI_API_KEY1=NCBI_API_KEY_NICK:latest \
   --set-secrets=NCBI_API_KEY2=NCBI_API_KEY_YUSUF:latest \
+  --set-secrets=NCBI_API_KEY3=NCBI_API_KEY_CHRIS:latest \
+  --set-secrets=NCBI_API_KEY4=NCBI_API_KEY_ALEX:latest \
+  --set-secrets=NCBI_API_KEY5=NCBI_API_KEY_HANI:latest \
   --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD:latest \
   --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_SCRECOUNTER:latest \
   --task-timeout=60m \

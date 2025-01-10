@@ -5,6 +5,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 from typing import Annotated, List, Dict, Optional
+from urllib.error import HTTPError
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -57,7 +58,6 @@ def esearch_scrna(
     """
     Find single cell RNA-seq datasets in the SRA or GEO databases.
     """
-    set_entrez_access()
     esearch_query = ""
 
     # check if query terms are provided
@@ -88,50 +88,56 @@ def esearch_scrna(
     return esearch_batch(esearch_query, database, max_ids, filter_existing=True)
 
 def esearch_batch(
-    esearch_query: str, database: str, max_ids: Optional[int], 
-    verbose: bool=False,
-    filter_existing: bool=False
+    esearch_query: str, 
+    database: str, 
+    max_ids: Optional[int],
+    verbose: bool=False, 
+    filter_existing: bool=False,
+    max_retries: int=3, 
+    base_delay: float=3.0
     ) -> List[str]:
-    # if filter existing, connect to database
     existing_ids = []
     if filter_existing:
         with db_connect() as conn:
             existing_ids = db_get_srx_accessions(conn=conn, database=database)
-    # query 
     ids = []
     retstart = 0
     retmax = 10000
     while True:
-        try:
-            # search
-            search_handle = Entrez.esearch(
-                db=database, 
-                term=esearch_query, 
-                retstart=retstart, 
-                retmax=retmax
-            )
-            search_results = Entrez.read(search_handle)
-            search_handle.close()
-            # add IDs 
-            ids.extend(
-                [x for x in search_results['IdList'] if x not in existing_ids]
-            )
-            retstart += retmax
-            time.sleep(0.34)
-            if verbose:
-                print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
-            if max_ids and len(ids) >= max_ids:
+        for attempt in range(max_retries):
+            set_entrez_access()
+            try:
+                search_handle = Entrez.esearch(
+                    db=database, term=esearch_query, 
+                    retstart=retstart, retmax=retmax
+                )
+                search_results = Entrez.read(search_handle)
+                search_handle.close()
+                ids.extend([x for x in search_results['IdList'] if x not in existing_ids])
+                retstart += retmax
+                time.sleep(0.34)
+                if verbose:
+                    print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
                 break
-            if retstart >= int(search_results['Count']):
-                break
-        except Exception as e:
-            print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
-            break 
-        
-    # just unique IDs
+            except HTTPError as e:
+                if e.code == 429 and attempt < max_retries - 1:
+                    wait_time = base_delay * 2 ** attempt
+                    if verbose:
+                        print(f"Got HTTP 429; retrying in {wait_time} s...", file=sys.stderr)
+                    time.sleep(wait_time)
+                else:
+                    print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
+                    return list(set(ids))
+            except Exception as e:
+               print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
+               return list(set(ids))
+        else:
+            break
+        if max_ids and len(ids) >= max_ids:
+            break
+        if retstart >= int(search_results['Count']):
+            break
     ids = list(set(ids))
-        
-    # return IDs
     if max_ids:
         ids = ids[:max_ids]
     return ids
@@ -140,7 +146,7 @@ def esearch_batch(
 def esearch(
     esearch_query: Annotated[str, "Entrez query string."],
     database: Annotated[str, "Database name (e.g., sra, gds, or pubmed)"],
-    )-> Annotated[List[str], "Entrez IDs of database records"]:
+    )-> Annotated[str, "Entrez IDs of database records"]:
     """
     Run an Entrez search query and return the Entrez IDs of the results.
     Example query for single cell RNA-seq:
@@ -150,8 +156,6 @@ def esearch(
     Example query for a GEO accession number (database = gds):
         `GSE51372`
     """
-    set_entrez_access()
-
     # debug model
     max_records = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
 
@@ -166,40 +170,45 @@ def esearch(
     records = []
     retstart = 0
     retmax = 50
+    max_retries = 3
+    base_delay = 3.0
     while True:
-        try:
-            search_handle = Entrez.esearch(
-                db=database, 
-                term=esearch_query, 
-                retstart=retstart, 
-                retmax=retmax
-            )
-            search_results = Entrez.read(search_handle)
-            search_handle.close()
-            # delete unneeded keys
-            to_rm = ["RetMax", "RetStart"]
-            for key in to_rm:
-                if key in search_results.keys():
-                    del search_results[key]
-            # add to records
-            records.append(str(search_results))
-            # update retstart
-            retstart += retmax
-            time.sleep(0.5)
-            if max_records and len(records) >= max_records:
+        for attempt in range(max_retries):
+            set_entrez_access()
+            try:
+                search_handle = Entrez.esearch(db=database, term=esearch_query, retstart=retstart, retmax=retmax)
+                search_results = Entrez.read(search_handle)
+                search_handle.close()
+                for k in ["RetMax","RetStart"]:
+                    if k in search_results: del search_results[k]
+                records.append(str(search_results))
+                retstart += retmax
+                time.sleep(0.5)
                 break
-            if retstart >= int(search_results['Count']):
-                break
-        except Exception as e:
-            print(f"Error searching {database} with query: {esearch_query}: {str(e)}", file=sys.stderr)
-            break 
+            except HTTPError as e:
+                if e.code == 429 and attempt < max_retries - 1:
+                    time.sleep(base_delay * 2 ** attempt)
+                else:
+                    msg = f"HTTP Error searching {database} with query {esearch_query}: {e}"
+                    print(msg, file=sys.stderr)
+                    return msg
+            except Exception as e:
+                msg = f"Error searching {database} with query {esearch_query}: {str(e)}"
+                print(msg, file=sys.stderr)
+                return msg
+        else:
+            break
+        if max_records and len(records) >= max_records:
+            break
+        if retstart >= int(search_results['Count']):
+            break
         
     # return records
     if len(records) == 0:
         return f"No records found for query: {esearch_query}"
     if max_records:
-        records = records[:max_records]  # debug
-    return str(records)
+        records = records[:max_records] 
+    return ", ".join([str(x) for x in records])
 
 
 if __name__ == "__main__":
