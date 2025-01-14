@@ -158,13 +158,67 @@ def create_screcounter_star_results(conn: connection) -> None:
             Column("median_umi_per_cell", "FLOAT"),
             Column("median_feature_per_cell", "FLOAT"),
             Column("number_of_reads", "INT"),
-            Column("reads_with_valid_barcodes", "INT"),
+            Column("median_reads_per_cell", "FLOAT"),
+            Column("q30_bases_in_cb_umi", "FLOAT"),
+            Column("q30_bases_in_rna_read", "FLOAT"),
+            Column("reads_mapped_to_gene__unique_gene", "FLOAT"),
+            Column("reads_mapped_to_gene__unique_multiple_gene", "FLOAT"),
+            Column("reads_mapped_to_genefull__unique_genefull", "FLOAT"),
+            Column("reads_mapped_to_genefull__unique_multiple_genefull", "FLOAT"),
+            Column("reads_mapped_to_genefull_ex50pas__unique_genefull_ex50pas", "FLOAT"),
+            Column("reads_mapped_to_genefull_ex50pas__unique_multiple_genefull_ex50pas", "FLOAT"),
+            Column("reads_mapped_to_genefull_exonoverintron__unique_genefull_exonoverintron", "FLOAT"),
+            Column("reads_mapped_to_genefull_exonoverintron__unique_multiple_genefull_exonoverintron", "FLOAT"),
+            Column("reads_mapped_to_genome__unique", "FLOAT"),
+            Column("reads_mapped_to_genome__unique_multiple", "FLOAT"),
+            Column("reads_mapped_to_velocyto__unique_velocyto", "FLOAT"),
+            Column("reads_mapped_to_velocyto__unique_multiple_velocyto", "FLOAT"),
+            Column("reads_with_valid_barcodes", "FLOAT"),
             Column("sequencing_saturation", "FLOAT"),
+            Column("total_feature_detected", "FLOAT"),
             Column("umis_in_cells", "INT"),
+            Column("unique_reads_in_cells_mapped_to_gene", "FLOAT"),
+            Column("unique_reads_in_cells_mapped_to_genefull", "FLOAT"),
+            Column("unique_reads_in_cells_mapped_to_genefull_ex50pas", "FLOAT"),
+            Column("unique_reads_in_cells_mapped_to_genefull_exonoverintron", "FLOAT"),
             Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
             Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
         ) \
         .unique("sample", "feature")
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
+def create_screcounter_trace(conn: connection) -> None:
+    tbl_name = "screcounter_trace"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("task_id", "INT", nullable=False),
+            Column("hash", "VARCHAR(12)", nullable=False),
+            Column("native_id", "VARCHAR(80)", nullable=False),
+            Column("name", "VARCHAR(255)"),
+            Column("status", "VARCHAR(24)"),
+            Column("exit", "VARCHAR(10)"),
+            Column("submit", "VARCHAR(24)"),
+            Column("container", "VARCHAR(255)"),
+            Column("cpus", "INT"),
+            Column("time", "VARCHAR(24)"),
+            Column("disk", "VARCHAR(24)"),
+            Column("memory", "VARCHAR(24)"),
+            Column("attempt", "INT"),
+            Column("duration", "VARCHAR(24)"),
+            Column("realtime", "VARCHAR(24)"),
+            Column("cpu_percent", "VARCHAR(24)"), 
+            Column("peak_rss", "VARCHAR(24)"),
+            Column("peak_vmem", "VARCHAR(24)"),
+            Column("rchar", "VARCHAR(24)"),
+            Column("wchar", "VARCHAR(24)"),
+            Column("workdir", "VARCHAR(255)"),
+            Column("scratch", "VARCHAR(24)"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("hash", "native_id")
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
@@ -176,6 +230,7 @@ def create_table_router() -> Dict[str, Any]:
         "screcounter_log": create_screcounter_log,
         "screcounter_star_params": create_screcounter_star_params,
         "screcounter_star_results": create_screcounter_star_results,
+        "screcounter_trace": create_screcounter_trace,
     }
     return router
 
