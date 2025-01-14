@@ -45,6 +45,9 @@ db-tools.py --drop srx_metadata
 # delete >=1 SRX accession
 db-tools.py --delete-srx SRR1234567
 
+# delete >=1 SRX accession from the scRecounter tables
+db-tools.py --delete-srx-screcounter SRR1234567
+
 # upsert from a csv
 db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_metadata.csv
     """
@@ -95,6 +98,10 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
     parser.add_argument(
         '--delete-srx', type=str, default=None, nargs='+', 
         help='>=1 SRX accession to delete from the database. Eval table NOT included.'
+    )
+    parser.add_argument(
+        '--delete-srx-screcounter', type=str, default=None, nargs='+', 
+        help='>=1 SRX accession to delete from the scRecounter tables in the database.'
     )
     parser.add_argument(
         '--tenant', type=str, default=os.getenv("DYNACONF"), 
@@ -201,7 +208,7 @@ def main(args):
                     conn.commit()
                 print(f"  Dropped: {table}")
     
-    # delete SRX accessions
+    # delete SRX accessions from all tables, except eval
     if args.delete_srx:
         with db_connect() as conn:
             for srx in args.delete_srx:
@@ -216,7 +223,26 @@ def main(args):
                         cur.execute(f"DELETE FROM {tbl_name} WHERE sample = '{srx}'")
                         conn.commit()
                 print(f"Deleted: {srx}")
+    
+    # delete SRX accessions from scRecounter tables
+    if args.delete_srx_screcounter:
+        with db_connect() as conn:
+            for srx in args.delete_srx_screcounter:
+                # screcounter_log & screcounter_star
+                for tbl_name in ["screcounter_log", "screcounter_star_params", "screcounter_star_results"]:
+                    with conn.cursor() as cur:
+                        cur.execute(f"DELETE FROM {tbl_name} WHERE sample = '{srx}'")
+                        conn.commit()
+                print(f"Deleted: {srx}")
 
+# def delete_sandbox():
+#     with db_connect() as conn:
+#         #query = "SELECT * FROM screcounter_star_results WHERE estimated_number_of_cells IS NULL"
+#         #print(pd.read_sql(query, conn))
+#         query = "DELETE FROM screcounter_star_results WHERE estimated_number_of_cells IS NULL"
+#         with conn.cursor() as cur:
+#             cur.execute(query)
+#             conn.commit()
 
 def get_sep(infile: str) -> str:
     """Determine separator from file extension
