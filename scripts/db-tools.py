@@ -105,6 +105,7 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
     )
     parser.add_argument(
         '--tenant', type=str, default=os.getenv("DYNACONF"), 
+        choices = ["test", "prod"],
         help='Database tenant to connect to. Defaults to DYNACONF env variable'
     )
     return parser.parse_args()
@@ -234,15 +235,6 @@ def main(args):
                         cur.execute(f"DELETE FROM {tbl_name} WHERE sample = '{srx}'")
                         conn.commit()
                 print(f"Deleted: {srx}")
-
-# def delete_sandbox():
-#     with db_connect() as conn:
-#         #query = "SELECT * FROM screcounter_star_results WHERE estimated_number_of_cells IS NULL"
-#         #print(pd.read_sql(query, conn))
-#         query = "DELETE FROM screcounter_star_results WHERE estimated_number_of_cells IS NULL"
-#         with conn.cursor() as cur:
-#             cur.execute(query)
-#             conn.commit()
 
 def get_sep(infile: str) -> str:
     """Determine separator from file extension
