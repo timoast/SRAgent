@@ -130,6 +130,7 @@ if __name__ == "__main__":
     from SRAgent.db.connect import db_connect
     load_dotenv()
 
+    os.environ["DYNACONF"] = "test"
     with db_connect() as conn:
         # list unisue columns
         for table in db_list_tables(conn):

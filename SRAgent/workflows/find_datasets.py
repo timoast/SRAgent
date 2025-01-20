@@ -19,7 +19,7 @@ from SRAgent.agents.find_datasets import create_find_datasets_agent
 from SRAgent.workflows.srx_info import create_SRX_info_graph
 from SRAgent.db.connect import db_connect
 from SRAgent.db.upsert import db_upsert
-from SRAgent.db.get import db_get_srx_accessions
+from SRAgent.db.get import db_get_entrez_ids
 
 # state
 class GraphState(TypedDict):
@@ -88,8 +88,9 @@ def create_get_entrez_ids_node() -> Callable:
         # entrez ID check
         ## make sure that the entrez IDs are not found in the database
         with db_connect() as conn:
-            existing_ids = db_get_srx_accessions(conn=conn, database=database)
+            existing_ids = db_get_entrez_ids(conn=conn, database=database)
             entrez_ids = [x for x in entrez_ids if x not in existing_ids]
+
         ## update the database
         if len(entrez_ids) > 0:
             df = pd.DataFrame({

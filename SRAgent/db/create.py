@@ -255,6 +255,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     # connect to db
+    os.environ["DYNACONF"] = "test"
     with db_connect() as conn:
         # create tables
         #create_srx_metadata()

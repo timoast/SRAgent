@@ -12,7 +12,7 @@ from langchain_core.tools import tool
 ## package
 from SRAgent.tools.utils import set_entrez_access
 from SRAgent.db.connect import db_connect
-from SRAgent.db.get import db_get_srx_accessions
+from SRAgent.db.get import db_get_entrez_ids
 
 # functions
 ORGANISMS = {
@@ -99,7 +99,7 @@ def esearch_batch(
     existing_ids = []
     if filter_existing:
         with db_connect() as conn:
-            existing_ids = db_get_srx_accessions(conn=conn, database=database)
+            existing_ids = {str(x) for x in db_get_entrez_ids(conn=conn, database=database)}
     ids = []
     retstart = 0
     retmax = 10000

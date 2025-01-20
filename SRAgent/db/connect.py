@@ -102,7 +102,8 @@ def get_secret(secret_id: str) -> str:
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
-    
+
+    os.environ["DYNACONF"] = "test"
     with db_connect() as conn:
         print(conn)
     

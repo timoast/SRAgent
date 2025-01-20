@@ -98,10 +98,10 @@ def db_get_srx_accessions(
     conn: connection, database: str="sra"
     ) -> Set[str]:
     """
-    Get all SRX accessions in the database
+    Get all SRX accessions in the screcounter database
     Args:
         conn: Connection to the database.
-        database: Name of the database to query.
+        database: Name of the sequence database (e.g., sra)
     Returns:
         Set of SRX accessions in the database.
     """
@@ -113,6 +113,33 @@ def db_get_srx_accessions(
         ) \
         .select(
             srx_metadata.srx_accession
+        ) \
+        .distinct()
+        
+    # fetch records
+    with conn.cursor() as cur:
+        cur.execute(str(stmt))
+        return set([row[0] for row in cur.fetchall()])
+
+def db_get_entrez_ids(
+    conn: connection, database: str="sra"
+    ) -> Set[str]:
+    """
+    Get all Entrez IDs in the screcounter database
+    Args:
+        conn: Connection to the database.
+        database: Name of the sequence database (e.g., sra)
+    Returns:
+        Set of Entrez IDs in the database.
+    """
+    srx_metadata = Table("srx_metadata")
+    stmt = Query \
+        .from_(srx_metadata) \
+        .where(
+            srx_metadata.database == database
+        ) \
+        .select(
+            srx_metadata.entrez_id
         ) \
         .distinct()
         
@@ -146,10 +173,11 @@ if __name__ == "__main__":
     load_dotenv()
     from SRAgent.db.connect import db_connect
     
+    os.environ["DYNACONF"] = "test"
     with db_connect() as conn:
-        print(db_get_eval(conn, ["eval1"]))
+        #print(db_get_eval(conn, ["eval1"]))
 
         #print(db_get_srx_records(conn))
         #print(db_get_unprocessed_records(conn))
-        #print(db_get_srx_accessions(conn))
+        print(len(db_get_srx_accessions(conn)))
         #print(db_find_srx(["SRX19162973"], conn))

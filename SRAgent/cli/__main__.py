@@ -35,9 +35,13 @@ def arg_parse(args=None) -> dict:
         epilog=epi,
         formatter_class=CustomFormatter
     )
-    subparsers = parser.add_subparsers(dest="command", help="Subcommands")
+    parser.add_argument(
+        '--tenant', type=str, default="prod", choices = ["test", "prod"],
+        help='Database tenant to connect to. Defaults to DYNACONF env variable'
+    )
 
     # subparsers
+    subparsers = parser.add_subparsers(dest="command", help="Subcommands")
     ## Entrez agent
     entrez_agent_parser(subparsers)
     ## SR agent
@@ -54,6 +58,9 @@ def main():
     load_dotenv()
     # parsing args
     args = arg_parse()
+    # set database tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
     
     # which subcommand
     if not args.command:
