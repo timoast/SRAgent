@@ -80,6 +80,8 @@ def esearch_scrna(
     esearch_query += ' AND "library layout paired"[Filter]'
     esearch_query += ' AND "platform illumina"[Filter]'
     esearch_query += ' AND "sra bioproject"[Filter]'
+    ## library prep methods to exclude
+    esearch_query += ' NOT ("Smart-seq" OR "Smart-seq2" OR "Smart-seq3" OR "MARS-seq")'
 
     # debug model
     max_ids = 2 if os.getenv("DYNACONF").lower() == "test" else max_ids
