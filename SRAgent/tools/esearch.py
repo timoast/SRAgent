@@ -48,7 +48,7 @@ MIN_DATE = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y/%m/%d')
 
 @tool 
 def esearch_scrna(
-    query_terms: Annotated[List[str], "Entrez query terms"]=["single cell RNA sequencing", "single cell RNA-seq"],
+    query_terms: Annotated[List[str], "Entrez query terms"]=[ "10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
     database: Annotated[str, "Database name ('sra' or 'gds')"]="sra",
     organisms: Annotated[List[str], "List of organisms to search."]=["human", "mouse"],
     min_date: Annotated[str, "Minimum date to search back (%Y/%m/%d)."]=MIN_DATE,
