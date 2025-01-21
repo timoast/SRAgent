@@ -96,10 +96,12 @@ def esearch_batch(
     max_retries: int=3, 
     base_delay: float=3.0
     ) -> List[str]:
+    # get existing Entrez IDs
     existing_ids = []
     if filter_existing:
         with db_connect() as conn:
             existing_ids = {str(x) for x in db_get_entrez_ids(conn=conn, database=database)}
+    # search for novel Entrez IDs
     ids = []
     retstart = 0
     retmax = 10000
