@@ -25,6 +25,7 @@ class YesNo(Enum):
 
 class OrganismEnum(Enum):
     """Organism sequenced"""
+    # mammals
     HUMAN = "human"
     MOUSE = "mouse"
     RAT = "rat"
@@ -34,13 +35,29 @@ class OrganismEnum(Enum):
     HORSE = "horse"
     DOG = "dog"
     BOVINE = "bovine"
-    CHICKEN = "chicken"
     SHEEP = "sheep"
     PIG = "pig"
+    RABBIT = "rabbit"
+    NAKED_MOLE_RAT = "naked_mole_rat"
+    CHIMPANZEE = "chimpanzee"
+    # birds
+    CHICKEN = "chicken"
+    # amphibians
+    FROG = "frog"
+    # fish
+    ZEBRAFISH = "zebrafish"
+    # invertebrates
     FRUIT_FLY = "fruit_fly"
     ROUNDWORM = "roundworm"
-    ZEBRAFISH = "zebrafish"
+    MOSQUITO = "mosquito"
+    # plants
+    THALE_CRESS = "thale_cress"
+    RICE = "rice"
+    TOMATO = "tomato"
+    CORN = "corn"
+    # microorganisms
     METAGENOME = "metagenome"
+    # other
     OTHER = "other"
 
 class Tech10XEnum(Enum):

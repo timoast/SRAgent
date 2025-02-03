@@ -16,29 +16,55 @@ from SRAgent.db.get import db_get_entrez_ids
 
 # functions
 ORGANISMS = {
+    # mammals
     'human': 'Homo sapiens',
     'mouse': 'Mus musculus',
-    'rat': 'Rattus norvegicus',
-    'monkey': 'Simiiformes', 
-    'macaque': 'Macaca mulatta',
+    'rat': 'Rattus norvegicus',  
+    'monkey': 'Simiiformes',      
+    'macaque': 'Macaca mulatta', 
     'marmoset': 'Callithrix jacchus',
     'horse': 'Equus caballus',
     'dog': 'Canis lupus',
     'bovine': 'Bos taurus',
-    'chicken': 'Gallus gallus',
     'sheep': 'Ovis aries',
     'pig': 'Sus scrofa',
+    'naked_mole_rat': 'Heterocephalus glaber',
+    'rabbit': 'Oryctolagus cuniculus',
+    'chimpanzee': 'Pan troglodytes',
+    # birds
+    'chicken': 'Gallus gallus',
+    # amphibians
+    'frog': 'Xenopus tropicalis',
+    # fish
+    'zebrafish': 'Danio rerio',
+    # invertebrates
     'fruit_fly': 'Drosophila melanogaster',
+    'caenorhabditis': 'Caenorhabditis elegans',
     'roundworm': 'Caenorhabditis elegans',
-    'zebrafish': 'Danio rerio'
+    'schistosoma': 'Schistosoma mansoni',
+    'mosquito' : 'Anopheles gambiae',
+    'Anopheles': 'Anopheles gambiae',
+    # plants
+    "arabidopsis" : "Arabidopsis thaliana",
+    "thale_cress" : "Arabidopsis thaliana",
+    "oryza" : "Oryza sativa",
+    "rice" : "Oryza sativa",
+    "solanum" : "Solanum lycopersicum",
+    "tomato" : "Solanum lycopersicum",
+    "zea" : "Zea mays",
+    "corn" : "Zea mays",
+    # fungi
+    "saccharomyces" : "Saccharomyces cerevisiae",
+    "yeast" : "Saccharomyces cerevisiae",
 }
 
 def to_sci_name(organism: str) -> str:
     """
     Convert organism name to scientific name.
     """
+    organism_str = organism.lower().replace(" ", "_")
     try:
-        return f'"{ORGANISMS[organism]}"'
+        return f'"{ORGANISMS[organism_str]}"'
     except KeyError:
         raise ValueError(f"Organism '{organism}' not found in list.")
 
@@ -48,7 +74,7 @@ MIN_DATE = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y/%m/%d')
 
 @tool 
 def esearch_scrna(
-    query_terms: Annotated[List[str], "Entrez query terms"]=[ "10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
+    query_terms: Annotated[List[str], "Entrez query terms"]=["10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
     database: Annotated[str, "Database name ('sra' or 'gds')"]="sra",
     organisms: Annotated[List[str], "List of organisms to search."]=["human", "mouse"],
     min_date: Annotated[str, "Minimum date to search back (%Y/%m/%d)."]=MIN_DATE,
@@ -221,18 +247,20 @@ if __name__ == "__main__":
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
 
-    # scRNA-seq
+    # query for scRNA-seq 
     #query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     #query = '("bulk RNA sequencing")'
     #input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
     #input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
-    input = {}
-    print(esearch_scrna.invoke(input))
+    #input = {"organisms" : ["Homo sapien", "Mus musculus"]} 
+    #input = {"organisms" : ["yeast"], "max_ids" : 10000}
+    print(len(esearch_scrna.invoke(input)))
 
     # esearch accession
-    input = {"esearch_query" : "GSE51372", "database" : "sra"}
-    input = {"esearch_query" : "GSE121737", "database" : "gds"}
-    input = {"esearch_query" : "35447314", "database" : "sra"}
-    input = {"esearch_query" : "35447314", "database" : "gds"}
+    #input = {"esearch_query" : "GSE51372", "database" : "sra"}
+    #input = {"esearch_query" : "GSE121737", "database" : "gds"}
+    #input = {"esearch_query" : "35447314", "database" : "sra"}
+    #input = {"esearch_query" : "35447314", "database" : "gds"}
     #print(esearch.invoke(input))
+
 
