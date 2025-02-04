@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.tools.utils import set_entrez_access
 from SRAgent.db.connect import db_connect
@@ -41,9 +42,9 @@ ORGANISMS = {
     'fruit_fly': 'Drosophila melanogaster',
     'caenorhabditis': 'Caenorhabditis elegans',
     'roundworm': 'Caenorhabditis elegans',
-    'schistosoma': 'Schistosoma mansoni',
+    'blood_fluke': 'Schistosoma mansoni',
     'mosquito' : 'Anopheles gambiae',
-    'Anopheles': 'Anopheles gambiae',
+    'anopheles': 'Anopheles gambiae',
     # plants
     "arabidopsis" : "Arabidopsis thaliana",
     "thale_cress" : "Arabidopsis thaliana",
@@ -80,11 +81,16 @@ def esearch_scrna(
     min_date: Annotated[str, "Minimum date to search back (%Y/%m/%d)."]=MIN_DATE,
     max_date: Annotated[str, "Maximum date to search back (%Y/%m/%d)."]=MAX_DATE,
     max_ids: Annotated[Optional[int], "Maximum number of IDs to return."]=10,
+    config: RunnableConfig=None,
     )-> Annotated[List[str], "Entrez IDs of database records"]:
     """
-    Find single cell RNA-seq datasets in the SRA or GEO databases.
+    Find scRNA-seq datasets in the SRA or GEO databases.
     """
     esearch_query = ""
+
+    # overriding organism param via the config
+    if config.get("configurable", {}).get("organisms"):
+        organisms = config["configurable"]["organisms"]
 
     # check if query terms are provided
     query_terms = " OR ".join([f'"{x}"' for x in query_terms])
@@ -110,15 +116,15 @@ def esearch_scrna(
     esearch_query += ' NOT ("Smart-seq" OR "Smart-seq2" OR "Smart-seq3" OR "MARS-seq")'
 
     # debug model
-    max_ids = 2 if os.getenv("DYNACONF").lower() == "test" else max_ids
+    max_ids = 2 if os.getenv("DYNACONF", "").lower() == "test" else max_ids
 
     # return entrez IDs 
-    return esearch_batch(esearch_query, database, max_ids, filter_existing=True)
+    return esearch_batch(esearch_query, database, max_ids=max_ids, filter_existing=True)
 
 def esearch_batch(
     esearch_query: str, 
     database: str, 
-    max_ids: Optional[int],
+    max_ids: Optional[int]=None,
     verbose: bool=False, 
     filter_existing: bool=False,
     max_retries: int=3, 
@@ -176,6 +182,7 @@ def esearch_batch(
 def esearch(
     esearch_query: Annotated[str, "Entrez query string."],
     database: Annotated[str, "Database name (e.g., sra, gds, or pubmed)"],
+    config: RunnableConfig,
     )-> Annotated[str, "Entrez IDs of database records"]:
     """
     Run an Entrez search query and return the Entrez IDs of the results.
@@ -187,7 +194,7 @@ def esearch(
         `GSE51372`
     """
     # debug model
-    max_records = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
+    max_records = 3 if os.getenv("DYNACONF", "").lower() == "test" else None
 
     # check input
     if esearch_query == "":
@@ -244,17 +251,18 @@ def esearch(
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     # query for scRNA-seq 
-    #query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
+    config = {"configurable": {"organisms": ["human", "mouse", "rat", "dog"]}}
+    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     #query = '("bulk RNA sequencing")'
-    #input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
+    input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
     #input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
     #input = {"organisms" : ["Homo sapien", "Mus musculus"]} 
     #input = {"organisms" : ["yeast"], "max_ids" : 10000}
-    print(len(esearch_scrna.invoke(input)))
+    print(esearch_scrna.invoke(input, config=config))
 
     # esearch accession
     #input = {"esearch_query" : "GSE51372", "database" : "sra"}

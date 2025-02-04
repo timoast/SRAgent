@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.agents.sragent import create_sragent_agent
 from SRAgent.db.connect import db_connect 
@@ -29,7 +30,7 @@ class OrganismEnum(Enum):
     HUMAN = "human"
     MOUSE = "mouse"
     RAT = "rat"
-    MONKEY = "monkey"
+    #MONKEY = "monkey"
     MACAQUE = "macaque"
     MARMOSET = "marmoset"
     HORSE = "horse"
@@ -50,6 +51,7 @@ class OrganismEnum(Enum):
     FRUIT_FLY = "fruit_fly"
     ROUNDWORM = "roundworm"
     MOSQUITO = "mosquito"
+    BLOOD_FLUKE = "schistosoma"
     # plants
     THALE_CRESS = "thale_cress"
     RICE = "rice"
@@ -245,7 +247,7 @@ def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
-    async def invoke_get_metadata_node(state: GraphState):
+    async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig):
         """Structured data extraction"""
         metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
@@ -467,7 +469,8 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
 async def invoke_metadata_graph(
     state: GraphState, 
     graph: StateGraph,
-    to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys())
+    to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys()),
+    config: RunnableConfig=None,
 ) -> Annotated[dict, "Response from the metadata graph"]:
     """
     Invoke the graph to obtain metadata for an SRX accession
@@ -478,7 +481,7 @@ async def invoke_metadata_graph(
     Return:
         A dictionary of the metadata items
     """
-    response = await graph.ainvoke(state)
+    response = await graph.ainvoke(state, config=config)
     # filter the response to just certain graph state fields
     filtered_response = {key: [response[key]] for key in to_return}
     return filtered_response
@@ -505,7 +508,7 @@ if __name__ == "__main__":
             #"metadata_level": "primary",
         }
         graph = create_metadata_graph(db_add=False)
-        config = {"max_concurrency" : 3, "recursion_limit": 50}
+        config = {"max_concurrency" : 3, "recursion_limit": 50, "configurable": {"organisms": ["mouse", "rat"]}}
         async for step in graph.astream(input, subgraphs=False, config=config):
             print(step)
     asyncio.run(main())

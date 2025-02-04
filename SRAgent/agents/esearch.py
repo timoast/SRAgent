@@ -9,6 +9,7 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.tools.esearch import esearch
 
@@ -32,13 +33,14 @@ def create_esearch_agent(model_name: str="gpt-4o-mini") -> Callable:
     
     @tool
     async def invoke_esearch_agent(
-        message: Annotated[str, "Message to the esearch agent"]
+        message: Annotated[str, "Message to the esearch agent"],
+        config: RunnableConfig
     ) -> Annotated[str, "Response from the esearch agent"]:
         """
         Invoke the esearch agent to perform a task.
         """
         # Invoke the agent with the message
-        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]})
+        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=config)
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="esearch_agent")]
         }
@@ -53,8 +55,11 @@ if __name__ == "__main__":
     # test agent
     async def main():
         agent = create_esearch_agent()
-        input = {"message": "I am looking for information about Entrez ID 35966237"}
-        result = await agent.ainvoke(input)
+        input = {
+            "message": "Find rat single-cell RNA-seq datasets.",
+        }
+        config = {"configurable": {"organisms": ["human", "mouse", "rat", "dog"]}}
+        result = await agent.ainvoke(input, config=config)
         print(result)
     asyncio.run(main())
 

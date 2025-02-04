@@ -55,7 +55,7 @@ def arg_parse(args=None) -> dict:
 
 def main():
     # load environment variables
-    load_dotenv()
+    load_dotenv(override=True)
     # parsing args
     args = arg_parse()
     # set database tenant

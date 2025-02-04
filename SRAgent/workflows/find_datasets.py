@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.agents.find_datasets import create_find_datasets_agent
 from SRAgent.workflows.srx_info import create_SRX_info_graph
@@ -35,10 +36,13 @@ def create_find_datasets_node():
     agent = create_find_datasets_agent()
 
     # create the node function
-    async def invoke_find_datasets_agent_node(state: GraphState) -> Dict[str, Any]:
+    async def invoke_find_datasets_agent_node(
+        state: GraphState,
+        config: RunnableConfig,
+        ) -> Dict[str, Any]:
         """Invoke the find_datasets agent to get datasets to process"""
         # call the agent
-        response = await agent.ainvoke({"message": state["messages"][-1].content})
+        response = await agent.ainvoke({"message": state["messages"][-1].content}, config=config)
         # return the last message in the response
         return {
             "messages" : [response["messages"][-1]],
@@ -174,14 +178,14 @@ if __name__ == "__main__":
 
     #-- setup --#
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
     async def main():
         msg = "Obtain recent single cell RNA-seq datasets in the SRA database"
         input = {"messages" : [HumanMessage(content=msg)]}
-        config = {"max_concurrency" : 8, "recursion_limit": 200}
+        config = {"max_concurrency" : 4, "recursion_limit": 200, "configurable": {"organisms": ["rat"]}}
         graph = create_find_datasets_graph()
         async for step in graph.astream(input, config=config):
             print(step)

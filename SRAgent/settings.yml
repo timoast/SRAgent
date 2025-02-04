@@ -1,9 +1,11 @@
 default:
   db_host: "35.243.133.29"
   db_port: 5432
-  db_name: "sragent-prod"
   db_user: "postgres"
   db_timeout: 30
 
 test:
   db_name: "sragent-test"
+  
+prod:
+  db_name: "sragent-prod"
