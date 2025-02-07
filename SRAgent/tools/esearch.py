@@ -71,7 +71,7 @@ def to_sci_name(organism: str) -> str:
 
 ## default time span limits
 MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
-MIN_DATE = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y/%m/%d')
+MIN_DATE = (datetime.now() - timedelta(days=7 * 365)).strftime('%Y/%m/%d')
 
 @tool 
 def esearch_scrna(

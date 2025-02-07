@@ -99,7 +99,6 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms rat -- \
 </details>
 
 
-
 #### Using an SQL database to store results
 
 Using the `test` database:
