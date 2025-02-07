@@ -28,6 +28,9 @@ def find_datasets_parser(subparsers):
         'message', type=str, help='Message to instruct the agent. See the Description'
     ) 
     sub_parser.add_argument(
+        '--max-datasets', type=int, default=10, help='Maximum number of datasets to analyze'
+    )
+    sub_parser.add_argument(
         '--no-summaries', action='store_true', default=False, help='No LLM summaries'
     )
     sub_parser.add_argument(
@@ -47,6 +50,9 @@ def find_datasets_parser(subparsers):
         ],
         help='Organisms to search for'
     )
+    sub_parser.add_argument(
+        '--use-database', action='store_true', default=False, help='Use the SQL database'
+    )
 
 async def _find_datasets_main(args):
     """
@@ -64,7 +70,11 @@ async def _find_datasets_main(args):
     config = {
         "max_concurrency": args.max_concurrency,
         "recursion_limit": args.recursion_limit,
-        "configurable": {"organisms": args.organisms}
+        "configurable": {
+            "organisms": args.organisms,
+            "max_datasets": args.max_datasets,
+            "use_database": args.use_database
+        }
     }
     input = {"messages" : [HumanMessage(content=args.message)]}
 

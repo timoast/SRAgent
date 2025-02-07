@@ -23,31 +23,38 @@ def SRX_info_agent_parser(subparsers):
         'srx-info', help=help, description=desc, formatter_class=CustomFormatter
     )
     sub_parser.set_defaults(func=SRX_info_agent_main)
-    sub_parser.add_argument('entrez_ids', type=str, nargs='+',
-                            help='>=1 dataset Entrez IDs to query')    
-    sub_parser.add_argument('--database', type=str, default='sra',
-                            choices=['gds', 'sra'],
-                            help='Entrez database origin of the Entrez IDs')
-    sub_parser.add_argument('--no-filter', action='store_true', default=False,
-                            help='Do not filter Entrez IDs already in the metadata database')
-    sub_parser.add_argument('--no-summaries', action='store_true', default=False,
-                            help='No LLM summaries')
-    sub_parser.add_argument('--max-concurrency', type=int, default=6, 
-                            help='Maximum number of concurrent processes')
-    sub_parser.add_argument('--recursion-limit', type=int, default=200,
-                            help='Maximum recursion limit')
-    sub_parser.add_argument('--max-parallel', type=int, default=2,
-                            help='Maximum parallel processing of entrez ids')
-    sub_parser.add_argument('--eval-dataset', type=str, default=None, nargs='+',
-                            help='>=1 eval dataset of Entrez IDs to query')
+    sub_parser.add_argument(
+        'entrez_ids', type=str, nargs='+', help='>=1 dataset Entrez IDs to query'
+    )    
+    sub_parser.add_argument(
+        '--database', type=str, default='sra', choices=['gds', 'sra'], help='Entrez database origin of the Entrez IDs'
+    )
+    sub_parser.add_argument(
+        '--no-summaries', action='store_true', default=False, help='No LLM summaries'
+    )
+    sub_parser.add_argument(
+        '--max-concurrency', type=int, default=6, help='Maximum number of concurrent processes'
+    )
+    sub_parser.add_argument(
+        '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
+    )
+    sub_parser.add_argument(
+        '--max-parallel', type=int, default=2, help='Maximum parallel processing of entrez ids'
+    )
+    sub_parser.add_argument(
+        '--eval-dataset', type=str, default=None, nargs='+', help='>=1 eval dataset of Entrez IDs to query'
+    )
+    sub_parser.add_argument(
+        '--use-database', action='store_true', default=False, help='Use database to filter entrez ids'
+    )
 
-async def _process_single_entrez_id(entrez_id, database, graph, step_summary_chain, config: dict, 
-                                    no_summaries: bool, no_filter: bool):
+async def _process_single_entrez_id(
+    entrez_id, database, graph, step_summary_chain, config: dict, no_summaries: bool
+):
     """Process a single entrez_id"""
     input = {
         "entrez_id": entrez_id, 
         "database": database,
-        "filter_existing": not no_filter
     }
     final_state = None
     i = 0
@@ -74,7 +81,7 @@ async def _SRX_info_agent_main(args):
     Main function for invoking the entrez agent
     """
     # filter entrez_ids
-    if not args.no_filter:
+    if args.use_database:
         existing_ids = set()
         with db_connect() as conn:
             existing_ids = set(db_get_srx_records(conn))
@@ -94,7 +101,10 @@ async def _SRX_info_agent_main(args):
     # invoke agent
     config = {
         "max_concurrency": args.max_concurrency,
-        "recursion_limit": args.recursion_limit
+        "recursion_limit": args.recursion_limit,
+        "configurable": {
+            "use_database": args.use_database
+        }
     }
 
     # Create semaphore to limit concurrent processing
@@ -109,7 +119,6 @@ async def _SRX_info_agent_main(args):
                 step_summary_chain,
                 config,
                 args.no_summaries,
-                args.no_filter
             )
 
     # Create tasks for each entrez_id

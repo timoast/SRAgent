@@ -20,6 +20,9 @@ warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy conne
 def db_connect() -> connection:
     """Connect to the sql database"""
     # get settings
+    if not os.getenv("DYNACONF"):
+        os.environ["DYNACONF"] = "prod"
+
     s_path = str(resources.files("SRAgent").joinpath("settings.yml"))
     settings = Dynaconf(
         settings_files=["settings.yml", s_path], 

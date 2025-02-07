@@ -115,11 +115,18 @@ def esearch_scrna(
     ## library prep methods to exclude
     esearch_query += ' NOT ("Smart-seq" OR "Smart-seq2" OR "Smart-seq3" OR "MARS-seq")'
 
-    # debug model
-    max_ids = 2 if os.getenv("DYNACONF", "").lower() == "test" else max_ids
+    # override max_ids
+    if config.get("configurable", {}).get("max_datasets"):
+        max_ids = config["configurable"]["max_datasets"]
+        ## debug model
+        if os.getenv("DYNACONF", "").lower() == "test":
+            max_ids = 2
+
+    # use database to filter existing?
+    filter_existing = config.get("configurable", {}).get("use_database", False)
 
     # return entrez IDs 
-    return esearch_batch(esearch_query, database, max_ids=max_ids, filter_existing=True)
+    return esearch_batch(esearch_query, database, max_ids=max_ids, filter_existing=filter_existing)
 
 def esearch_batch(
     esearch_query: str, 
@@ -131,7 +138,7 @@ def esearch_batch(
     base_delay: float=3.0
     ) -> List[str]:
     # get existing Entrez IDs
-    existing_ids = []
+    existing_ids = set()
     if filter_existing:
         with db_connect() as conn:
             existing_ids = {str(x) for x in db_get_entrez_ids(conn=conn, database=database)}
@@ -255,7 +262,9 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # query for scRNA-seq 
-    config = {"configurable": {"organisms": ["human", "mouse", "rat", "dog"]}}
+    config = {"configurable": {
+        "organisms": ["human", "mouse", "rat", "dog"]
+    }}
     query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     #query = '("bulk RNA sequencing")'
     input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}

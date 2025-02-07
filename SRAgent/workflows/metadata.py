@@ -29,34 +29,33 @@ class OrganismEnum(Enum):
     # mammals
     HUMAN = "human"
     MOUSE = "mouse"
-    RAT = "rat"
-    #MONKEY = "monkey"
-    MACAQUE = "macaque"
-    MARMOSET = "marmoset"
-    HORSE = "horse"
-    DOG = "dog"
-    BOVINE = "bovine"
-    SHEEP = "sheep"
-    PIG = "pig"
-    RABBIT = "rabbit"
-    NAKED_MOLE_RAT = "naked_mole_rat"
-    CHIMPANZEE = "chimpanzee"
+    RAT = "Rattus norvegicus"
+    MACAQUE = "Macaca mulatta"
+    MARMOSET = "Callithrix jacchus"
+    HORSE = "Equus caballus"
+    DOG = "Canis lupus"
+    BOVINE = "Bos taurus"
+    SHEEP = "Ovis aries"
+    PIG = "Sus scrofa"
+    RABBIT = "Oryctolagus cuniculus"
+    NAKED_MOLE_RAT = "Heterocephalus glaber"
+    CHIMPANZEE = "Pan troglodytes"
     # birds
-    CHICKEN = "chicken"
+    CHICKEN = "Gallus gallus"
     # amphibians
-    FROG = "frog"
+    FROG = "Xenopus tropicalis"
     # fish
-    ZEBRAFISH = "zebrafish"
+    ZEBRAFISH = "Danio rerio"
     # invertebrates
-    FRUIT_FLY = "fruit_fly"
-    ROUNDWORM = "roundworm"
-    MOSQUITO = "mosquito"
-    BLOOD_FLUKE = "schistosoma"
+    FRUIT_FLY = "Drosophila melanogaster"
+    ROUNDWORM = "Caenorhabditis elegans"
+    MOSQUITO = "Anopheles gambiae"
+    BLOOD_FLUKE = "Schistosoma mansoni"
     # plants
-    THALE_CRESS = "thale_cress"
-    RICE = "rice"
-    TOMATO = "tomato"
-    CORN = "corn"
+    THALE_CRESS = "Arabidopsis thaliana"
+    RICE = "Oryza sativa"
+    TOMATO = "Solanum lycopersicum"
+    CORN = "Zea mays" 
     # microorganisms
     METAGENOME = "metagenome"
     # other
@@ -375,7 +374,7 @@ async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]
     SRR_acc = regex.findall(response["messages"][-1].content)
     return {"SRR" : list(set(SRR_acc))}
 
-def add2db(state: GraphState):
+def add2db(state: GraphState, config: RunnableConfig):
     """Add results to the records database"""
     # upload SRX metadata to the database
     data = [{
@@ -396,8 +395,9 @@ def add2db(state: GraphState):
         "notes": "Metadata obtained by SRAgent"
     }]
     data = pd.DataFrame(data)
-    with db_connect() as conn:
-        db_upsert(data, "srx_metadata", conn)
+    if config.get("configurable", {}).get("use_database"):
+        with db_connect() as conn:
+            db_upsert(data, "srx_metadata", conn)
 
     # Upload SRR accessions to the database
     data = []
@@ -406,8 +406,9 @@ def add2db(state: GraphState):
             "srx_accession" : state["SRX"],
             "srr_accession" : srr_acc
         })
-    with db_connect() as conn:
-        db_upsert(pd.DataFrame(data), "srx_srr", conn)
+    if config.get("configurable", {}).get("use_database"):
+        with db_connect() as conn:
+            db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
 def fmt(x: Union[str, List[str]]) -> str:
     """If a list, join them with a semicolon into one string"""

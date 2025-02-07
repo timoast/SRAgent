@@ -12,6 +12,7 @@ import pandas as pd
 from langgraph.types import Send
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import START, END, StateGraph
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.workflows.convert import create_convert_graph, invoke_convert_graph
 from SRAgent.workflows.metadata import create_metadata_graph, invoke_metadata_graph, get_metadata_items
@@ -30,8 +31,6 @@ class GraphState(TypedDict):
     database: str
     # dataset entrez ID
     entrez_id: str
-    # filter out existing SRX accessions
-    filter_existing: bool
     # accessions
     SRX: Annotated[List[str], operator.add]
     # is_illumina
@@ -65,7 +64,7 @@ def create_convert_graph_node():
         return await graph.ainvoke(input)
     return invoke_convert_graph_node
 
-def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
+def continue_to_metadata(state: GraphState, config: RunnableConfig) -> List[Dict[str, Any]]:
     """
     Parallel invoke of the metadata graph
     Return:
@@ -82,12 +81,8 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
     ])
     
     # submit each accession to the metadata graph    
-    ## filter out existing SRX accessions
-    try: 
-        filter_existing = state["filter_existing"]
-    except KeyError:
-        filter_existing = True
-    if filter_existing:
+    ## filter out existing SRX accessions if in the database
+    if config["configurable"].get("use_database"):
         SRX_filt = []
         with db_connect() as conn:
             existing_srx = set(db_get_srx_records(conn, column="srx_accession", database=state["database"]))
@@ -97,7 +92,8 @@ def continue_to_metadata(state: GraphState) -> List[Dict[str, Any]]:
 
     ## handle case where no SRX accessions are found
     if len(SRX_filt) == 0:
-        add_entrez_id_to_db(state["entrez_id"], state["database"])
+        if config.get("configurable", {}).get("use_database"):
+            add_entrez_id_to_db(state["entrez_id"], state["database"])
         return []
 
     ## submit each SRX accession to the metadata graph
@@ -197,14 +193,14 @@ if __name__ == "__main__":
 
     #-- setup --#
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
     async def main():
         #input = {"entrez_id": 35087715, "database": "sra"}
         #input = {"entrez_id": 36178506, "database": "sra"}
-        input = {"entrez_id": 31679394, "database": "sra", "filter_existing": True}
+        input = {"entrez_id": 31679394, "database": "sra"}
         graph = create_SRX_info_graph()
         config = {"max_concurrency" : 5, "recursion_limit": 100}
         async for step in graph.astream(input, config=config):

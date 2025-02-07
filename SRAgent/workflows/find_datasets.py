@@ -56,7 +56,7 @@ class EntrezInfo(BaseModel):
 
 def create_get_entrez_ids_node() -> Callable:
     model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
-    async def invoke_get_entrez_ids_node(state: GraphState):
+    async def invoke_get_entrez_ids_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """
         Structured data extraction
         """
@@ -90,13 +90,14 @@ def create_get_entrez_ids_node() -> Callable:
             return {"entrez_ids": [], "database": ""}
 
         # entrez ID check
-        ## make sure that the entrez IDs are not found in the database
-        with db_connect() as conn:
-            existing_ids = db_get_entrez_ids(conn=conn, database=database)
-            entrez_ids = [x for x in entrez_ids if x not in existing_ids]
+        ## filter out entrez IDs that are already in the database
+        if config.get("configurable", {}).get("use_database"):
+            with db_connect() as conn:
+                existing_ids = db_get_entrez_ids(conn=conn, database=database)
+                entrez_ids = [x for x in entrez_ids if x not in existing_ids]
 
         ## update the database
-        if len(entrez_ids) > 0:
+        if len(entrez_ids) > 0 and config.get("configurable", {}).get("use_database"):
             df = pd.DataFrame({
                 "entrez_id": entrez_ids,
                 "database": database,
@@ -109,7 +110,7 @@ def create_get_entrez_ids_node() -> Callable:
         return {"entrez_ids": entrez_ids, "database": database}
     return invoke_get_entrez_ids_node
 
-def continue_to_srx_info(state: GraphState) -> List[Dict[str, Any]]:
+def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict[str, Any]]:
     """
     Parallel invoke of the srx_info graph
     """
@@ -118,8 +119,7 @@ def continue_to_srx_info(state: GraphState) -> List[Dict[str, Any]]:
     for entrez_id in state["entrez_ids"]:
         input = {
             "database": state["database"],
-            "entrez_id": entrez_id,
-            "filter_existing": True
+            "entrez_id": entrez_id, 
         }
         responses.append(Send("srx_info_node", input))
     return responses
