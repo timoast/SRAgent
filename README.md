@@ -104,8 +104,7 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms rat -- \
 Using the `test` database:
 
 ```bash
-SRAgent --tenant test \
-  find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
+SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
   "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
@@ -134,7 +133,7 @@ SRAgent srx-info 36404865 36106630 32664033
 Use the SQL database to filter existing:
 
 ```bash
-SRAgent --tenant test srx-info --use-database 18060880 27454880 27454942 27694586
+SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
 ```
 
 ## SRAgent agent

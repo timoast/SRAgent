@@ -2,7 +2,7 @@
 
 ```bash
 IMG_NAME=sragent
-IMG_VERSION=0.1.3
+IMG_VERSION=0.1.4
 REGION="us-east1"
 GCP_PROJECT_ID="c-tc-429521"
 SERVICE_ACCOUNT_EMAIL="nick-nextflow@c-tc-429521.iam.gserviceaccount.com"
@@ -37,7 +37,7 @@ docker run -it --rm \
 
 # GCP Artifact registry
 
-Create, if needed
+Create (if needed)
 
 ```bash
 DESCRIPTION="SRAgent Docker image"
@@ -120,5 +120,5 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-  --args="find-datasets","--organisms rat macaque marmoset horse dog bovine sheep pig rabbit naked_mole_rat chimpanzee chicken frog zebrafish fruit_fly blood_fluke roundworm mosquito thale_cress rice tomato corn","--use-database","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+   --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
