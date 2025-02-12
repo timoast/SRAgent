@@ -10,6 +10,7 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.agents.esearch import create_esearch_agent
 from SRAgent.agents.esummary import create_esummary_agent
@@ -86,13 +87,17 @@ def create_entrez_agent(
     @tool
     async def invoke_entrez_agent(
         message: Annotated[str, "Message to send to the Entrez agent"],
+        config: RunnableConfig,
     ) -> Annotated[dict, "Response from the Entrez agent"]:
         """
         Invoke the Entrez agent with a message.
         The Entrez agent will perform a task using Entrez tools.
         """
         # Invoke the agent with the message
-        result = await agent.ainvoke({"messages" : [AIMessage(content=message)]})
+        result = await agent.ainvoke(
+            {"messages" : [AIMessage(content=message)]}, 
+            config=config
+        )
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="entrez_agent")]
         }
@@ -136,7 +141,7 @@ async def create_entrez_agent_stream(input, config: dict={}, summarize_steps: bo
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL1")
     Entrez.api_key = os.getenv("NCBI_API_KEY1")
 
@@ -145,11 +150,14 @@ if __name__ == "__main__":
         agent = create_entrez_agent()
 
         # invoke agent
-        #input = {"message": "Convert GSE121737 to SRX accessions"}
-        input = {"message": "Is SRX20554853 paired-end Illumina data?"}
+        config = {"configurable": {"organisms": ["mouse", "rat"]}}
+        #config = {"configurable": {"organisms": ["human"]}}
+        #input = {"message": "Find rat single cell RNA-seq datasets in the SRA database"}
+        input = {"message": "Convert GSE121737 to SRX accessions"}
+        #input = {"message": "Is SRX20554853 paired-end Illumina data?"}
         #input = {"message": "List the collaborators for the SRX20554853 dataset"}
         #input = {"message": "How many bases per run in SRX20554853?"}
-        result = await agent.ainvoke(input)
+        result = await agent.ainvoke(input, config=config)
         print(result)
     
     asyncio.run(main())

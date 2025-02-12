@@ -5,6 +5,7 @@ import sys
 import asyncio
 import argparse
 from typing import List
+from datetime import datetime, timedelta
 ## 3rd party
 from Bio import Entrez
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -24,15 +25,45 @@ def find_datasets_parser(subparsers):
         'find-datasets', help=help, description=desc, formatter_class=CustomFormatter
     )
     sub_parser.set_defaults(func=find_datasets_main)
-    sub_parser.add_argument('message', type=str,
-                            help='Message to instruct the agent. See the Description') 
-    sub_parser.add_argument('--no-summaries', action='store_true', default=False,
-                            help='No LLM summaries')
-    sub_parser.add_argument('--max-concurrency', type=int, default=6, 
-                            help='Maximum number of concurrent processes')
-    sub_parser.add_argument('--recursion-limit', type=int, default=200,
-                            help='Maximum recursion limit')
-
+    sub_parser.add_argument(
+        'message', type=str, help='Message to instruct the agent. See the Description'
+    ) 
+    sub_parser.add_argument(
+        '--max-datasets', type=int, default=10, help='Maximum number of datasets to analyze'
+    )
+    sub_parser.add_argument(
+        '--min-date', type=str, 
+        default=(datetime.now() - timedelta(days=365 * 10)).strftime("%Y/%m/%d"), 
+        help='Oldest date to search for datasets'
+    )
+    sub_parser.add_argument(
+        '--max-date', type=str, 
+        default=datetime.now().strftime("%Y/%m/%d"),
+        help='Oldest date to search for datasets'
+    )
+    sub_parser.add_argument(
+        '--no-summaries', action='store_true', default=False, help='No LLM summaries'
+    )
+    sub_parser.add_argument(
+        '--max-concurrency', type=int, default=6, help='Maximum number of concurrent processes'
+    )
+    sub_parser.add_argument(
+        '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
+    )
+    sub_parser.add_argument(
+        '-o', '--organisms', type=str, nargs='+', default=["human", "mouse"],
+        choices=[
+            "human", "mouse", "rat", "macaque", "marmoset", "horse", "dog", "bovine", "sheep", "pig", 
+            "rabbit", "naked_mole_rat", "chimpanzee", 
+            "chicken", "frog", "zebrafish", 
+            "fruit_fly", "blood_fluke", "roundworm", "mosquito", 
+            "thale_cress", "rice", "tomato", "corn"
+        ],
+        help='Organisms to search for'
+    )
+    sub_parser.add_argument(
+        '--use-database', action='store_true', default=False, help='Use the SQL database'
+    )
 
 async def _find_datasets_main(args):
     """
@@ -49,7 +80,14 @@ async def _find_datasets_main(args):
     # set graph inpu
     config = {
         "max_concurrency": args.max_concurrency,
-        "recursion_limit": args.recursion_limit
+        "recursion_limit": args.recursion_limit,
+        "configurable": {
+            "organisms": args.organisms,
+            "max_datasets": args.max_datasets,
+            "use_database": args.use_database,
+            "min_date": args.min_date,
+            "max_date": args.max_date,
+        }
     }
     input = {"messages" : [HumanMessage(content=args.message)]}
 

@@ -8,6 +8,7 @@ from Bio import Entrez
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 ## package
 from SRAgent.agents.entrez import create_entrez_agent
@@ -105,13 +106,14 @@ def create_sragent_agent(
     @tool
     async def invoke_sragent_agent(
         messages: Annotated[List[BaseMessage], "Messages to send to the SRAgent agent"],
+        config: RunnableConfig,
     ) -> Annotated[dict, "Response from the SRAgent agent"]:
         """
         Invoke the SRAgent agent with a message.
         The SRAgent agent will perform a task using Entrez and other tools.
         """
         # Invoke the agent with the message
-        result = await agent.ainvoke({"messages" : messages})
+        result = await agent.ainvoke({"messages" : messages}, config=config)
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="sragent_agent")]
         }
@@ -122,16 +124,17 @@ def create_sragent_agent(
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
-
 
     async def main():
         # create entrez agent
         agent = create_sragent_agent()
     
         # invoke agent
-        msg = "Convert GSE121737 to SRX accessions"
+        config = {"configurable": {"organisms": ["mouse", "rat"]}}
+        msg = "Find rat scRNA-seq datasets in the SRA database"
+        # msg = "Convert GSE121737 to SRX accessions"
         # msg = "Is SRX20554853 paired-end Illumina data?"
         # msg = "Obtain all SRR accessions for SRX20554853"
         # msg = "List the collaborators for the SRX20554853 dataset"
@@ -145,7 +148,7 @@ if __name__ == "__main__":
         #     " - Which organism was sequenced?"
         # ])
         input = {"messages": [HumanMessage(content=msg)]}
-        result = await agent.ainvoke(input)
+        result = await agent.ainvoke(input, config=config)
         print(result)
         
     asyncio.run(main())

@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.tools.utils import set_entrez_access
 from SRAgent.db.connect import db_connect
@@ -16,59 +17,91 @@ from SRAgent.db.get import db_get_entrez_ids
 
 # functions
 ORGANISMS = {
+    # mammals
     'human': 'Homo sapiens',
     'mouse': 'Mus musculus',
-    'rat': 'Rattus norvegicus',
-    'monkey': 'Simiiformes', 
-    'macaque': 'Macaca mulatta',
+    'rat': 'Rattus norvegicus',  
+    'monkey': 'Simiiformes',      
+    'macaque': 'Macaca mulatta', 
     'marmoset': 'Callithrix jacchus',
     'horse': 'Equus caballus',
     'dog': 'Canis lupus',
     'bovine': 'Bos taurus',
-    'chicken': 'Gallus gallus',
     'sheep': 'Ovis aries',
     'pig': 'Sus scrofa',
+    'naked_mole_rat': 'Heterocephalus glaber',
+    'rabbit': 'Oryctolagus cuniculus',
+    'chimpanzee': 'Pan troglodytes',
+    # birds
+    'chicken': 'Gallus gallus',
+    # amphibians
+    'frog': 'Xenopus tropicalis',
+    # fish
+    'zebrafish': 'Danio rerio',
+    # invertebrates
     'fruit_fly': 'Drosophila melanogaster',
+    'caenorhabditis': 'Caenorhabditis elegans',
     'roundworm': 'Caenorhabditis elegans',
-    'zebrafish': 'Danio rerio'
+    'blood_fluke': 'Schistosoma mansoni',
+    'mosquito' : 'Anopheles gambiae',
+    'anopheles': 'Anopheles gambiae',
+    # plants
+    "arabidopsis" : "Arabidopsis thaliana",
+    "thale_cress" : "Arabidopsis thaliana",
+    "oryza" : "Oryza sativa",
+    "rice" : "Oryza sativa",
+    "solanum" : "Solanum lycopersicum",
+    "tomato" : "Solanum lycopersicum",
+    "zea" : "Zea mays",
+    "corn" : "Zea mays",
+    # fungi
+    "saccharomyces" : "Saccharomyces cerevisiae",
+    "yeast" : "Saccharomyces cerevisiae",
 }
 
 def to_sci_name(organism: str) -> str:
     """
     Convert organism name to scientific name.
     """
+    organism_str = organism.lower().replace(" ", "_")
     try:
-        return f'"{ORGANISMS[organism]}"'
+        return f'"{ORGANISMS[organism_str]}"'
     except KeyError:
         raise ValueError(f"Organism '{organism}' not found in list.")
 
 ## default time span limits
-MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
-MIN_DATE = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y/%m/%d')
+#MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
+#MIN_DATE = (datetime.now() - timedelta(days=7 * 365)).strftime('%Y/%m/%d')
 
 @tool 
 def esearch_scrna(
-    query_terms: Annotated[List[str], "Entrez query terms"]=[ "10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
+    query_terms: Annotated[List[str], "Entrez query terms"]=["10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
     database: Annotated[str, "Database name ('sra' or 'gds')"]="sra",
     organisms: Annotated[List[str], "List of organisms to search."]=["human", "mouse"],
-    min_date: Annotated[str, "Minimum date to search back (%Y/%m/%d)."]=MIN_DATE,
-    max_date: Annotated[str, "Maximum date to search back (%Y/%m/%d)."]=MAX_DATE,
     max_ids: Annotated[Optional[int], "Maximum number of IDs to return."]=10,
+    config: RunnableConfig=None,
     )-> Annotated[List[str], "Entrez IDs of database records"]:
     """
-    Find single cell RNA-seq datasets in the SRA or GEO databases.
+    Find scRNA-seq datasets in the SRA or GEO databases.
     """
-    esearch_query = ""
-
+    esearch_query = ""    
+   
     # check if query terms are provided
     query_terms = " OR ".join([f'"{x}"' for x in query_terms])
     esearch_query += f"({query_terms})"
     
-    # add date range
-    date_range = f"{min_date}:{max_date}[PDAT]"
-    esearch_query += f" AND ({date_range})"
+    # add date range, if provided in the config
+    min_date = config.get("configurable", {}).get("min_date")
+    max_date = config.get("configurable", {}).get("max_date")
+    if min_date and max_date:
+        date_range = f"{min_date}:{max_date}[PDAT]"
+        esearch_query += f" AND ({date_range})"
     
     # add organism
+    ## override organisms, if provided in the config
+    if config.get("configurable", {}).get("organisms"):
+        organisms = config["configurable"]["organisms"]
+    ## create organism query
     organisms = " OR ".join([f"{to_sci_name(x)}[Organism]" for x in organisms])
     if organisms:
         esearch_query += f" AND ({organisms})"
@@ -83,23 +116,30 @@ def esearch_scrna(
     ## library prep methods to exclude
     esearch_query += ' NOT ("Smart-seq" OR "Smart-seq2" OR "Smart-seq3" OR "MARS-seq")'
 
-    # debug model
-    max_ids = 2 if os.getenv("DYNACONF").lower() == "test" else max_ids
+    # override max_ids
+    if config.get("configurable", {}).get("max_datasets"):
+        max_ids = config["configurable"]["max_datasets"]
+        ## debug model
+        if os.getenv("DYNACONF", "").lower() == "test":
+            max_ids = 2
+
+    # use database to filter existing?
+    filter_existing = config.get("configurable", {}).get("use_database", False)
 
     # return entrez IDs 
-    return esearch_batch(esearch_query, database, max_ids, filter_existing=True)
+    return esearch_batch(esearch_query, database, max_ids=max_ids, filter_existing=filter_existing)
 
 def esearch_batch(
     esearch_query: str, 
     database: str, 
-    max_ids: Optional[int],
+    max_ids: Optional[int]=None,
     verbose: bool=False, 
     filter_existing: bool=False,
     max_retries: int=3, 
     base_delay: float=3.0
     ) -> List[str]:
     # get existing Entrez IDs
-    existing_ids = []
+    existing_ids = set()
     if filter_existing:
         with db_connect() as conn:
             existing_ids = {str(x) for x in db_get_entrez_ids(conn=conn, database=database)}
@@ -150,6 +190,7 @@ def esearch_batch(
 def esearch(
     esearch_query: Annotated[str, "Entrez query string."],
     database: Annotated[str, "Database name (e.g., sra, gds, or pubmed)"],
+    config: RunnableConfig,
     )-> Annotated[str, "Entrez IDs of database records"]:
     """
     Run an Entrez search query and return the Entrez IDs of the results.
@@ -161,7 +202,7 @@ def esearch(
         `GSE51372`
     """
     # debug model
-    max_records = 2 if os.getenv("DEBUG_MODE") == "TRUE" else None
+    max_records = 3 if os.getenv("DYNACONF", "").lower() == "test" else None
 
     # check input
     if esearch_query == "":
@@ -218,21 +259,28 @@ def esearch(
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
-    # scRNA-seq
-    #query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
+    # query for scRNA-seq 
+    config = {"configurable": {
+        "organisms": ["human", "mouse", "rat", "dog"],
+        "min_date": "2021/01/01",
+        "max_date": "2025/12/31",
+    }}
+    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     #query = '("bulk RNA sequencing")'
-    #input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
+    input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
     #input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
-    input = {}
-    print(esearch_scrna.invoke(input))
+    #input = {"organisms" : ["Homo sapien", "Mus musculus"]} 
+    #input = {"organisms" : ["yeast"], "max_ids" : 10000}
+    print(esearch_scrna.invoke(input, config=config))
 
     # esearch accession
-    input = {"esearch_query" : "GSE51372", "database" : "sra"}
-    input = {"esearch_query" : "GSE121737", "database" : "gds"}
-    input = {"esearch_query" : "35447314", "database" : "sra"}
-    input = {"esearch_query" : "35447314", "database" : "gds"}
+    #input = {"esearch_query" : "GSE51372", "database" : "sra"}
+    #input = {"esearch_query" : "GSE121737", "database" : "gds"}
+    #input = {"esearch_query" : "35447314", "database" : "sra"}
+    #input = {"esearch_query" : "35447314", "database" : "gds"}
     #print(esearch.invoke(input))
+
 

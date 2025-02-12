@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
+from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.agents.sragent import create_sragent_agent
 from SRAgent.db.connect import db_connect 
@@ -25,22 +26,39 @@ class YesNo(Enum):
 
 class OrganismEnum(Enum):
     """Organism sequenced"""
+    # mammals
     HUMAN = "human"
     MOUSE = "mouse"
-    RAT = "rat"
-    MONKEY = "monkey"
-    MACAQUE = "macaque"
-    MARMOSET = "marmoset"
-    HORSE = "horse"
-    DOG = "dog"
-    BOVINE = "bovine"
-    CHICKEN = "chicken"
-    SHEEP = "sheep"
-    PIG = "pig"
-    FRUIT_FLY = "fruit_fly"
-    ROUNDWORM = "roundworm"
-    ZEBRAFISH = "zebrafish"
+    RAT = "Rattus norvegicus"
+    MACAQUE = "Macaca mulatta"
+    MARMOSET = "Callithrix jacchus"
+    HORSE = "Equus caballus"
+    DOG = "Canis lupus"
+    BOVINE = "Bos taurus"
+    SHEEP = "Ovis aries"
+    PIG = "Sus scrofa"
+    RABBIT = "Oryctolagus cuniculus"
+    NAKED_MOLE_RAT = "Heterocephalus glaber"
+    CHIMPANZEE = "Pan troglodytes"
+    # birds
+    CHICKEN = "Gallus gallus"
+    # amphibians
+    FROG = "Xenopus tropicalis"
+    # fish
+    ZEBRAFISH = "Danio rerio"
+    # invertebrates
+    FRUIT_FLY = "Drosophila melanogaster"
+    ROUNDWORM = "Caenorhabditis elegans"
+    MOSQUITO = "Anopheles gambiae"
+    BLOOD_FLUKE = "Schistosoma mansoni"
+    # plants
+    THALE_CRESS = "Arabidopsis thaliana"
+    RICE = "Oryza sativa"
+    TOMATO = "Solanum lycopersicum"
+    CORN = "Zea mays" 
+    # microorganisms
     METAGENOME = "metagenome"
+    # other
     OTHER = "other"
 
 class Tech10XEnum(Enum):
@@ -228,7 +246,7 @@ def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
     model = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
-    async def invoke_get_metadata_node(state: GraphState):
+    async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig):
         """Structured data extraction"""
         metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
@@ -356,7 +374,7 @@ async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]
     SRR_acc = regex.findall(response["messages"][-1].content)
     return {"SRR" : list(set(SRR_acc))}
 
-def add2db(state: GraphState):
+def add2db(state: GraphState, config: RunnableConfig):
     """Add results to the records database"""
     # upload SRX metadata to the database
     data = [{
@@ -377,8 +395,9 @@ def add2db(state: GraphState):
         "notes": "Metadata obtained by SRAgent"
     }]
     data = pd.DataFrame(data)
-    with db_connect() as conn:
-        db_upsert(data, "srx_metadata", conn)
+    if config.get("configurable", {}).get("use_database"):
+        with db_connect() as conn:
+            db_upsert(data, "srx_metadata", conn)
 
     # Upload SRR accessions to the database
     data = []
@@ -387,8 +406,9 @@ def add2db(state: GraphState):
             "srx_accession" : state["SRX"],
             "srr_accession" : srr_acc
         })
-    with db_connect() as conn:
-        db_upsert(pd.DataFrame(data), "srx_srr", conn)
+    if config.get("configurable", {}).get("use_database"):
+        with db_connect() as conn:
+            db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
 def fmt(x: Union[str, List[str]]) -> str:
     """If a list, join them with a semicolon into one string"""
@@ -450,7 +470,8 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
 async def invoke_metadata_graph(
     state: GraphState, 
     graph: StateGraph,
-    to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys())
+    to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys()),
+    config: RunnableConfig=None,
 ) -> Annotated[dict, "Response from the metadata graph"]:
     """
     Invoke the graph to obtain metadata for an SRX accession
@@ -461,7 +482,7 @@ async def invoke_metadata_graph(
     Return:
         A dictionary of the metadata items
     """
-    response = await graph.ainvoke(state)
+    response = await graph.ainvoke(state, config=config)
     # filter the response to just certain graph state fields
     filtered_response = {key: [response[key]] for key in to_return}
     return filtered_response
@@ -488,7 +509,7 @@ if __name__ == "__main__":
             #"metadata_level": "primary",
         }
         graph = create_metadata_graph(db_add=False)
-        config = {"max_concurrency" : 3, "recursion_limit": 50}
+        config = {"max_concurrency" : 3, "recursion_limit": 50, "configurable": {"organisms": ["mouse", "rat"]}}
         async for step in graph.astream(input, subgraphs=False, config=config):
             print(step)
     asyncio.run(main())

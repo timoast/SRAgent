@@ -97,7 +97,7 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
     )
     parser.add_argument(
         '--delete-srx', type=str, default=None, nargs='+', 
-        help='>=1 SRX accession to delete from the database. Eval table NOT included.'
+        help='>=1 SRX accession to delete from the entire database, except the Eval table.'
     )
     parser.add_argument(
         '--delete-srx-screcounter', type=str, default=None, nargs='+', 
