@@ -5,6 +5,7 @@ import sys
 import asyncio
 import argparse
 from typing import List
+from datetime import datetime, timedelta
 ## 3rd party
 from Bio import Entrez
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -29,6 +30,16 @@ def find_datasets_parser(subparsers):
     ) 
     sub_parser.add_argument(
         '--max-datasets', type=int, default=10, help='Maximum number of datasets to analyze'
+    )
+    sub_parser.add_argument(
+        '--min-date', type=str, 
+        default=(datetime.now() - timedelta(days=365 * 10)).strftime("%Y/%m/%d"), 
+        help='Oldest date to search for datasets'
+    )
+    sub_parser.add_argument(
+        '--max-date', type=str, 
+        default=datetime.now().strftime("%Y/%m/%d"),
+        help='Oldest date to search for datasets'
     )
     sub_parser.add_argument(
         '--no-summaries', action='store_true', default=False, help='No LLM summaries'
@@ -73,7 +84,9 @@ async def _find_datasets_main(args):
         "configurable": {
             "organisms": args.organisms,
             "max_datasets": args.max_datasets,
-            "use_database": args.use_database
+            "use_database": args.use_database,
+            "min_date": args.min_date,
+            "max_date": args.max_date,
         }
     }
     input = {"messages" : [HumanMessage(content=args.message)]}

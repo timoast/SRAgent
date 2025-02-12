@@ -70,37 +70,38 @@ def to_sci_name(organism: str) -> str:
         raise ValueError(f"Organism '{organism}' not found in list.")
 
 ## default time span limits
-MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
-MIN_DATE = (datetime.now() - timedelta(days=7 * 365)).strftime('%Y/%m/%d')
+#MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
+#MIN_DATE = (datetime.now() - timedelta(days=7 * 365)).strftime('%Y/%m/%d')
 
 @tool 
 def esearch_scrna(
     query_terms: Annotated[List[str], "Entrez query terms"]=["10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
     database: Annotated[str, "Database name ('sra' or 'gds')"]="sra",
     organisms: Annotated[List[str], "List of organisms to search."]=["human", "mouse"],
-    min_date: Annotated[str, "Minimum date to search back (%Y/%m/%d)."]=MIN_DATE,
-    max_date: Annotated[str, "Maximum date to search back (%Y/%m/%d)."]=MAX_DATE,
     max_ids: Annotated[Optional[int], "Maximum number of IDs to return."]=10,
     config: RunnableConfig=None,
     )-> Annotated[List[str], "Entrez IDs of database records"]:
     """
     Find scRNA-seq datasets in the SRA or GEO databases.
     """
-    esearch_query = ""
-
-    # overriding organism param via the config
-    if config.get("configurable", {}).get("organisms"):
-        organisms = config["configurable"]["organisms"]
-
+    esearch_query = ""    
+   
     # check if query terms are provided
     query_terms = " OR ".join([f'"{x}"' for x in query_terms])
     esearch_query += f"({query_terms})"
     
-    # add date range
-    date_range = f"{min_date}:{max_date}[PDAT]"
-    esearch_query += f" AND ({date_range})"
+    # add date range, if provided in the config
+    min_date = config.get("configurable", {}).get("min_date")
+    max_date = config.get("configurable", {}).get("max_date")
+    if min_date and max_date:
+        date_range = f"{min_date}:{max_date}[PDAT]"
+        esearch_query += f" AND ({date_range})"
     
     # add organism
+    ## override organisms, if provided in the config
+    if config.get("configurable", {}).get("organisms"):
+        organisms = config["configurable"]["organisms"]
+    ## create organism query
     organisms = " OR ".join([f"{to_sci_name(x)}[Organism]" for x in organisms])
     if organisms:
         esearch_query += f" AND ({organisms})"
@@ -263,7 +264,9 @@ if __name__ == "__main__":
 
     # query for scRNA-seq 
     config = {"configurable": {
-        "organisms": ["human", "mouse", "rat", "dog"]
+        "organisms": ["human", "mouse", "rat", "dog"],
+        "min_date": "2021/01/01",
+        "max_date": "2025/12/31",
     }}
     query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     #query = '("bulk RNA sequencing")'
