@@ -27,7 +27,8 @@ def SRX_info_agent_parser(subparsers):
         'entrez_ids', type=str, nargs='+', help='>=1 dataset Entrez IDs to query'
     )    
     sub_parser.add_argument(
-        '--database', type=str, default='sra', choices=['gds', 'sra'], help='Entrez database origin of the Entrez IDs'
+        '--database', type=str, default='sra', choices=['gds', 'sra'], 
+        help='Entrez database origin of the Entrez IDs'
     )
     sub_parser.add_argument(
         '--no-summaries', action='store_true', default=False, help='No LLM summaries'
@@ -45,7 +46,8 @@ def SRX_info_agent_parser(subparsers):
         '--eval-dataset', type=str, default=None, nargs='+', help='>=1 eval dataset of Entrez IDs to query'
     )
     sub_parser.add_argument(
-        '--use-database', action='store_true', default=False, help='Use database to filter entrez ids'
+        '--use-database', action='store_true', default=False, 
+        help='Add the results to the scBaseCamp SQL database'
     )
 
 async def _process_single_entrez_id(

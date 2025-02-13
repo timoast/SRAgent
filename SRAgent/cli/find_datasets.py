@@ -62,8 +62,9 @@ def find_datasets_parser(subparsers):
         help='Organisms to search for'
     )
     sub_parser.add_argument(
-        '--use-database', action='store_true', default=False, help='Use the SQL database'
-    )
+        '--use-database', action='store_true', default=False, 
+        help='Use the scBaseCamp database to screen out existing datasets for adding the newly found datasets'
+    )    
 
 async def _find_datasets_main(args):
     """
