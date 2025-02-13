@@ -82,7 +82,7 @@ def continue_to_metadata(state: GraphState, config: RunnableConfig) -> List[Dict
     
     # submit each accession to the metadata graph    
     ## filter out existing SRX accessions if in the database
-    if config["configurable"].get("use_database"):
+    if config["configurable"].get("use_database") and config["configurable"].get("reprocess_existing") != True:
         SRX_filt = []
         with db_connect() as conn:
             existing_srx = set(db_get_srx_records(conn, column="srx_accession", database=state["database"]))

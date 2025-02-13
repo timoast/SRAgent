@@ -136,6 +136,19 @@ Use the SQL database to filter existing:
 SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
 ```
 
+## Metadata agent
+
+Provide a CSV of Entrez IDs and their associated SRX accessions to obtain metadata. 
+Useful for when you already have the SRX accessions, instead of providing the Entrez IDs to `SRAgent srx-info`.
+
+The CSV should have the header: `entrez_id,srx_accession`.
+
+#### Examples
+
+```bash
+SRAgent metadata "entrez-id_srx-accession.csv"
+```
+
 ## SRAgent agent
 
 General tool for working with the SRA database via Entrez tools, SRA BigQuery, fetching NCBI webpages, and other methods.

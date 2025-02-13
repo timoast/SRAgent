@@ -406,7 +406,7 @@ def add2db(state: GraphState, config: RunnableConfig):
             "srx_accession" : state["SRX"],
             "srr_accession" : srr_acc
         })
-    if config.get("configurable", {}).get("use_database"):
+    if config.get("configurable", {}).get("use_database") and config.get("configurable", {}).get("no_srr") != True:
         with db_connect() as conn:
             db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
@@ -496,7 +496,6 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     Entrez.email = os.getenv("EMAIL")
-
 
     #-- graph --#
     async def main():

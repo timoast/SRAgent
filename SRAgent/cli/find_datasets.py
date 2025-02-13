@@ -64,7 +64,11 @@ def find_datasets_parser(subparsers):
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
         help='Use the scBaseCamp database to screen out existing datasets for adding the newly found datasets'
-    )    
+    )  
+    sub_parser.add_argument(
+        '--reprocess-existing', action='store_true', default=False, 
+        help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
+    )  
 
 async def _find_datasets_main(args):
     """
@@ -86,6 +90,7 @@ async def _find_datasets_main(args):
             "organisms": args.organisms,
             "max_datasets": args.max_datasets,
             "use_database": args.use_database,
+            "reprocess_existing": args.reprocess_existing,
             "min_date": args.min_date,
             "max_date": args.max_date,
         }

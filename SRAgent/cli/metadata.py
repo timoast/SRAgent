@@ -6,25 +6,25 @@ import asyncio
 import argparse
 from typing import List
 ## 3rd party
+import pandas as pd
 from Bio import Entrez
+from langchain_core.messages import HumanMessage
 ## package
 from SRAgent.cli.utils import CustomFormatter
-from SRAgent.workflows.srx_info import create_SRX_info_graph
+from SRAgent.workflows.metadata import get_metadata_items, create_metadata_graph
 from SRAgent.agents.utils import create_step_summary_chain
-from SRAgent.db.connect import db_connect 
-from SRAgent.db.get import db_get_srx_records
 
 # functions
-def SRX_info_agent_parser(subparsers):
-    help = 'SRX_info Agent: Obtain metadata for SRA experiments.'
+def metadata_agent_parser(subparsers):
+    help = 'Metadata Agent: Obtain metadata for specific SRX accessions'
     desc = """
     """
     sub_parser = subparsers.add_parser(
-        'srx-info', help=help, description=desc, formatter_class=CustomFormatter
+        'metadata', help=help, description=desc, formatter_class=CustomFormatter
     )
-    sub_parser.set_defaults(func=SRX_info_agent_main)
+    sub_parser.set_defaults(func=metadata_agent_main)
     sub_parser.add_argument(
-        'entrez_ids', type=str, nargs='+', help='>=1 dataset Entrez IDs to query'
+        'srx_accession_csv', type=str, help='CSV of entrez_id,srx_accession'
     )    
     sub_parser.add_argument(
         '--database', type=str, default='sra', choices=['gds', 'sra'], 
@@ -40,28 +40,38 @@ def SRX_info_agent_parser(subparsers):
         '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
     )
     sub_parser.add_argument(
-        '--max-parallel', type=int, default=2, help='Maximum parallel processing of entrez ids'
-    )
-    sub_parser.add_argument(
-        '--eval-dataset', type=str, default=None, nargs='+', help='>=1 eval dataset of Entrez IDs to query'
+        '--max-parallel', type=int, default=2, help='Maximum parallel processing of SRX accessions'
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
         help='Add the results to the scBaseCamp SQL database'
     )
     sub_parser.add_argument(
-        '--reprocess-existing', action='store_true', default=False, 
-        help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
+        '--no-srr', action='store_true', default=False, 
+        help='Do NOT upload SRR accessions to scBaseCamp SQL database'
     )
 
-async def _process_single_entrez_id(
-    entrez_id, database, graph, step_summary_chain, config: dict, no_summaries: bool
+async def _process_single_srx(
+    entrez_srx, database, graph, step_summary_chain, config: dict, no_summaries: bool
 ):
     """Process a single entrez_id"""
+    # format input for the graph
+    metadata_items = "\n".join([f" - {x}" for x in get_metadata_items().values()])
+    prompt = "\n".join([
+        "# Instructions",
+        "For the SRA experiment accession {SRX_accession}, find the following dataset metadata:",
+        metadata_items,
+        "# Notes",
+        " - Try to confirm all metadata values with two data sources"
+    ])
     input = {
-        "entrez_id": entrez_id, 
+        "entrez_id": entrez_srx[0],
+        "SRX": entrez_srx[1],
         "database": database,
+        "messages": [HumanMessage(prompt.format(SRX_accession=entrez_srx[1]))]
     }
+
+    # call the graph
     final_state = None
     i = 0
     async for step in graph.astream(input, config=config):
@@ -69,39 +79,29 @@ async def _process_single_entrez_id(
         final_state = step
         if no_summaries:
             nodes = ",".join(list(step.keys()))
-            print(f"[{entrez_id}] Step {i}: {nodes}")
+            print(f"[{entrez_srx[0]}] Step {i}: {nodes}")
         else:
             msg = await step_summary_chain.ainvoke({"step": step})
-            print(f"[{entrez_id}] Step {i}: {msg.content}")
+            print(f"[{entrez_srx[0]}] Step {i}: {msg.content}")
 
     if final_state:
-        print(f"#-- Final results for Entrez ID {entrez_id} --#")
+        print(f"#-- Final results for Entrez ID {entrez_srx[0]} --#")
         try:
             print(final_state["final_state_node"]["messages"][-1].content)
         except KeyError:
             print("Processing skipped")
     print("#---------------------------------------------#")
 
-async def _SRX_info_agent_main(args):
+async def _metadata_agent_main(args):
     """
     Main function for invoking the entrez agent
     """
-    # filter entrez_ids
-    if args.use_database:
-        existing_ids = set()
-        with db_connect() as conn:
-            existing_ids = set(db_get_srx_records(conn))
-        args.entrez_ids = [x for x in args.entrez_ids if x not in existing_ids]
-        if len(args.entrez_ids) == 0:
-            print("All Entrez IDs are already in the metadata database.", file=sys.stderr)
-            return 0
-
     # set email and api key
     Entrez.email = os.getenv("EMAIL")
     Entrez.api_key = os.getenv("NCBI_API_KEY")
 
     # create supervisor agent
-    graph = create_SRX_info_graph()
+    graph = create_metadata_graph()
     step_summary_chain = create_step_summary_chain()
 
     # invoke agent
@@ -110,16 +110,19 @@ async def _SRX_info_agent_main(args):
         "recursion_limit": args.recursion_limit,
         "configurable": {
             "use_database": args.use_database,
-            "reprocess_existing": args.reprocess_existing,
+            "no_srr": args.no_srr
         }
     }
+
+    # read in entrez_id and srx_accession
+    entrez_srx = pd.read_csv(args.srx_accession_csv).to_records(index=False)
 
     # Create semaphore to limit concurrent processing
     semaphore = asyncio.Semaphore(args.max_parallel)
 
     async def _process_with_semaphore(entrez_id):
         async with semaphore:
-            await _process_single_entrez_id(
+            await _process_single_srx(
                 entrez_id,
                 args.database,
                 graph,
@@ -129,13 +132,13 @@ async def _SRX_info_agent_main(args):
             )
 
     # Create tasks for each entrez_id
-    tasks = [_process_with_semaphore(entrez_id) for entrez_id in args.entrez_ids]
+    tasks = [_process_with_semaphore(x) for x in entrez_srx]
     
     # Run tasks concurrently with limited concurrency
     await asyncio.gather(*tasks)
 
-def SRX_info_agent_main(args):
-    asyncio.run(_SRX_info_agent_main(args))
+def metadata_agent_main(args):
+    asyncio.run(_metadata_agent_main(args))
 
 # main
 if __name__ == '__main__':
