@@ -120,5 +120,5 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-   --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+   --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```

@@ -74,6 +74,7 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms rat -- \
   - Rabbit (*Oryctolagus cuniculus*)
   - Naked mole-rat (*Heterocephalus glaber*)
   - Chimpanzee (*Pan troglodytes*)
+  - Gorilla (*Gorilla gorilla*)
 
 - **Birds**
   - Chicken (*Gallus gallus*)
@@ -107,6 +108,7 @@ Using the `test` database:
 SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
   "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
+
 
 ## SRX-info agent
 

@@ -54,7 +54,7 @@ def find_datasets_parser(subparsers):
         '-o', '--organisms', type=str, nargs='+', default=["human", "mouse"],
         choices=[
             "human", "mouse", "rat", "macaque", "marmoset", "horse", "dog", "bovine", "sheep", "pig", 
-            "rabbit", "naked_mole_rat", "chimpanzee", 
+            "rabbit", "naked_mole_rat", "chimpanzee", "gorilla",
             "chicken", "frog", "zebrafish", 
             "fruit_fly", "blood_fluke", "roundworm", "mosquito", 
             "thale_cress", "rice", "tomato", "corn"

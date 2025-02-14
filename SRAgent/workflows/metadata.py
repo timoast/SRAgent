@@ -40,6 +40,7 @@ class OrganismEnum(Enum):
     RABBIT = "Oryctolagus cuniculus"
     NAKED_MOLE_RAT = "Heterocephalus glaber"
     CHIMPANZEE = "Pan troglodytes"
+    GORILLA = "Gorilla gorilla"
     # birds
     CHICKEN = "Gallus gallus"
     # amphibians

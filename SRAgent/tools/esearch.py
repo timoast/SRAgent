@@ -32,6 +32,7 @@ ORGANISMS = {
     'naked_mole_rat': 'Heterocephalus glaber',
     'rabbit': 'Oryctolagus cuniculus',
     'chimpanzee': 'Pan troglodytes',
+    'gorilla': 'Gorilla gorilla',
     # birds
     'chicken': 'Gallus gallus',
     # amphibians
