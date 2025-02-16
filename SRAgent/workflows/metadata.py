@@ -229,7 +229,14 @@ def get_extracted_fields(response):
     # get the extracted metadata fields
     fields = {}
     for field_name in response.model_fields.keys():
+        # set the max string length
+        if field_name == "tissue":
+            max_len = 80
+        else:
+            max_len = 100
+        # get the field value
         field_value = getattr(response, field_name)
+        # add to fields dict
         if hasattr(field_value, 'value'):
             fields[field_name] = max_str_len(field_value.value)
         else:
