@@ -238,6 +238,10 @@ Multi-stage workflow for processing sequencing datasets:
 
 * https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud-based-metadata-table/
 
+# organisms to include?
+
+* `Mesocricetus auratus`
+
 
 ***
 
@@ -265,3 +269,4 @@ cloud-sql-proxy ${PROXY_NAME} \
   --unix-socket ${HOME}/cloudsql \
   --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
 ```
+
