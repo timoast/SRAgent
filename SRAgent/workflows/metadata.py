@@ -238,9 +238,9 @@ def get_extracted_fields(response):
         field_value = getattr(response, field_name)
         # add to fields dict
         if hasattr(field_value, 'value'):
-            fields[field_name] = max_str_len(field_value.value)
+            fields[field_name] = max_str_len(field_value.value, max_len=max_len)
         else:
-            fields[field_name] = max_str_len(field_value)
+            fields[field_name] = max_str_len(field_value, max_len=max_len)
     return fields
 
 def get_annot(key: str, state: dict) -> str:

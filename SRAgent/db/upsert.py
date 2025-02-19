@@ -69,7 +69,7 @@ def db_upsert(df: pd.DataFrame, table_name: str, conn: connection) -> None:
             conn.commit()
     except Exception as e:
         conn.rollback()
-        raise Exception(f"Error uploading data to {table_name}:\n{str(e)}\n\nSQL:{insert_stmt}")
+        raise Exception(f"Error uploading data to {table_name}:\n{str(e)}\n\nSQL:{insert_stmt}\n\nValues:{str(values)}")
 
 # main
 if __name__ == '__main__':
