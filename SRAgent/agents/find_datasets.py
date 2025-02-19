@@ -8,6 +8,7 @@ from Bio import Entrez
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
 from SRAgent.tools.esearch import esearch_scrna
@@ -38,13 +39,14 @@ def create_find_datasets_agent(model_name: str="gpt-4o") -> Callable:
     
     @tool
     async def invoke_find_datasets_agent(
-        message: Annotated[str, "Message to the find_datasets agent"]
+        message: Annotated[str, "Message to the find_datasets agent"],
+        config: RunnableConfig,
     ) -> Annotated[str, "Response from the find_datasets agent"]:
         """
         Invoke the find_datasets agent to perform a task.
         """
         # Invoke the agent with the message
-        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]})
+        result = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=config)
         return {
             "messages": [AIMessage(content=result["messages"][-1].content, name="find_datasets_agent")]
         }

@@ -50,6 +50,66 @@ Find datasets in the SRA database and then process them with the SRX-info agent.
 SRAgent find-datasets "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
+#### Target specific organisms
+
+```bash
+SRAgent find-datasets --no-summaries --max-datasets 1 --organisms rat -- \
+  "Obtain recent single cell RNA-seq datasets in the SRA database"
+```
+
+<details>
+  <summary><strong>Available organisms</strong></summary>
+
+- **Mammals**
+  - Human (*Homo sapiens*)
+  - Mouse (*Mus musculus*)
+  - Rat (*Rattus norvegicus*)
+  - Macaque (*Macaca mulatta*)
+  - Marmoset (*Callithrix jacchus*)
+  - Horse (*Equus caballus*)
+  - Dog (*Canis lupus*)
+  - Bovine (*Bos taurus*)
+  - Sheep (*Ovis aries*)
+  - Pig (*Sus scrofa*)
+  - Rabbit (*Oryctolagus cuniculus*)
+  - Naked mole-rat (*Heterocephalus glaber*)
+  - Chimpanzee (*Pan troglodytes*)
+  - Gorilla (*Gorilla gorilla*)
+
+- **Birds**
+  - Chicken (*Gallus gallus*)
+
+- **Amphibians**
+  - Frog (*Xenopus tropicalis*)
+
+- **Fish**
+  - Zebrafish (*Danio rerio*)
+
+- **Invertebrates**
+  - Fruit fly (*Drosophila melanogaster*)
+  - Roundworm (*Caenorhabditis elegans*)
+  - Mosquito (*Anopheles gambiae*)
+  - Blood fluke (*Schistosoma mansoni*)
+
+- **Plants**
+  - Thale cress (*Arabidopsis thaliana*)
+  - Rice (*Oryza sativa*)
+  - Tomato (*Solanum lycopersicum*)
+  - Corn (*Zea mays*)
+
+</details>
+
+
+#### Using an SQL database to store results
+
+Using the `test` database:
+
+```bash
+SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
+  "Obtain recent single cell RNA-seq datasets in the SRA database"
+```
+
+
 ## SRX-info agent
 
 Obtain SRX metadata for >=1 SRA or GEO dataset.
@@ -72,12 +132,24 @@ Multiple SRA datasets:
 SRAgent srx-info 36404865 36106630 32664033
 ```
 
-#### Running evaluations on specific accessions
+Use the SQL database to filter existing:
 
 ```bash
-SRAgent srx-info --no-summaries --no-filter 18060880 27454880 27454942 27694586
+SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
 ```
 
+## Metadata agent
+
+Provide a CSV of Entrez IDs and their associated SRX accessions to obtain metadata. 
+Useful for when you already have the SRX accessions, instead of providing the Entrez IDs to `SRAgent srx-info`.
+
+The CSV should have the header: `entrez_id,srx_accession`.
+
+#### Examples
+
+```bash
+SRAgent metadata "entrez-id_srx-accession.csv"
+```
 
 ## SRAgent agent
 

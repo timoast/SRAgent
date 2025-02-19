@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from SRAgent.cli.utils import CustomFormatter
 from SRAgent.cli.entrez import entrez_agent_parser, entrez_agent_main
 from SRAgent.cli.sragent import sragent_parser, sragent_main
+from SRAgent.cli.metadata import metadata_agent_parser, metadata_agent_main
 from SRAgent.cli.srx_info import SRX_info_agent_parser, SRX_info_agent_main
 from SRAgent.cli.find_datasets import find_datasets_parser, find_datasets_main
 
@@ -35,10 +36,6 @@ def arg_parse(args=None) -> dict:
         epilog=epi,
         formatter_class=CustomFormatter
     )
-    parser.add_argument(
-        '--tenant', type=str, default="prod", choices = ["test", "prod"],
-        help='Database tenant to connect to. Defaults to DYNACONF env variable'
-    )
 
     # subparsers
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
@@ -46,6 +43,8 @@ def arg_parse(args=None) -> dict:
     entrez_agent_parser(subparsers)
     ## SR agent
     sragent_parser(subparsers)
+    ## Metadata agent
+    metadata_agent_parser(subparsers)
     ## SRX info agent
     SRX_info_agent_parser(subparsers)
     ## Find datasets
@@ -55,21 +54,20 @@ def arg_parse(args=None) -> dict:
 
 def main():
     # load environment variables
-    load_dotenv()
+    load_dotenv(override=True)
     # parsing args
     args = arg_parse()
-    # set database tenant
-    if args.tenant:
-        os.environ["DYNACONF"] = args.tenant
     
     # which subcommand
     if not args.command:
         print("Provide a subcommand or use -h/--help for help")
         sys.exit(0)
-    elif args.command == "entrez":
+    elif args.command.lower() == "entrez":
         entrez_agent_main(args)
-    elif args.command == "sragent":
+    elif args.command.lower() == "sragent":
         sragent_main(args)
+    elif args.command.lower() == "metadata":
+        metadata_agent_main(args)
     elif args.command.lower() == "srx-info":
         SRX_info_agent_main(args)
     elif args.command.lower() == "find-datasets":
