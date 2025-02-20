@@ -27,8 +27,8 @@ class YesNo(Enum):
 class OrganismEnum(Enum):
     """Organism sequenced"""
     # mammals
-    HUMAN = "human"
-    MOUSE = "mouse"
+    HUMAN = "Homo sapiens"
+    MOUSE = "Mus musculus"
     RAT = "Rattus norvegicus"
     MACAQUE = "Macaca mulatta"
     MARMOSET = "Callithrix jacchus"
