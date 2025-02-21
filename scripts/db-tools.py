@@ -174,6 +174,7 @@ def main(args):
         with db_connect() as conn:
             for table_name in args.create:
                 create_table(table_name, conn)
+                print(f"Created table: {table_name}")
 
     # dump tables
     if args.dump:

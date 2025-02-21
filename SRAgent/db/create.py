@@ -222,6 +222,33 @@ def create_screcounter_trace(conn: connection) -> None:
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
 
+def create_scbasecamp_metadata(conn: connection) -> None:
+    tbl_name = "scbasecamp_metadata"
+    stmt = Query \
+        .create_table(tbl_name) \
+        .columns(
+            Column("entrez_id", "INT", nullable=False),
+            Column("srx_accession", "VARCHAR(20)", nullable=False),
+            Column("file_path", "VARCHAR(200)"),
+            Column("obs_count", "INT"),
+            Column("lib_prep", "VARCHAR(30)"),
+            Column("tech_10x", "VARCHAR(30)"),
+            Column("cell_prep", "VARCHAR(30)"),
+            Column("organism", "VARCHAR(80)"),
+            Column("tissue", "VARCHAR(100)"),
+            Column("disease", "VARCHAR(100)"),
+            Column("purturbation", "VARCHAR(100)"),
+            Column("cell_line", "VARCHAR(100)"),
+            Column("czi_collection_id", "VARCHAR(40)"),
+            Column("czi_collection_name", "VARCHAR(300)"),
+            Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+            Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ) \
+        .unique("entrez_id", "srx_accession")
+    
+    execute_query(stmt, conn)
+    create_updated_at_trigger(tbl_name, conn)
+
 def create_table_router() -> Dict[str, Any]:
     router = {
         "srx_metadata": create_srx_metadata,
@@ -231,6 +258,7 @@ def create_table_router() -> Dict[str, Any]:
         "screcounter_star_params": create_screcounter_star_params,
         "screcounter_star_results": create_screcounter_star_results,
         "screcounter_trace": create_screcounter_trace,
+        "scbasecamp_metadata": create_scbasecamp_metadata,
     }
     return router
 
@@ -252,11 +280,11 @@ def create_table(table_name: str, conn: connection) -> None:
 if __name__ == "__main__":
     from dotenv import load_dotenv
     from SRAgent.db.connect import db_connect
-    load_dotenv()
+    load_dotenv(override=True)
 
     # connect to db
     os.environ["DYNACONF"] = "test"
     with db_connect() as conn:
         # create tables
         #create_srx_metadata()
-        create_entrez_status()
+        create_scbasecamp_metadata(conn)
