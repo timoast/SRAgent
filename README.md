@@ -1,8 +1,7 @@
 SRAgent
 =======
 
-LLM agents for working with the SRA and associated bioinformatics databases.
-
+Agentic workflows for obtaining data from the Sequence Read Archive.
 
 
 # Install
