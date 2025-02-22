@@ -3,53 +3,6 @@ SRAgent
 
 Agentic workflows for obtaining data from the Sequence Read Archive.
 
-# Table of Contents
-
-1. [SRAgent](#sragent)
-2. [Install](#install)
-   - [Create a conda environment](#create-a-conda-environment)
-   - [Clone the repository](#clone-the-repository)
-   - [Install the package](#install-the-package)
-3. [Environmental Variables](#environmental-variables)
-4. [Usage](#usage)
-   - [SQL Database](#sql-database)
-   - [Entrez Agent](#entrez-agent)
-     - [Example: Accession Conversion](#example-accession-conversion)
-     - [Example: Obtaining PubMed Articles](#example-obtaining-pubmed-articles)
-   - [SRAgent Agent](#sragent-agent)
-     - [Example: Converting GEO to SRX Accessions](#example-converting-geo-to-srx-accessions)
-     - [Example: Obtaining Metadata for SRX Accession](#example-obtaining-metadata-for-srx-accession)
-     - [Example: Obtaining Specific Metadata Fields](#example-obtaining-specific-metadata-fields)
-   - [SRX-info Agent](#srx-info-agent)
-     - [Examples](#examples)
-       - [Single SRA Dataset](#single-sra-dataset)
-       - [Multiple SRA Datasets](#multiple-sra-datasets)
-       - [Using SQL Database](#using-sql-database)
-   - [Metadata Agent](#metadata-agent)
-     - [Examples](#metadata-examples)
-   - [Find-datasets Agent](#find-datasets-agent)
-     - [Examples](#find-datasets-examples)
-       - [General Search](#general-search)
-       - [Target Specific Organisms](#target-specific-organisms)
-     - [Using SQL Database](#using-sql-database-for-find-datasets)
-5. [Setting up the SQL Database](#setting-up-the-sql-database)
-6. [Evaluations](#evaluations)
-7. [About](#about)
-   - [Tools](#tools)
-     - [esearch](#esearch)
-     - [efetch](#efetch)
-     - [esummary](#esummary)
-     - [elink](#elink)
-     - [ncbi_fetch](#ncbi_fetch)
-     - [seq](#seq)
-   - [Agents](#agents)
-     - [Entrez Agent](#entrez-agent-details)
-     - [Convert Agent](#convert-agent)
-     - [Metadata Agent](#metadata-agent-details)
-   - [Workflows](#workflows)
-     - [Metadata Workflow](#metadata-workflow)
-8. [Contributing](#contributing)
-
 # Install
 
 Create a conda environment [optional]: 
