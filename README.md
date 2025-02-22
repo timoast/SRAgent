@@ -38,6 +38,16 @@ pip install .
   * optional, default is "prod"
   * this only affects the SQL database used, and no database is used by default
 
+# Testing
+
+```bash
+pip install pytest
+```
+
+```bash
+pytest tests/
+```
+
 # Usage
 
 ## SQL database
