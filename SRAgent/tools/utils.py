@@ -116,5 +116,5 @@ def set_entrez_access() -> None:
             break
     # random selection from 1 to i
     n = random.randint(1, i-1)
-    Entrez.email = os.getenv(f"EMAIL{n}")
-    Entrez.api = os.getenv(f"NCBI_API_KEY{n}")
+    Entrez.email = os.getenv(f"EMAIL{n}", os.getenv("EMAIL"))
+    Entrez.api = os.getenv(f"NCBI_API_KEY{n}", os.getenv("NCBI_API_KEY"))
