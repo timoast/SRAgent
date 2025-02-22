@@ -111,10 +111,20 @@ def set_entrez_access() -> None:
     """
     i = 0
     while True:
-        i += 1
-        if not os.getenv(f"EMAIL{i}"):
+        if os.getenv(f"EMAIL{i}"):
+            i += 1
+        else:
             break
+    # if no numbered email and API key are found
+    if i == 0:
+        Entrez.email = os.getenv("EMAIL")
+        Entrez.api = os.getenv("NCBI_API_KEY")
+        return None
     # random selection from 1 to i
-    n = random.randint(1, i-1)
+    n = random.randint(1, i)
     Entrez.email = os.getenv(f"EMAIL{n}", os.getenv("EMAIL"))
     Entrez.api = os.getenv(f"NCBI_API_KEY{n}", os.getenv("NCBI_API_KEY"))
+
+# main
+if __name__ == '__main__':
+    set_entrez_access()

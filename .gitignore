@@ -11,6 +11,7 @@ db_bkup/
 *ChrisC_metadata*
 counted_SRX.txt
 notebooks/czi_annotate/
+screenlog.*
 
 # Streamlit specific
 .streamlit/
