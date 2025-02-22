@@ -82,23 +82,30 @@ def download_secret(secret_id: str) -> str:
 
 def get_secret(secret_id: str) -> str:
     """
-    Fetch secret from GCP Secret Manager.
-    Rquired environment variables: GCP_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS
+    Fetch secret from GCP Secret Manager. Falls back to environment variable if secret cannot be obtained.
+    Required environment variables: GCP_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS
     Args:
         secret_id: The secret id
     Returns:
         The secret value
     """
-    from google.auth import default
-    from google.cloud import secretmanager
+    try:
+        from google.auth import default
+        from google.cloud import secretmanager
 
-    _, project_id = default()  # Use default credentials; project_id is inferred
-    if not project_id:
-        project_id = os.environ["GCP_PROJECT_ID"]
-    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-    client = secretmanager.SecretManagerServiceClient()
-    response = client.access_secret_version(request={"name": name})
-    return response.payload.data.decode('UTF-8')
+        _, project_id = default()  # Use default credentials; project_id is inferred
+        if not project_id:
+            project_id = os.environ["GCP_PROJECT_ID"]
+        name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+        client = secretmanager.SecretManagerServiceClient()
+        response = client.access_secret_version(request={"name": name})
+        return response.payload.data.decode('UTF-8')
+    except Exception as e:
+        # Fall back to environment variable
+        env_var = os.getenv(secret_id)
+        if env_var is not None:
+            return env_var
+        raise Exception(f"Failed to get secret '{secret_id}' from Secret Manager and environment variable not set") from e
 
 
 # main
