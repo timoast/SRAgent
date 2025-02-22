@@ -3,6 +3,52 @@ SRAgent
 
 Agentic workflows for obtaining data from the Sequence Read Archive.
 
+# Table of Contents
+
+1. [SRAgent](#sragent)
+2. [Install](#install)
+   - [Create a conda environment](#create-a-conda-environment)
+   - [Clone the repository](#clone-the-repository)
+   - [Install the package](#install-the-package)
+3. [Environmental Variables](#environmental-variables)
+4. [Usage](#usage)
+   - [SQL Database](#sql-database)
+   - [Entrez Agent](#entrez-agent)
+     - [Example: Accession Conversion](#example-accession-conversion)
+     - [Example: Obtaining PubMed Articles](#example-obtaining-pubmed-articles)
+   - [SRAgent Agent](#sragent-agent)
+     - [Example: Converting GEO to SRX Accessions](#example-converting-geo-to-srx-accessions)
+     - [Example: Obtaining Metadata for SRX Accession](#example-obtaining-metadata-for-srx-accession)
+     - [Example: Obtaining Specific Metadata Fields](#example-obtaining-specific-metadata-fields)
+   - [SRX-info Agent](#srx-info-agent)
+     - [Examples](#examples)
+       - [Single SRA Dataset](#single-sra-dataset)
+       - [Multiple SRA Datasets](#multiple-sra-datasets)
+       - [Using SQL Database](#using-sql-database)
+   - [Metadata Agent](#metadata-agent)
+     - [Examples](#metadata-examples)
+   - [Find-datasets Agent](#find-datasets-agent)
+     - [Examples](#find-datasets-examples)
+       - [General Search](#general-search)
+       - [Target Specific Organisms](#target-specific-organisms)
+     - [Using SQL Database](#using-sql-database-for-find-datasets)
+5. [Setting up the SQL Database](#setting-up-the-sql-database)
+6. [Evaluations](#evaluations)
+7. [About](#about)
+   - [Tools](#tools)
+     - [esearch](#esearch)
+     - [efetch](#efetch)
+     - [esummary](#esummary)
+     - [elink](#elink)
+     - [ncbi_fetch](#ncbi_fetch)
+     - [seq](#seq)
+   - [Agents](#agents)
+     - [Entrez Agent](#entrez-agent-details)
+     - [Convert Agent](#convert-agent)
+     - [Metadata Agent](#metadata-agent-details)
+   - [Workflows](#workflows)
+     - [Metadata Workflow](#metadata-workflow)
+8. [Contributing](#contributing)
 
 # Install
 
@@ -16,7 +62,7 @@ mamba create -n sragent-env -y python=3.12 sra-tools=3.1 \
 Clone the repository:
 
 ```bash
-git clone git@github.com:ArcInstitute/SRAgent.git \
+git clone https://github.com/ArcInstitute/SRAgent.git \
   && cd SRAgent
 ```
 
@@ -30,18 +76,155 @@ pip install .
 
 * `OPENAI_API_KEY` = API key for using the OpenAI API
   * **required**
+  * currently, no other models are supported besides OpenAI
 * `EMAIL` = email for using the Entrez API
   * optional, but **HIGHLY** recommended
 * `NCBI_API_KEY` = API key for using the Entrez API
   * optional, increases rate limits
 * `DYNACONF` = switch between "test" and "prod" environments
   * optional, default is "prod"
+  * this only affects the SQL database used, and no database is used by default
 
 # Usage
 
+## SQL database
+
+Components of SRAgent can use an SQL database to store the results.
+
+This was crucial for the scBaseCamp project, in order to:
+* track which datasets had been processed 
+* quickly assess the progress of the project
+
+However, for most users, the SQL database is not necessary.
+SRAgent does not use the SQL database by default.
+
+> Note: currently only a GCP Postgresql database is supported.
+
+To set up the database, see [Setting up the SQL Database](#setting-up-the-sql-database).
+
+## Entrez Agent
+
+The lowest-level agent in the SRAgent hiearchy.
+The agent can call various Entrez tools (`esearch`, `efetch`, `esummary`, and `elink`).
+Usually, the SRAgent agent will be more useful, since it includes more tools, including calling the Entrez agent.
+
+#### Example accession conversion:
+
+```bash
+SRAgent entrez "Convert GSE121737 to SRX accessions"
+```
+
+#### Example of obtaining pubmed articles associated with a dataset accession:
+
+```bash
+SRAgent entrez "Obtain any available publications for GSE196830"
+```
+
+## SRAgent agent
+
+A general tool for extracting data from the SRA database.
+The tools available:
+
+* Entrez agent (see above)
+* SRA BigQuery
+* scraping NCBI webpage HTML
+* sra-stat and fastq-dump (directly assessing sequence data)
+
+#### Example of converting a GEO accession to SRX accessions:
+
+```bash
+SRAgent sragent "Convert GSE121737 to SRX accessions"
+```
+
+#### Example of obtaining metadata for a specific SRX accession:
+
+```bash
+SRAgent sragent "Obtain any available publications for GSE196830"
+```
+
+#### Example of obtaining specific metadata fields for a dataset:
+
+```bash
+SRAgent sragent "Which 10X Genomics technology was used for ERX11887200?"
+```
+
+## SRX-info agent
+
+Obtain specific metadata for >=1 SRA dataset.
+
+* Input: >=1 Entrez ID
+* Output metadata fields:
+  * SRX accession for the Entrez ID
+  * SRR accessions for the SRX accession
+  * Is the dataset Illumina sequence data?
+  * Is the dataset single cell RNA-seq data?
+  * Is the dataset paired-end sequencing data?
+  * Which scRNA-seq library preparation technology?
+  * If 10X Genomics, which particular 10X technologies?
+  * Single nucleus or single cell RNA sequencing?
+  * Which organism was sequenced?
+  * Which tissue was sequenced?
+  * Any disease information?
+  * Any treatment/purturbation information?
+  * Any cell line information?
+* Workflow
+  * The agent converts the Entrez IDs to SRX accessions
+  * For each SRX accession, the agent obtains metadata
+  * The agent consolidates the metadata into a single report
+
+> As of now, the metadata fields are hard-coded into the agent.
+> If you need alternative metadata fields, you will have to modify [metadata.py](./workflows/metadata.py).
+
+#### Examples
+
+A single SRA dataset:
+
+```bash
+SRAgent srx-info 25576380
+```
+
+Multiple SRA datasets:
+
+```bash
+SRAgent srx-info 36404865 36106630 32664033
+```
+
+Use the SQL database to filter out already-processed datasets:
+
+```bash
+SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
+```
+
+
+## Metadata agent
+
+Similar to the `SRX-info` agent, but you can provide SRX accessions directly, instead of Entrez IDs.
+This saves compute time, since the agent does not need to convert the Entrez IDs to SRX accessions.
+
+Provide a CSV of Entrez IDs and their associated SRX accessions to obtain metadata. 
+Useful for when you already have the SRX accessions, instead of providing the Entrez IDs to `SRAgent srx-info`.
+
+The CSV should have the header: `entrez_id,srx_accession`.
+
+The metadata fields are the same as the `SRX-info` agent.
+
+#### Examples
+
+```bash
+SRAgent metadata "entrez-id_srx-accession.csv"
+```
+
 ## find-datasets agent
 
-Find datasets in the SRA database and then process them with the SRX-info agent. 
+A high-level agent for finding datasets in the SRA via `esearch` and then
+processing them with the `SRX-info` agent. 
+
+* Input: a search query
+* Output: metadata fields for the datasets found (same as `SRX-info` agent)
+* Workflow
+  * The agent uses `esearch` to find datasets
+  * The agent processes the datasets with the `SRX-info` agent
+  * The agent consolidates the metadata into a single report
 
 #### Examples
 
@@ -52,7 +235,7 @@ SRAgent find-datasets "Obtain recent single cell RNA-seq datasets in the SRA dat
 #### Target specific organisms
 
 ```bash
-SRAgent find-datasets --no-summaries --max-datasets 1 --organisms rat -- \
+SRAgent find-datasets --no-summaries --max-datasets 1 --organisms pig -- \
   "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
@@ -108,236 +291,24 @@ SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms
   "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
+# Setting up the SQL database
 
-## SRX-info agent
-
-Obtain SRX metadata for >=1 SRA or GEO dataset.
-
-> The metadata is stored in the 
-[SRAgent_database](https://docs.google.com/spreadsheets/d/1dkFvBYTX7DQLxLQKjwQxMvo5dx6fijSh4TRCX2xChlA/edit?usp=sharing)
-Google Sheet by default.
-
-#### Examples
-
-A single SRA dataset:
-
-```bash
-SRAgent srx-info 25576380
-```
-
-Multiple SRA datasets:
-
-```bash
-SRAgent srx-info 36404865 36106630 32664033
-```
-
-Use the SQL database to filter existing:
-
-```bash
-SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
-```
-
-## Metadata agent
-
-Provide a CSV of Entrez IDs and their associated SRX accessions to obtain metadata. 
-Useful for when you already have the SRX accessions, instead of providing the Entrez IDs to `SRAgent srx-info`.
-
-The CSV should have the header: `entrez_id,srx_accession`.
-
-#### Examples
-
-```bash
-SRAgent metadata "entrez-id_srx-accession.csv"
-```
-
-## SRAgent agent
-
-General tool for working with the SRA database via Entrez tools, SRA BigQuery, fetching NCBI webpages, and other methods.
-
-#### Example of converting a GEO accession to SRX accessions:
-
-```bash
-SRAgent sragent "Convert GSE121737 to SRX accessions"
-```
-
-#### Example of obtaining metadata for a specific SRX accession:
-
-```bash
-SRAgent sragent "Obtain any available publications for GSE196830"
-```
-
-#### Example of obtaining specific metadata fields for a dataset:
-
-```bash
-SRAgent sragent "Which 10X Genomics technology was used for ERX11887200?"
-```
-
-## Entrez Agent
-
-General agent for working specifically with Entrez tools (esearch, efetch, esummary, elink).
-Usually, the SRAgent agent will be more useful.
-
-#### Example accession conversion:
-
-```bash
-SRAgent entrez "Convert GSE121737 to SRX accessions"
-```
-
-#### Example of obtaining pubmed articles associated with a dataset accession:
-
-```bash
-SRAgent entrez "Obtain any available publications for GSE196830"
-```
-
+* Create a GCP Postgresql database. See the [docs](https://cloud.google.com/sql?hl=en).
+* Required secrets:
+  * `GCP_SQL_DB_PASSWORD`
+  * Store in the `.env` file or GCP Secret Manager
+  * If using GCP Secret Manager, you must also provide:
+    * `GOOGLE_APPLICATION_CREDENTIALS`
+    * `GCP_PROJECT_ID`
+* Update the [settings.py](./SRAgent/settings.yml) file with the database information.
 
 # Evaluations
 
-See the `eval.py` script for running evaluations.
-
-# Workflows
-
-* Obtain studes
-  * esearch
-* Convert to SRX
-  * entrez
-  * ncbi-fetch
-  * sra-bigquery
-* Get SRX metadata
-  * entrez
-  * ncbi-fetch
-  * sra-bigquery
-  * seq
-* Get SRR accessions per SRX
-  * entrez
-  * ncbi-fetch
-  * sra-bigquery
+See the [eval.py](./scripts/eval.py) script for running evaluations.
 
 
-# About
+# Contributing
 
-## Tools
-
-The following tools are available for interacting with NCBI databases:
-
-### esearch
-
-Search NCBI databases using query terms:
-* Search for specific accessions or terms across databases (sra, gds, pubmed)
-* Specialized search for recent single-cell RNA-seq studies
-* Returns Entrez IDs for matching records
-
-### efetch
-
-Fetch detailed metadata records:
-* Retrieve full metadata for specific Entrez IDs
-* Supports multiple databases (sra, gds, pubmed)
-* Returns detailed XML/JSON format records
-
-### esummary
-
-Get summary information:
-* Retrieve concise summaries for specific Entrez IDs
-* Supports multiple databases (sra, gds, pubmed)
-* Returns summarized record information
-
-### elink
-
-Find related records across databases:
-* Link records between different NCBI databases
-* Find associated BioProject, BioSample, or publication records
-* Map relationships between different types of records
-
-### ncbi_fetch
-
-Direct web scraping of NCBI pages:
-* Fetch detailed information from SRA, GEO, and PubMed web pages
-* Extract structured data from HTML responses
-* Useful for getting human-readable descriptions
-
-### seq
-
-Tools for working with sequence data:
-* Use fastq-dump to preview FASTQ file contents
-* Get sequence statistics using sra-stat
-* Validate sequence data format and quality
-* Check paired-end vs single-end status
-
-## Agents
-
-### Entrez Agent
-
-A ReAct agent that coordinates NCBI database queries using the available tools:
-* Converts between different accession types (GEO, SRA, BioProject)
-* Retrieves metadata from various NCBI databases
-* Follows multi-step workflows to gather comprehensive information
-* Handles rate limits and batches large queries
-
-### Convert Agent
-
-Specialized agent for converting between different accession types:
-* Focuses on obtaining SRX accessions from other identifiers
-* Works with Entrez IDs, GEO accessions, and BioProject IDs
-* Validates accession formats and handles edge cases
-* Uses retry logic when conversions require multiple steps
-
-### Metadata Agent
-
-LangGraph workflow for extracting standardized metadata:
-* Determines sequencing platform (Illumina vs other)
-* Identifies single-cell vs bulk RNA-seq protocols
-* Validates paired-end vs single-end sequencing
-* Detects 10X Genomics library preparation
-* Maps organism taxonomy
-* Supports both SRA and GEO databases
-* Uses multiple approaches to resolve uncertain metadata
-
-## Workflows
-
-### Metadata Workflow
-
-Multi-stage workflow for processing sequencing datasets:
-* Converts database records to SRA accessions (SRX/ERX)
-* Processes each accession in parallel using the Metadata Agent
-* Extracts standardized metadata fields for each sample
-* Validates and consolidates results across all samples
-* Optionally stores results in a tracking database
-* Handles both SRA and GEO database records
-* Supports batched processing of large datasets
-
-
-# resources
-
-* https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud-based-metadata-table/
-
-# organisms to include?
-
-* `Mesocricetus auratus`
-
-
-***
-
-# OLD
-
-## Network proxy
-
-Install via (assuming `${HOME}/bin` is in your path):
-
-```bash
-mkdir -p ${HOME}/bin/ \
-  && curl -o ${HOME}/bin/cloud-sql-proxy \
-    https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 \
-  && chmod u+x ${HOME}/bin/cloud-sql-proxy \
-  && mkdir -p ${HOME}/cloudsql
-```
-
-Run via:
-
-```bash
-SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
-PROXY_NAME="c-tc-429521:us-east1:sragent"
-rm -rf ${HOME}/cloudsql/${PROXY_NAME}
-cloud-sql-proxy ${PROXY_NAME} \
-  --unix-socket ${HOME}/cloudsql \
-  --credentials-file ${HOME}/.gcp/${SERVICE_ACCOUNT_JSON}
-```
-
+Feel free to fork the repository and submit a pull request.
+However, the top priority is to keep SRAgent functioning 
+for the ongoing scBaseCamp project.
