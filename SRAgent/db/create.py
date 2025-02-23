@@ -229,6 +229,7 @@ def create_scbasecamp_metadata(conn: connection) -> None:
         .columns(
             Column("entrez_id", "INT", nullable=False),
             Column("srx_accession", "VARCHAR(20)", nullable=False),
+            Column("feature_type", "VARCHAR(30)", nullable=False),
             Column("file_path", "VARCHAR(200)"),
             Column("obs_count", "INT"),
             Column("lib_prep", "VARCHAR(30)"),
@@ -244,7 +245,7 @@ def create_scbasecamp_metadata(conn: connection) -> None:
             Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
             Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
         ) \
-        .unique("entrez_id", "srx_accession")
+        .unique("entrez_id", "srx_accession", "feature_type")
     
     execute_query(stmt, conn)
     create_updated_at_trigger(tbl_name, conn)
