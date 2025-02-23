@@ -55,7 +55,6 @@ def fastq_dump(
         with open(os.path.join(temp_dir.name, file), "r") as f:
             fastq_data += f"#-- File: {file_name} --#\n"
             fastq_data += f.read() + "\n"
-            #fastq_data[file_name] = f.read()
 
     # delete the temp directory
     temp_dir.cleanup()
