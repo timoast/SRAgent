@@ -7,7 +7,7 @@ name = "SRAgent"
 version = "0.1.0"
 description = "AI agents for finding public biological datasets"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { text = "MIT license" }
 authors = [
     { name = "Nick Youngblut", email = "nyoungb2@gmail.com" },
