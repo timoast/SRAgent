@@ -34,6 +34,8 @@ def truncate_values(record, max_length: int) -> str:
     Returns:
         Truncated record.
     """
+    if record is None:
+        return None
     try:
         root = ET.fromstring(record)
     except ET.ParseError:
