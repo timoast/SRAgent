@@ -6,7 +6,6 @@ def test_esearch_successful():
     """Test successful esearch with actual API call"""
     input = {"esearch_query" : "35447314", "database" : "sra"}
     ret = esearch.invoke(input)
-    
     assert "'Count': '1'" in ret
     assert "'IdList': ['35447314']" in ret
     
