@@ -35,9 +35,15 @@ def parse_cli_args() -> argparse.Namespace:
         formatter_class=CustomFormatter
     )
     parser.add_argument(
-        'gcp_path', 
-        type=str, 
-        help='GCP path to h5ad files'
+        'gcp_path', type=str, help='GCP path to h5ad files'
+    )
+    parser.add_argument(
+        '--feature-type', default='GeneFull_Ex50pAS', 
+        choices=['Gene', 'GeneFull', 'GeneFull_Ex50pAS', 'GeneFull_ExonOverIntron', 'Velocyto'], 
+        help='Feature type to process'
+    )
+    parser.add_argument(
+        '--workers', type=int, default=1, help='Number of workers for parallel processing'
     )
     return parser.parse_args()
 
@@ -69,7 +75,7 @@ def get_h5ad_files(gcp_path: str) -> pd.DataFrame:
     print(f"Found {len(df)} h5ad files")
     return df
 
-def process_org(organism: str, group: pd.DataFrame, gcp_path: str) -> None:
+def process_org(organism: str, group: pd.DataFrame, gcp_path: str, feature_type: str) -> None:
     """
     Process a group of h5ad files for a specific organism.
 
@@ -95,7 +101,7 @@ def process_org(organism: str, group: pd.DataFrame, gcp_path: str) -> None:
         #    break
 
     # Combine and write to parquet format in GCS bucket
-    outfile = os.path.join(gcp_path, "metadata", organism, "obs_metadata.parquet.gz")
+    outfile = os.path.join(gcp_path, "metadata", organism, feature_type, "obs_metadata.parquet.gz")
     with fs.open(outfile, "wb") as f:
         f.write(pd.concat(obs_metadata).to_parquet(None, compression="gzip"))
     logging.info(f"  Metadata written to {outfile}")
@@ -107,9 +113,9 @@ def process_group(args_tuple: Tuple[str, pd.DataFrame, str]) -> None:
     Args:
         args_tuple (Tuple[str, pd.DataFrame, str]): Tuple containing organism, group DataFrame, and GCP path.
     """
-    organism, group, gcp_path = args_tuple
+    organism, group, gcp_path, feature_type = args_tuple
     logging.info(f"Processing {organism} (file count: {group.shape[0]})...")
-    process_org(organism, group, gcp_path)
+    process_org(organism, group, gcp_path, feature_type)
 
 def main(args: argparse.Namespace) -> None:
     """
@@ -122,11 +128,15 @@ def main(args: argparse.Namespace) -> None:
     h5ad_files = get_h5ad_files(args.gcp_path)
 
     # Group by organism and prepare for parallel processing
-    groups = [(org, group, args.gcp_path) for org, group in h5ad_files.groupby("organism")]
+    groups = [(org, group, args.gcp_path, args.feature_type) for org, group in h5ad_files.groupby("organism")]
 
     # Process each group 
-    for group in groups:
-        process_group(group)
+    if args.workers > 1:
+        with ProcessPoolExecutor(max_workers=args.workers) as executor:
+            executor.map(process_group, groups)
+    else:
+        for group in groups:
+            process_group(group)
 
 if __name__ == "__main__":
     load_dotenv(override=True)
