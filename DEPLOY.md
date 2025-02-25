@@ -4,10 +4,9 @@
 IMG_NAME=sragent
 IMG_VERSION=0.1.5
 REGION="us-east1"
-GCP_PROJECT_ID="c-tc-429521"
-SERVICE_ACCOUNT_EMAIL="nick-nextflow@c-tc-429521.iam.gserviceaccount.com"
-SERVICE_ACCOUNT_JSON="c-tc-429521-6f6f5b8ccd93.json"
 ```
+
+Other vars in `.env`
 
 # Docker 
 
