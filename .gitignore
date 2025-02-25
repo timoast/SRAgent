@@ -8,6 +8,7 @@ volumes/
 sandbox/
 archive/
 db_bkup/
+ignore/
 *ChrisC_metadata*
 counted_SRX.txt
 notebooks/czi_annotate/

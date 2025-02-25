@@ -138,9 +138,9 @@ def process_org(organism: str, group: pd.DataFrame, gcp_path: str, feature_type:
     logging.info(f"Processing organism: {organism} (file count: {group.shape[0]})")
     file_paths: List[str] = group["file_path"].tolist()
     
-    # if humand or mouse, reduce workers to 2
+    # if humand or mouse, reduce workers to 1
     if organism in ["Homo_sapiens", "Mus_musculus"] and workers > 2:
-        workers = 2
+        workers = 1
 
     # Read each file in parallel
     if workers > 1:
