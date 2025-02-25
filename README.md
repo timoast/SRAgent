@@ -5,7 +5,7 @@ Agentic workflows for obtaining data from the Sequence Read Archive.
 
 # Manuscript
 
-[scBaseCamp: an AI agent-curated, uniformly processed, and continually expanding single cell data repository](https://arc-website-git-ben-virtual-cell-atlas-tool-arc-institute.vercel.app/manuscripts/scBaseCamp)
+[scBaseCamp: an AI agent-curated, uniformly processed, and continually expanding single cell data repository](https://arcinstitute.org/manuscripts/scBaseCamp)
 
 # Install
 
