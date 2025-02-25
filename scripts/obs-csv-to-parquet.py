@@ -63,6 +63,7 @@ def get_csv_files(gcp_path: str, feature_type: str) -> List[str]:
     full_prefix = os.path.join(prefix, feature_type)
     blobs = bucket.list_blobs(prefix=full_prefix)
     csv_files = [f"gs://{bucket_name}/{blob.name}" for blob in blobs if blob.name.endswith(".csv.gz")]
+    csv_files = [x for x in csv_files if f"/{feature_type}/" in x]
     return csv_files
 
 def read_csv_file(gcs_path: str) -> pd.DataFrame:
@@ -101,7 +102,7 @@ def main(args: argparse.Namespace) -> None:
     
     # Limit the number of files to process if specified
     if args.max_files > 0:
-        csv_files = csv_files[:args.max]
+        csv_files = csv_files[:args.max_files]
 
     # Read CSV files, using parallel processing if more than one worker is specified
     if args.workers == 1:
