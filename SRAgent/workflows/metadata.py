@@ -118,7 +118,7 @@ class SecondaryMetadataEnum(BaseModel):
     organism: OrganismEnum
     tissue: str
     disease: str
-    purturbation: str
+    perturbation: str
     cell_line: str
 
 class ChoicesEnum(Enum):
@@ -163,7 +163,7 @@ class GraphState(TypedDict):
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
     tissue: Annotated[str, "Which tissue was sequenced?"]
     disease: Annotated[str, "Any disease information?"]
-    purturbation: Annotated[str, "Any treatment/purturbation information?"]
+    perturbation: Annotated[str, "Any treatment/perturbation information?"]
     cell_line: Annotated[str, "Any cell line information?"]
 
 # functions
@@ -398,7 +398,7 @@ def add2db(state: GraphState, config: RunnableConfig):
         "organism": state["organism"],
         "tissue": state["tissue"],
         "disease": state["disease"],
-        "purturbation": state["purturbation"],
+        "perturbation": state["perturbation"],
         "cell_line": state["cell_line"],
         "notes": "Metadata obtained by SRAgent"
     }]
@@ -553,7 +553,7 @@ if __name__ == "__main__":
         "organism": "other",
         "tissue": "other",
         "disease": "other",
-        "purturbation": "other",
+        "perturbation": "other",
         "cell_line": "other", 
     }
     #node = create_router_node()
