@@ -5,7 +5,10 @@ Agentic workflows for obtaining data from the Sequence Read Archive.
 
 # Manuscript
 
-[scBaseCamp: an AI agent-curated, uniformly processed, and continually expanding single cell data repository](https://arcinstitute.org/manuscripts/scBaseCamp)
+**scBaseCamp: An AI agent-curated, uniformly processed, and continually expanding single cell data repository**.
+Nicholas D Youngblut, Christopher Carpenter, Jaanak Prashar, Chiara Ricci-Tam, Rajesh Ilango, Noam Teyssier,
+Silvana Konermann, Patrick Hsu, Alexander Dobin, David P Burke, Hani Goodarzi, Yusuf H Roohani.
+bioRxiv 2025.02.27.640494; doi: [https://doi.org/10.1101/2025.02.27.640494](https://doi.org/10.1101/2025.02.27.640494)
 
 # Install
 
