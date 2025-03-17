@@ -46,16 +46,17 @@ def truncate_values(record, max_length: int) -> str:
     # convert back to string
     return ET.tostring(root, encoding="unicode")
 
-def xml2json(record: str) -> Dict[str, Any]:
+def xml2json(record: str, indent: int=None) -> Dict[str, Any]:
     """
     Convert an XML record to a JSON object.
     Args:
         record: XML record.
+        indent: Number of spaces to indent the JSON.
     Returns:
         JSON object.
     """
     try:
-        return json.dumps(xmltodict.parse(record), indent=2)
+        return json.dumps(xmltodict.parse(record), indent=indent)
     except ExpatError:
         return record
 
