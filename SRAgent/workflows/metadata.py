@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
 from langchain_core.runnables.config import RunnableConfig
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.sragent import create_sragent_agent
 from SRAgent.db.connect import db_connect 
 from SRAgent.db.upsert import db_upsert
@@ -252,7 +253,7 @@ def get_annot(key: str, state: dict) -> str:
 
 def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
-    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+    model = set_model(model_name="o3-mini", reasoning_effort="high")
 
     async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig):
         """Structured data extraction"""
@@ -297,7 +298,7 @@ def create_get_metadata_node() -> Callable:
 
 def create_router_node() -> Callable:
     """Routing based on percieved completion of metadata extraction"""
-    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+    model = set_model(model_name="o3-mini", reasoning_effort="medium")
 
     async def invoke_router_node(state: GraphState):
         """

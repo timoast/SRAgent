@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.sragent import create_sragent_agent
 
 
@@ -43,7 +44,7 @@ class Acessions(BaseModel):
     srx: List[str]
 
 def create_get_accessions_node() -> Callable:
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    model = set_model(model_name="o3-mini")
     async def invoke_get_accessions_node(state: GraphState):
         """
         Structured data extraction
@@ -75,7 +76,7 @@ def create_router_node() -> Callable:
     """
     Router for the graph
     """
-    model = ChatOpenAI(model="gpt-4o", temperature=0)
+    model = set_model(model_name="o3-mini", reasoning_effort="medium")
 
     async def invoke_router(
         state: GraphState

@@ -55,7 +55,7 @@ def SRX_info_agent_parser(subparsers):
     )
 
 async def _process_single_entrez_id(
-    entrez_id, database, graph, step_summary_chain, config: dict, no_summaries: bool
+    entrez_id, database, graph, step_summary_chain: Optional[Callable], config: dict, no_summaries: bool
 ):
     """Process a single entrez_id"""
     input = {
@@ -67,12 +67,12 @@ async def _process_single_entrez_id(
     async for step in graph.astream(input, config=config):
         i += 1
         final_state = step
-        if no_summaries:
-            nodes = ",".join(list(step.keys()))
-            print(f"[{entrez_id}] Step {i}: {nodes}")
-        else:
+        if step_summary_chain:
             msg = await step_summary_chain.ainvoke({"step": step})
             print(f"[{entrez_id}] Step {i}: {msg.content}")
+        else:
+            nodes = ",".join(list(step.keys()))
+            print(f"[{entrez_id}] Step {i}: {nodes}")
 
     if final_state:
         print(f"#-- Final results for Entrez ID {entrez_id} --#")
@@ -102,7 +102,10 @@ async def _SRX_info_agent_main(args):
 
     # create supervisor agent
     graph = create_SRX_info_graph()
-    step_summary_chain = create_step_summary_chain()
+    if not args.no_summaries:
+        step_summary_chain = create_step_summary_chain()
+    else:
+        step_summary_chain = None
 
     # invoke agent
     config = {

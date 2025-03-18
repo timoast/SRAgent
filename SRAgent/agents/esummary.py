@@ -16,7 +16,6 @@ from SRAgent.tools.entrez_db import which_entrez_databases
 
 # functions
 def create_esummary_agent(model_name: str="o3-mini") -> Callable:
-#def create_esummary_agent(model_name: str="gpt-4o-mini") -> Callable:
     """
     Create an agent that uses Entrez esummary to help complete a task.
     """

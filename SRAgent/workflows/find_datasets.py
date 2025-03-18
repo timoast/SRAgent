@@ -16,6 +16,7 @@ from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.find_datasets import create_find_datasets_agent
 from SRAgent.workflows.srx_info import create_SRX_info_graph
 from SRAgent.db.connect import db_connect
@@ -55,7 +56,7 @@ class EntrezInfo(BaseModel):
     database: str
 
 def create_get_entrez_ids_node() -> Callable:
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    model = set_model(model_name="o3-mini")
     async def invoke_get_entrez_ids_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """
         Structured data extraction
