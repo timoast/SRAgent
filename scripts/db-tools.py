@@ -106,7 +106,7 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
     parser.add_argument(
         '--tenant', type=str, default=os.getenv("DYNACONF"), 
         choices = ["test", "prod"],
-        help='Database tenant to connect to. Defaults to DYNACONF env variable'
+        help='SRAgent database tenant to use. Defaults to DYNACONF env variable'
     )
     return parser.parse_args()
 
