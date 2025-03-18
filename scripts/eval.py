@@ -12,7 +12,7 @@ from tabulate import tabulate
 from pypika import Query, Table, Criterion, functions as fn
 ## package
 from SRAgent.db.connect import db_connect
-from SRAgent.db.upsert import upsert_df
+from SRAgent.db.upsert import db_upsert
 
 
 # argparse
@@ -27,6 +27,7 @@ def parse_args():
     Evaluation datasets are stored in the SRAgent postgresql database.
     The predictions and ground truth metadata are pulled from the database and compared.
     So, you must first add the predictions to the database.
+    To add an evaluation dataset, use the `--add-dataset` flag.
     """
     parser = argparse.ArgumentParser(description=desc, epilog=epi,
                                      formatter_class=CustomFormatter)
@@ -34,9 +35,14 @@ def parse_args():
     parser.add_argument('--list-datasets', action='store_true', default=False,
                         help='List available evaluation datasets')
     parser.add_argument('--add-dataset', type=str, default=None,
-                        help='Provide a dataset csv to add to the database')
+                        help='Provide an evaluation dataset csv to add to the database')
     parser.add_argument('--outfile', type=str, default="incorrect.tsv",
                         help='Output file for incorrect predictions')
+    parser.add_argument('--tenant', type=str, default="prod",
+                        choices=["prod", "test"],
+                        help='Database tenant to use')
+    parser.add_argument('--srx-no-eval', type=str, default=None,
+                        help='If a file path is provided, find SRX accessions in SRX_metadata that are not yet in the eval table (lack ground truth) and save to file (CSV)')
     return parser.parse_args()
 
 # functions
@@ -60,6 +66,94 @@ def add_suffix(columns: list, suffix: str="_x") -> list:
             result.append(col)  
     return result
 
+def list_datasets() -> pd.DataFrame:
+    """
+    List available datasets in the database.
+    Return:
+        DataFrame  of dataset IDs and record counts.
+    """
+    with db_connect() as conn:
+        tbl = Table("eval")
+        stmt = Query \
+            .from_(tbl) \
+            .select(tbl.dataset_id, fn.Count(tbl.dataset_id).as_("record_count")) \
+            .groupby(tbl.dataset_id)
+        datasets = pd.read_sql(str(stmt), conn)
+        return datasets
+
+def add_update_eval_dataset(csv_file: str) -> None:
+    """
+    Add or update an evaluation dataset in the database.
+    Args:
+        csv_file: Path to the dataset CSV file.
+    """
+    # check if file exists
+    if not os.path.exists(csv_file):
+        print(f"File not found: {csv_file}")
+        return None
+    # load csv
+    df = pd.read_csv(csv_file)
+    dataset_id = os.path.splitext(os.path.split(csv_file)[1])[0]
+    df["dataset_id"] = dataset_id
+    # does dataset exist?
+    existing_datasets = list_datasets()["dataset_id"].tolist()
+    action = "Updated existing" if dataset_id in existing_datasets else "Added new"
+    # add to database
+    with db_connect() as conn:
+        db_upsert(df, "eval", conn)
+    print(f"{action} dataset: {dataset_id}")
+
+def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
+    """
+    Load the evaluation dataset (eval table) and the associated predictions (SRX_metadata table).
+    Args:
+        eval_dataset: Evaluation dataset ID.
+    Return:
+        DataFrame of the evaluation dataset and associated predictions.
+    """
+    df = None
+    with db_connect() as conn:
+        tbl_eval = Table("eval")
+        tbl_pred = Table("srx_metadata")
+        stmt = Query \
+            .from_(tbl_eval) \
+            .where(tbl_eval.dataset_id == eval_dataset) \
+            .join(tbl_pred) \
+            .on(
+                (tbl_eval.database == tbl_pred.database) & 
+                (tbl_eval.entrez_id == tbl_pred.entrez_id) &
+                (tbl_eval.srx_accession == tbl_pred.srx_accession)
+            ) \
+            .select("*") 
+        df = pd.read_sql(str(stmt), conn)
+        df.columns = add_suffix(df.columns, "_pred")
+    return df
+
+def srx_no_eval() -> pd.DataFrame:
+    """
+    Find SRX accessions in the SRX_metadata table that are not in the eval table.
+    
+    Returns:
+        DataFrame of SRX_metadata records that don't have corresponding eval records.
+    """
+    with db_connect() as conn:
+        tbl_pred = Table("srx_metadata")
+        tbl_eval = Table("eval")
+        
+        # Subquery to get all srx_accessions in eval table
+        subquery = Query.from_(tbl_eval).select(tbl_eval.srx_accession).distinct()
+        
+        # Main query to get all metadata where srx_accession not in eval table
+        stmt = Query \
+            .from_(tbl_pred) \
+            .where(tbl_pred.srx_accession.notin(subquery)) \
+            .select("*")
+        
+        df = pd.read_sql(str(stmt), conn)
+        
+        print(f"Found {len(df)} SRX accessions in SRX_metadata that are not in the eval table")
+        return df
+
 def eval(
     df: pd.DataFrame, 
     exclude_cols: List[str]=["database", "entrez_id", "srx_accession"], 
@@ -73,7 +167,6 @@ def eval(
         outfile: Output file for incorrect predictions.
     """
     # Get base columns (those without _pred suffix)
-    #base_cols = [col for col in df.columns if not col.endswith('_pred') and col not in ['screcounter_status', 'screcounter_log']]
     base_cols = [col.replace("_pred", "") for col in df.columns if col.endswith('_pred')]
 
     # Create comparison for each column pair
@@ -124,87 +217,40 @@ def eval(
     df_wrong.to_csv(outfile, sep="\t", index=False)
     print(f"Saved mismatch records to: {outfile}")
 
-def list_datasets() -> pd.DataFrame:
-    """
-    List available datasets in the database.
-    Return:
-        DataFrame  of dataset IDs and record counts.
-    """
-    with db_connect() as conn:
-        tbl = Table("eval")
-        stmt = Query \
-            .from_(tbl) \
-            .select(tbl.dataset_id, fn.Count(tbl.dataset_id).as_("record_count")) \
-            .groupby(tbl.dataset_id)
-        datasets = pd.read_sql(str(stmt), conn)
-        return datasets
-
-def add_update_dataset(csv_file: str) -> None:
-    """
-    Add or update a dataset in the database.
-    Args:
-        csv_file: Path to the dataset CSV file.
-    """
-    # check if file exists
-    if not os.path.exists(csv_file):
-        print(f"File not found: {csv_file}")
-        return None
-    # load csv
-    df = pd.read_csv(csv_file)
-    dataset_id = os.path.splitext(os.path.split(csv_file)[1])[0]
-    df["dataset_id"] = dataset_id
-    # does dataset exist?
-    existing_datasets = list_datasets()["dataset_id"].tolist()
-    action = "Updated existing" if dataset_id in existing_datasets else "Added new"
-    # add to database
-    with db_connect() as conn:
-        upsert_df(df, "eval", conn)
-    print(f"{action} dataset: {dataset_id}")
-
-def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
-    """
-    Load the evaluation dataset from the database.
-    Args:
-        eval_dataset: Evaluation dataset ID.
-    Return:
-        DataFrame of the evaluation dataset
-    """
-    df = None
-    with db_connect() as conn:
-        tbl_eval = Table("eval")
-        tbl_pred = Table("srx_metadata")
-        stmt = Query \
-            .from_(tbl_eval) \
-            .where(tbl_eval.dataset_id == eval_dataset) \
-            .join(tbl_pred) \
-            .on(
-                (tbl_eval.database == tbl_pred.database) & 
-                (tbl_eval.entrez_id == tbl_pred.entrez_id) &
-                (tbl_eval.srx_accession == tbl_pred.srx_accession)
-            ) \
-            .select("*") 
-        df = pd.read_sql(str(stmt), conn).drop("id", axis=1)
-        df.columns = add_suffix(df.columns, "_pred")
-    return df
-
 def main(args):
     # set pandas options
     pd.set_option("display.max_columns", 40)
     pd.set_option("display.width", 100)
 
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
+    print(f"Using database tenant: {args.tenant}")
+
     # add evaluation dataset
     if args.add_dataset:
-        add_update_dataset(args.add_dataset)
+        add_update_eval_dataset(args.add_dataset)
         return None
 
     # list available datasets
     if args.list_datasets:
         print(list_datasets())
         return None
+    
+    # find missing SRX accessions
+    if args.srx_no_eval:
+        srx_missing_eval = srx_no_eval()
+        outdir = os.path.dirname(args.srx_no_eval)
+        if outdir and outdir != ".":
+            os.makedirs(outdir, exist_ok=True)
+        srx_missing_eval.to_csv(args.srx_no_eval, sep=",", index=False)
+        print(f"Saved SRX records lacking eval records to: {args.srx_no_eval}")
+        return None
 
     # evaluation
     if not args.eval_dataset:
-        print("Please provide an evaluation dataset ID")
+        print("Please provide an evaluation dataset ID (use --list-datasets to see available datasets)")
+        return None
     if args.eval_dataset not in list_datasets()["dataset_id"].tolist():
         print(f"Dataset not found: {args.eval_dataset}")
         return None
