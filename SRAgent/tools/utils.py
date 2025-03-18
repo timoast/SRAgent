@@ -56,7 +56,7 @@ def xml2json(record: str, indent: int=None) -> str:
         JSON object or original record if conversion fails.
     """
     if not record:
-        return {}
+        return ''
     try:
         return json.dumps(xmltodict.parse(record), indent=indent)
     except (ExpatError, TypeError, ValueError) as e:
