@@ -9,13 +9,14 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.tools.bigquery import create_get_study_experiment_run, create_get_study_metadata, create_get_experiment_metadata, create_get_run_metadata
 from SRAgent.agents.entrez_convert import create_entrez_convert_agent
 
 # functions
-def create_bigquery_agent(model_name="gpt-4o") -> Callable:
+def create_bigquery_agent(model_name="o3-mini") -> Callable:
     # create model
-    model = ChatOpenAI(model=model_name, temperature=0.1)
+    model = set_model(model_name=model_name, reasoning_effort="medium")
 
     # init client
     client = bigquery.Client()

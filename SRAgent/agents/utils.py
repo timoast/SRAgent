@@ -4,6 +4,15 @@ from typing import List, Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 
+def set_model(model_name: str="gpt-4o-mini", temperature: float=0.1, reasoning_effort: str="low") -> ChatOpenAI:
+    if  model_name.startswith("gpt-4o"):
+        model = ChatOpenAI(model_name=model_name, temperature=temperature, reasoning_effort=None)
+    elif model_name.startswith("o3") or model_name.startswith("o1"):
+        model = ChatOpenAI(model_name=model_name, temperature=None, reasoning_effort=reasoning_effort)
+    else:
+        raise ValueError(f"Model {model_name} not supported")
+    return model
+
 def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):
     """
     Create a chain of tools to summarize each step in a workflow.

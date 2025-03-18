@@ -11,6 +11,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.entrez import create_entrez_agent
 from SRAgent.agents.ncbi_fetch import create_ncbi_fetch_agent
 from SRAgent.agents.bigquery import create_bigquery_agent
@@ -19,11 +20,11 @@ from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
 def create_sragent_agent(
-    model_name="gpt-4o",
+    model_name="o3-mini",
     return_tool: bool=True,
 ) -> Callable:
     # create model
-    model = ChatOpenAI(model=model_name, temperature=0.1)
+    model = set_model(model_name=model_name, reasoning_effort="medium")
 
     # set tools
     tools = [

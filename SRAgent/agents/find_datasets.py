@@ -11,15 +11,16 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.tools.esearch import esearch_scrna
 from SRAgent.tools.entrez_db import which_entrez_databases
 
 # functions
-def create_find_datasets_agent(model_name: str="gpt-4o") -> Callable:
+def create_find_datasets_agent(model_name: str="o3-mini") -> Callable:
     """
     Create an agent that uses esearch to find datasets.
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.1)
+    model = set_model(model_name=model_name, reasoning_effort="medium")
     agent = create_react_agent(
         model=model,
         tools=[esearch_scrna],

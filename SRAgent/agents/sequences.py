@@ -9,14 +9,15 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.tools.sequences import sra_stat, fastq_dump
 
 # functions
-def create_sequences_agent(model_name: str="gpt-4o-mini") -> Callable:
+def create_sequences_agent(model_name: str="o3-mini") -> Callable:
     """
     Create an agent to call the sequence-based tools
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.1)
+    model = set_model(model_name=model_name)
     agent = create_react_agent(
         model=model,
         tools=[sra_stat, fastq_dump],
