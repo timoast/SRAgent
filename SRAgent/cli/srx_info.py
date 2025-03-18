@@ -55,9 +55,20 @@ def SRX_info_agent_parser(subparsers):
     )
 
 async def _process_single_entrez_id(
-    entrez_id, database, graph, step_summary_chain: Optional[Callable], config: dict, no_summaries: bool
+    entrez_id, database, graph, 
+    step_summary_chain: Optional[Callable], 
+    config: dict, no_summaries: bool
 ):
-    """Process a single entrez_id"""
+    """
+    Process a single entrez_id.
+    Args:
+        entrez_id: The Entrez ID to process.
+        database: The database to use.
+        graph: The graph to use.
+        step_summary_chain: The step summary chain to use.
+        config: The config to use.
+        no_summaries: Whether to print summaries.
+    """
     input = {
         "entrez_id": entrez_id, 
         "database": database,

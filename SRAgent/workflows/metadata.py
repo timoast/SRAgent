@@ -369,10 +369,11 @@ def bump_metadata_level(state: GraphState) -> str:
 async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
     # format the message
+    suffix = "Generally, the bigquery agent can handle this task."
     if state["SRX"].startswith("SRX"):
-        message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions."
+        message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions. {suffix}"
     elif state["SRX"].startswith("ERX"):
-        message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions."
+        message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions. {suffix}"
     else:
         message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRX\" or \"ERR\"."
     # call the agent

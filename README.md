@@ -156,7 +156,7 @@ SRAgent srx-info 25576380
 Multiple SRA datasets:
 
 ```bash
-SRAgent srx-info 36404865 36106630 32664033
+SRAgent srx-info 36106630 32664033 27694586
 ```
 
 Use the SQL database to filter out already-processed datasets:

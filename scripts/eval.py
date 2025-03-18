@@ -16,24 +16,28 @@ from SRAgent.db.upsert import upsert_df
 
 
 # argparse
-class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
-                      argparse.RawDescriptionHelpFormatter):
-    pass
+def parse_args():
+    class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                          argparse.RawDescriptionHelpFormatter):
+        pass
 
-desc = 'Evaluate a the accuracy of the data'
-epi = """DESCRIPTION:
-
-"""
-parser = argparse.ArgumentParser(description=desc, epilog=epi,
-                                 formatter_class=CustomFormatter)
-parser.add_argument('--eval-dataset', type=str, help='Evaluation dataset ID')
-parser.add_argument('--list-datasets', action='store_true', default=False,
-                    help='List available evaluation datasets')
-parser.add_argument('--add-dataset', type=str, default=None,
-                    help='Provide a dataset csv to add to the database')
-parser.add_argument('--outfile', type=str, default="incorrect.tsv",
-                    help='Output file for incorrect predictions')
-
+    desc = 'Evaluate a the accuracy of the data'
+    epi = """DESCRIPTION:
+    Evaluate the accuracy of SRAgent predictions.
+    Evaluation datasets are stored in the SRAgent postgresql database.
+    The predictions and ground truth metadata are pulled from the database and compared.
+    So, you must first add the predictions to the database.
+    """
+    parser = argparse.ArgumentParser(description=desc, epilog=epi,
+                                     formatter_class=CustomFormatter)
+    parser.add_argument('--eval-dataset', type=str, help='Evaluation dataset ID')
+    parser.add_argument('--list-datasets', action='store_true', default=False,
+                        help='List available evaluation datasets')
+    parser.add_argument('--add-dataset', type=str, default=None,
+                        help='Provide a dataset csv to add to the database')
+    parser.add_argument('--outfile', type=str, default="incorrect.tsv",
+                        help='Output file for incorrect predictions')
+    return parser.parse_args()
 
 # functions
 def add_suffix(columns: list, suffix: str="_x") -> list:
@@ -210,6 +214,6 @@ def main(args):
 
 # Example usage
 if __name__ == "__main__":
-    args = parser.parse_args()
-    load_dotenv()
+    load_dotenv(override=True)
+    args = parse_args()
     main(args)
