@@ -64,13 +64,22 @@ async def create_agent_stream(
             msg = step_summary_chain.invoke({"step": step.get("messages")})
             print(f"Step {step_cnt}: {msg.content}", file=sys.stderr)
         else:
-            last_msg = step.get("messages")[-1].content
-            if last_msg != "":
-                print(f"Step {step_cnt}: {last_msg}", file=sys.stderr)
-            else:
-                step_cnt -= 1
+            try:
+                if "messages" in step and step["messages"]:
+                    last_msg = step["messages"][-1].content
+                    if last_msg != "":
+                        print(f"Step {step_cnt}: {last_msg}", file=sys.stderr)
+                    else:
+                        step_cnt -= 1
+            except (KeyError, IndexError, AttributeError):
+                print(f"Step {step_cnt}: {step}", file=sys.stderr)
     try:
         final_step = final_step["agent"]["messages"][-1].content
     except KeyError:
-        final_step = final_step["messages"][-1].content
+        try:
+            final_step = final_step["messages"][-1].content
+        except (KeyError, IndexError, AttributeError):
+            if isinstance(final_step, str):
+                return final_step
+            return str(final_step)
     return final_step
