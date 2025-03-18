@@ -41,6 +41,7 @@ async def create_agent_stream(
     Create an Entrez agent and stream the steps.
     Args:
         input: Input message to the agent.
+        create_agent_func: Function to create the agent.
         config: Configuration for the agent.
         summarize_steps: Whether to summarize the steps.
     Returns:
@@ -60,10 +61,14 @@ async def create_agent_stream(
         final_step = step
         # summarize step
         if step_summary_chain:
-            msg = step_summary_chain.invoke({"step": step})
+            msg = step_summary_chain.invoke({"step": step.get("messages")})
             print(f"Step {step_cnt}: {msg.content}", file=sys.stderr)
         else:
-            print(f"Step {step_cnt}: {step}", file=sys.stderr)
+            last_msg = step.get("messages")[-1].content
+            if last_msg != "":
+                print(f"Step {step_cnt}: {last_msg}", file=sys.stderr)
+            else:
+                step_cnt -= 1
     try:
         final_step = final_step["agent"]["messages"][-1].content
     except KeyError:
