@@ -31,7 +31,8 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description=desc, epilog=epi,
                                      formatter_class=CustomFormatter)
-    parser.add_argument('--eval-dataset', type=str, help='Evaluation dataset ID')
+    parser.add_argument('--eval-datasets', type=str, nargs="+", 
+                        help='Evaluation dataset(s) names to use')
     parser.add_argument('--list-datasets', action='store_true', default=False,
                         help='List available evaluation datasets')
     parser.add_argument('--add-dataset', type=str, default=None,
@@ -103,11 +104,11 @@ def add_update_eval_dataset(csv_file: str) -> None:
         db_upsert(df, "eval", conn)
     print(f"{action} dataset: {dataset_id}")
 
-def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
+def load_eval_datasets(eval_datasets: List[str]) -> pd.DataFrame:
     """
-    Load the evaluation dataset (eval table) and the associated predictions (SRX_metadata table).
+    Load the evaluation dataset(s) (eval table) and the associated predictions (SRX_metadata table).
     Args:
-        eval_dataset: Evaluation dataset ID.
+        eval_datasets: List of evaluation dataset IDs.
     Return:
         DataFrame of the evaluation dataset and associated predictions.
     """
@@ -117,7 +118,7 @@ def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
         tbl_pred = Table("srx_metadata")
         stmt = Query \
             .from_(tbl_eval) \
-            .where(tbl_eval.dataset_id == eval_dataset) \
+            .where(tbl_eval.dataset_id.isin(eval_datasets)) \
             .join(tbl_pred) \
             .on(
                 (tbl_eval.database == tbl_pred.database) & 
@@ -127,6 +128,9 @@ def load_eval_dataset(eval_dataset: str) -> pd.DataFrame:
             .select("*") 
         df = pd.read_sql(str(stmt), conn)
         df.columns = add_suffix(df.columns, "_pred")
+    # drop "created_at" and "updated_at" columns
+    cols_to_drop = [col for col in df.columns if col.startswith("created_at") or col.startswith("updated_at")]
+    df.drop(cols_to_drop, axis=1, inplace=True)
     return df
 
 def srx_no_eval() -> pd.DataFrame:
@@ -216,6 +220,13 @@ def eval(
         os.makedirs(outdir, exist_ok=True)
     df_wrong.to_csv(outfile, sep="\t", index=False)
     print(f"Saved mismatch records to: {outfile}")
+    
+    # Get comma-separated list of SRX accessions with at least one mismatch
+    srx_col = "srx_accession" if "srx_accession" in df_wrong.columns else "srx_accession_pred"
+    srx_mismatches = df_wrong[srx_col].unique()
+    print("\n#-- SRX IDs with Mismatches --#")
+    print(f"Count: {len(srx_mismatches)}")
+    print(f"List: {','.join(srx_mismatches)}")
 
 def main(args):
     # set pandas options
@@ -248,13 +259,15 @@ def main(args):
         return None
 
     # evaluation
-    if not args.eval_dataset:
+    if not args.eval_datasets:
         print("Please provide an evaluation dataset ID (use --list-datasets to see available datasets)")
         return None
-    if args.eval_dataset not in list_datasets()["dataset_id"].tolist():
-        print(f"Dataset not found: {args.eval_dataset}")
+    missing_eval_datasets = [x for x in args.eval_datasets if x not in list_datasets()["dataset_id"].tolist()]
+    if missing_eval_datasets:
+        for missing in missing_eval_datasets:
+            print(f"Dataset not found: {missing}")
         return None
-    df = load_eval_dataset(args.eval_dataset)
+    df = load_eval_datasets(args.eval_datasets)
     eval(df, outfile=args.outfile)
 
 

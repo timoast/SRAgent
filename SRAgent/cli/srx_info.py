@@ -40,7 +40,7 @@ def SRX_info_agent_parser(subparsers):
         '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
     )
     sub_parser.add_argument(
-        '--max-parallel', type=int, default=2, help='Maximum parallel processing of entrez ids'
+        '--max-parallel', type=int, default=3, help='Maximum parallel processing of entrez ids'
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
