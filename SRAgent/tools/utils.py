@@ -46,18 +46,20 @@ def truncate_values(record, max_length: int) -> str:
     # convert back to string
     return ET.tostring(root, encoding="unicode")
 
-def xml2json(record: str, indent: int=None) -> Dict[str, Any]:
+def xml2json(record: str, indent: int=None) -> str:
     """
     Convert an XML record to a JSON object.
     Args:
         record: XML record.
         indent: Number of spaces to indent the JSON.
     Returns:
-        JSON object.
+        JSON object or original record if conversion fails.
     """
+    if not record:
+        return {}
     try:
         return json.dumps(xmltodict.parse(record), indent=indent)
-    except ExpatError:
+    except (ExpatError, TypeError, ValueError) as e:
         return record
 
 def run_cmd(cmd: list) -> Tuple[int, str, str]:
@@ -73,7 +75,7 @@ def run_cmd(cmd: list) -> Tuple[int, str, str]:
     output, err = p.communicate()
     return p.returncode, output, err
 
-def to_json(results, indent: int=None):
+def to_json(results, indent: int=None) -> str:
     """
     Convert a dictionary to a JSON string.
     Args:
@@ -81,21 +83,28 @@ def to_json(results, indent: int=None):
     Returns:
         str: JSON string
     """
+    if results is None:
+        return "No results found"
+        
     def datetime_handler(obj):
         if hasattr(obj, 'isoformat'):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
             return str(obj)
         raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
+    
     # convert to json
-    ret = json.dumps(
-        [dict(row) for row in results],
-        default=datetime_handler,
-        indent=indent
-    )
-    if ret == "[]":
-        return "No results found"
-    return ret
+    try:
+        ret = json.dumps(
+            [dict(row) for row in results],
+            default=datetime_handler,
+            indent=indent
+        )
+        if ret == "[]":
+            return "No results found"
+        return ret
+    except Exception as e:
+        return f"Error converting results to JSON: {str(e)}"
 
 def join_accs(accessions: List[str]) -> str:
     """
@@ -111,7 +120,10 @@ def set_entrez_access() -> None:
     """
     Set the Entrez access email and API key.
     The email and API key are stored in the environment variables.
+    If no numbered email and API key are found, the default email and API key are used.
+    If numbered email and API key are found, a random selection from the numbered ones is used.
     """
+    # get number of emails and API keys
     i = 0
     while True:
         if os.getenv(f"EMAIL{i}"):
@@ -127,7 +139,10 @@ def set_entrez_access() -> None:
     n = random.randint(1, i)
     Entrez.email = os.getenv(f"EMAIL{n}", os.getenv("EMAIL"))
     Entrez.api = os.getenv(f"NCBI_API_KEY{n}", os.getenv("NCBI_API_KEY"))
+ 
 
 # main
 if __name__ == '__main__':
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
     set_entrez_access()
