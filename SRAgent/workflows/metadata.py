@@ -225,8 +225,14 @@ def max_str_len(x: str, max_len:int = 100) -> str:
         return x
     return x if len(x) <= max_len else x[:max_len-3] + "..."
     
-def get_extracted_fields(response):
-    """Dynamically extract fields from the response model"""
+def get_extracted_fields(response) -> Dict[str, str]:
+    """
+    Dynamically extract fields from the response model
+    Args:
+        response: The response object
+    Return:
+        A dictionary of the extracted fields: {field_name: field_value}
+    """
     # get the extracted metadata fields
     fields = {}
     for field_name in response.model_fields.keys():
@@ -265,7 +271,7 @@ def create_get_metadata_node() -> Callable:
             " - The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
             " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\", \"likely\", or \"assumed\").",
             " - If there is not enough information to determine the metadata, respond with \"unsure\" or \"other\", depending on the metadata field.",
-            " - If a 10X Genomics library preparation method is not selected, then the 10X technology should be \"not_applicable\".",
+            " - If the selected \"lib_prep\" field is NOT \"10X_Genomics\", the \"tech_10x\" field should be \"not_applicable\".",
             " - Keep free text responses short; use less than 100 characters.",
             "# The specific metadata to extract",
             metadata_items
@@ -285,6 +291,16 @@ def create_get_metadata_node() -> Callable:
             raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
         response = await model.with_structured_output(selected_enum, strict=True).ainvoke(prompt)
         extracted_fields = get_extracted_fields(response)
+        # check logic
+        try:
+            if extracted_fields["is_single_cell"] != "yes":
+                extracted_fields["tech_10x"] = "not_applicable"
+            if extracted_fields["is_single_cell"] == "yes" and extracted_fields["lib_prep"] == "not_applicable":
+                extracted_fields["lib_prep"] = "other"
+            if extracted_fields["lib_prep"] != "10x_Genomics":
+                extracted_fields["tech_10x"] = "not_applicable"
+        except KeyError:
+            pass
         # create the natural language response message   
         message = "\n".join(
             ["# The extracted metadata:"] + 
@@ -318,7 +334,7 @@ def create_router_node() -> Callable:
             " - You are a helpful bioinformatican who is evaluating the metadata extracted from the SRA experiment.",
             " - You will be provided with the extracted metadata and will determine if the metadata is complete.",
             " - Metadata values of \"unsure\" or \"other\" are considered incomplete.",
-            " - \"not_applicable\" is considered complete.",
+            " - \"not_applicable\" is considered complete if the metadata field is not applicable, given other metadata values.",
             " - If the metadata is incomplete, you will respond to let the system know if more information is needed.",
             "# Notes",
             " - The organism may be \"other\" if the organism is not a common model organism.",
