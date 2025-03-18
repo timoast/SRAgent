@@ -43,15 +43,18 @@ def SRX_info_agent_parser(subparsers):
         '--max-parallel', type=int, default=2, help='Maximum parallel processing of entrez ids'
     )
     sub_parser.add_argument(
-        '--eval-dataset', type=str, default=None, nargs='+', help='>=1 eval dataset of Entrez IDs to query'
+        '--use-database', action='store_true', default=False, 
+        help='Add the results to the SRAgent SQL database'
     )
     sub_parser.add_argument(
-        '--use-database', action='store_true', default=False, 
-        help='Add the results to the scBaseCamp SQL database'
+        '--tenant', type=str, default='prod',
+        choices=['prod', 'test'],
+        help='Tenant name for the SRAgent SQL database'
+
     )
     sub_parser.add_argument(
         '--reprocess-existing', action='store_true', default=False, 
-        help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
+        help='Reprocess existing Entrez IDs in the SRAgent database instead of re-processing them (assumning --use-database)'
     )
 
 async def _process_single_entrez_id(
@@ -149,6 +152,17 @@ async def _SRX_info_agent_main(args):
     await asyncio.gather(*tasks)
 
 def SRX_info_agent_main(args):
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
+    # filter to non-integer entrez_ids
+    problem_entrez_ids = [x for x in args.entrez_ids if not x.isnumeric()]
+    if problem_entrez_ids:
+        print("Invalid Entrez IDs found:", file=sys.stderr)
+        for x in problem_entrez_ids:
+            print(x, file=sys.stderr)
+        return 1
+    # run agent
     asyncio.run(_SRX_info_agent_main(args))
 
 # main
