@@ -29,20 +29,21 @@ def efetch(
     for id_batch in batch_ids(entrez_ids, batch_size):
         time.sleep(0.34)  # Respect the rate limit of 3 requests per second
         id_str = ",".join(id_batch)
+        handle = None
         try:
             # Fetch the records for the current batch of IDs
             handle = Entrez.efetch(db=database, id=id_str, retmode="xml")
             batch_record = handle.read()
-            handle.close()
         except Entrez.Parser.ValidationError:
             batch_record = f"Failed to fetch record for IDs: {id_str}"
         except Exception as e:
             batch_record = f"An error occurred: {e}"
         finally:
-            try:
-                handle.close()
-            except:
-                pass  # Handle cases where handle might not be open
+            if handle is not None:
+                try:
+                    handle.close()
+                except:
+                    pass  # Handle cases where handle might not be open
 
         # Decode the record if necessary
         if isinstance(batch_record, bytes):

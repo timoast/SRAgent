@@ -187,4 +187,4 @@ def test_sra_stat_command_error():
         mock_run.return_value = (1, b"", b"Error: accession not found")
         result = sra_stat.invoke({"accessions": ["SRR31573627"]})
         
-        assert "Error running fastq-dump" in result
+        assert "Error running sra-stat" in result

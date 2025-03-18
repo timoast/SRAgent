@@ -218,6 +218,7 @@ def esearch(
     retmax = 50
     max_retries = 3
     base_delay = 3.0
+    search_results = None
     while True:
         for attempt in range(max_retries):
             set_entrez_access()
@@ -246,7 +247,7 @@ def esearch(
             break
         if max_records and len(records) >= max_records:
             break
-        if retstart >= int(search_results['Count']):
+        if search_results is None or retstart >= int(search_results['Count']):
             break
         
     # return records

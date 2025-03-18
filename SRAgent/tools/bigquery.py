@@ -68,7 +68,7 @@ def create_get_experiment_metadata(client):
                 m.librarysource,
                 m.platform,
                 m.instrument,
-                m.acc,
+                m.acc
             FROM `nih-sra-datastore.sra.metadata` as m
             WHERE m.experiment IN ({join_accs(experiment_accessions)})
         )
@@ -113,7 +113,7 @@ def create_get_run_metadata(client):
             m.assay_type,
             m.mbases,
             m.avgspotlen,
-            m.insertsize,            
+            m.insertsize
         FROM `nih-sra-datastore.sra.metadata` as m
         WHERE m.acc IN ({join_accs(run_accessions)})
         """

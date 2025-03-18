@@ -25,10 +25,10 @@ def which_entrez_databases(
     for db in databases:
         for id_batch in batch_ids(entrez_ids, 200):
             time.sleep(0.34)  # Respect the rate limit
+            handle = None
             try:
                 handle = Entrez.esummary(db=db, id=",".join(id_batch))
                 records = Entrez.read(handle)
-                handle.close()
                 # Extract the IDs that were successfully retrieved
                 if isinstance(records, list):
                     found_ids = {record['Id'] for record in records}
@@ -39,6 +39,12 @@ def which_entrez_databases(
                     found_in[entrez_id].append(db)
             except Exception as e:
                 continue
+            finally:
+                if handle is not None:
+                    try:
+                        handle.close()
+                    except:
+                        pass  # Handle cases where the handle might not be open
 
     # Prepare the output
     output_lines = []

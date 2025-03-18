@@ -20,7 +20,7 @@ def batch_ids(ids: List[str], batch_size: int) -> List[List[str]]:
         ids: List of IDs.
         batch_size: Size of each batch.
     Returns:
-        List of batches.
+        Generator yielding batches of IDs.
     """
     for i in range(0, len(ids), batch_size):
         yield ids[i:i + batch_size]

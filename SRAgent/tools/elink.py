@@ -23,10 +23,12 @@ def elink_error_check(batch_record):
     except ET.ParseError as e:
         return f"XML Parsing Error: {e}"
 
-    print(root.find("ERROR").text);
-
     # Check for errors in the response
-    return root.find("ERROR")
+    error_elem = root.find("ERROR")
+    if error_elem is not None and error_elem.text is not None:
+        print(error_elem.text)
+        return error_elem
+    return None
 
 @tool
 def elink(
@@ -48,6 +50,7 @@ def elink(
         id_str = ",".join(id_batch)
         
         for i in range(ntries):
+            handle = None
             try:
                 handle = Entrez.elink(
                     id=id_str,
@@ -57,7 +60,6 @@ def elink(
                     timeout=10
                 )
                 batch_record = handle.read()
-                handle.close()
             except Entrez.Parser.ValidationError:
                 batch_record = f"ERROR: Failed to find links for IDs: {id_str}"
                 continue
@@ -65,10 +67,11 @@ def elink(
                 batch_record = f"ERROR: {e}"
                 continue
             finally:
-                try:
-                    handle.close()
-                except:
-                    pass  # Handle cases where the handle might not be open
+                if handle is not None:
+                    try:
+                        handle.close()
+                    except:
+                        pass  # Handle cases where the handle might not be open
             # Check for errors in the response
             if elink_error_check(batch_record) is not None:
                 batch_record = f"ERROR: Failed to find links for IDs: {id_str}. Verify database names ({source_db}, {target_db}) and Entrez IDs."

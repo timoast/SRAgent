@@ -27,21 +27,22 @@ def esummary(
     for id_batch in batch_ids(entrez_ids, batch_size):
         time.sleep(0.34)  # Respect NCBI's rate limits (no more than 3 requests per second)
         id_str = ",".join(id_batch)
+        handle = None
         
         try:
             # Fetch summary record for the current batch
             handle = Entrez.esummary(db=database, id=id_str, retmode="xml")
             batch_record = handle.read()
-            handle.close()
         except Entrez.Parser.ValidationError:
             batch_record = f"Failed to fetch summary for IDs: {id_str}. Check if the IDs exist."
         except Exception as e:
             batch_record = f"An error occurred: {e}"
         finally:
-            try:
-                handle.close()
-            except:
-                pass  # Handle cases where the handle might not be open
+            if handle is not None:
+                try:
+                    handle.close()
+                except:
+                    pass  # Handle cases where the handle might not be open
         
         # Decode the record if necessary
         if isinstance(batch_record, bytes):

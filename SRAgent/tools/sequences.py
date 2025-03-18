@@ -89,7 +89,7 @@ def sra_stat(
             break
         time.sleep(5 * (i + 1))
     if return_code != 0:
-        return f"Error running fastq-dump: {error.decode('utf-8')}"
+        return f"Error running sra-stat: {error.decode('utf-8')}"
         
     # Decode the record if necessary
     if isinstance(output, bytes):

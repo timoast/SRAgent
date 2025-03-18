@@ -64,7 +64,7 @@ def fetch_ncbi_record(
     return "\n\n".join(data)
     
 def _fetch_pubmed_record(
-    term: Annotated[List[str], "The Entrez ID or PubMed ID to fetch data for."],
+    term: Annotated[str, "The Entrez ID or PubMed ID to fetch data for."],
 ) -> str:
     """Fetches the NCBI PubMed page for a given PubMed ID."""
     url = f"https://pubmed.ncbi.nlm.nih.gov/{term}"
