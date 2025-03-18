@@ -2,7 +2,7 @@
 ## batteries
 import os
 import asyncio
-from typing import Annotated, Callable
+from typing import Annotated, Callable, Optional
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -15,11 +15,11 @@ from SRAgent.tools.esummary import esummary
 from SRAgent.tools.entrez_db import which_entrez_databases
 
 # functions
-def create_esummary_agent(model_name: str="o3-mini") -> Callable:
+def create_esummary_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses Entrez esummary to help complete a task.
     """
-    model = set_model(model_name=model_name)
+    model = set_model(model_name=model_name, agent_name="esummary")
     agent = create_react_agent(
         model=model,
         tools=[esummary, which_entrez_databases],

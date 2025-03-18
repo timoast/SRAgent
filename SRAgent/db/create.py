@@ -97,8 +97,8 @@ def create_eval(conn: connection) -> None:
             Column("is_paired_end", "VARCHAR(10)"),
             Column("lib_prep", "VARCHAR(30)"),
             Column("tech_10x", "VARCHAR(30)"),
-            Column("organism", "VARCHAR(80)"),
             Column("cell_prep", "VARCHAR(30)"),
+            Column("organism", "VARCHAR(80)"),
             Column("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
             Column("updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
         ) \

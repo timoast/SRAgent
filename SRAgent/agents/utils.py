@@ -1,16 +1,65 @@
 import sys
 import asyncio
-from typing import List, Dict, Any
+from importlib import resources
+from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
+from dynaconf import Dynaconf
 
-def set_model(model_name: str="gpt-4o-mini", temperature: float=0.1, reasoning_effort: str="low") -> ChatOpenAI:
-    if  model_name.startswith("gpt-4o"):
-        model = ChatOpenAI(model_name=model_name, temperature=temperature, reasoning_effort=None)
-    elif model_name.startswith("o3") or model_name.startswith("o1"):
-        model = ChatOpenAI(model_name=model_name, temperature=None, reasoning_effort=reasoning_effort)
+def load_settings() -> Dict[str, Any]:
+    """
+    Load settings from settings.yml file
+    
+    Args:
+        env: Environment to load settings for ('test' or 'prod')
+        
+    Returns:
+        Dictionary containing settings for the specified environment
+    """
+    s_path = str(resources.files("SRAgent").joinpath("settings.yml"))
+    settings = Dynaconf(
+        settings_files=["settings.yml", s_path], 
+        environments=True, 
+        env_switcher="DYNACONF"
+    )
+    return settings
+
+def set_model(
+    model_name: Optional[str] = None,
+    temperature: Optional[float] = None,
+    reasoning_effort: Optional[str] = None,
+    agent_name: str = "default",
+) -> ChatOpenAI:
+    """
+    Create a model instance with settings from configuration
+    
+    Args:
+        model_name: Override model name from settings
+        temperature: Override temperature from settings
+        reasoning_effort: Override reasoning effort from settings
+        agent_name: Name of the agent to get settings for
+    Returns:
+        Configured model instance
+    """
+    # Load settings
+    settings = load_settings()
+    
+    # Use provided params or get from settings
+    model_name = model_name or settings["models"].get(agent_name, settings["models"]["default"])
+    temp = temperature or settings["temperature"].get(agent_name, settings["temperature"]["default"])
+    effort = reasoning_effort or settings["reasoning_effort"].get(agent_name, settings["reasoning_effort"]["default"])
+
+    # Only reasoning effort or temperature can be set for certain models
+    if model_name.startswith("gpt-4o"):
+        effort = None
+    elif model_name.startswith("o1") or model_name.startswith("o3"):
+        temp = None
     else:
         raise ValueError(f"Model {model_name} not supported")
+    
+    # Initialize model
+    model = ChatOpenAI(model_name=model_name, temperature=temp, reasoning_effort=effort)
+
     return model
 
 def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):

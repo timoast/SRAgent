@@ -44,7 +44,7 @@ class Acessions(BaseModel):
     srx: List[str]
 
 def create_get_accessions_node() -> Callable:
-    model = set_model(model_name="o3-mini")
+    model = set_model(agent_name="accessions")
     async def invoke_get_accessions_node(state: GraphState):
         """
         Structured data extraction
@@ -76,7 +76,7 @@ def create_router_node() -> Callable:
     """
     Router for the graph
     """
-    model = set_model(model_name="o3-mini", reasoning_effort="medium")
+    model = set_model(agent_name="router")
 
     async def invoke_router(
         state: GraphState

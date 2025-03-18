@@ -21,12 +21,11 @@ from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
 def create_entrez_agent(
-    model_name="o3-mini",
+    model_name=None,
     return_tool: bool=True,
 ) -> Callable:
     # create model
-    #model_supervisor = ChatOpenAI(model=model_name, temperature=0.1)
-    model_supervisor = set_model(model_name=model_name, reasoning_effort="medium")
+    model_supervisor = set_model(model_name=model_name, agent_name="entrez")
     # set tools
     tools = [
         create_esearch_agent(),

@@ -2,7 +2,7 @@
 ## batteries
 import os
 import asyncio
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
+from typing import Annotated, List, Optional, Any, Callable
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -20,11 +20,11 @@ from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
 def create_sragent_agent(
-    model_name="o3-mini",
+    model_name: Optional[str]=None,
     return_tool: bool=True,
 ) -> Callable:
     # create model
-    model = set_model(model_name=model_name, reasoning_effort="medium")
+    model = set_model(model_name=model_name, agent_name="sragent")
 
     # set tools
     tools = [

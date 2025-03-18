@@ -6,6 +6,102 @@ default:
 
 test:
   db_name: "sragent-test"
-  
+  models:
+    default: "o3-mini"
+    esearch: "o3-mini"
+    esummary: "o3-mini"
+    elink: "o3-mini"
+    efetch: "o3-mini"
+    sequences: "o3-mini"
+    ncbi_fetch: "o3-mini"
+    bigquery: "o3-mini"
+    entrez: "o3-mini"
+    sragent: "o3-mini"
+    router: "o3-mini"
+    metadata: "gpt-4o"
+    accessions: "o3-mini"
+    entrez_convert: "o3-mini"
+    find_datasets: "o3-mini"
+  temperature:
+    default: 0.1
+    esearch: 0.1
+    esummary: 0.1
+    elink: 0.1
+    efetch: 0.1
+    sequences: 0.1
+    ncbi_fetch: 0.1
+    bigquery: 0.1
+    entrez: 0.1
+    sragent: 0.1
+    metadata: 0.1
+    router: 0.1
+    accessions: 0.1
+    entrez_convert: 0.1
+    find_datasets: 0.1
+  reasoning_effort:
+    default: "low"
+    esearch: "low"
+    esummary: "low"
+    elink: "low"
+    efetch: "low"
+    sequences: "low"
+    ncbi_fetch: "low"
+    bigquery: "medium"
+    entrez: "medium"
+    sragent: "medium"
+    metadata: "high"
+    router: "medium"
+    accessions: "low"
+    entrez_convert: "medium"
+    find_datasets: "medium"
+    
 prod:
   db_name: "sragent-prod"
+  models:
+    default: "o3-mini"
+    esearch: "o3-mini"
+    esummary: "o3-mini"
+    elink: "o3-mini"
+    efetch: "o3-mini"
+    sequences: "o3-mini"
+    ncbi_fetch: "o3-mini"
+    bigquery: "o3-mini"
+    entrez: "o3-mini"
+    sragent: "o3-mini"
+    router: "o3-mini"
+    metadata: "gpt-4o"
+    accessions: "o3-mini"
+    entrez_convert: "o3-mini"
+    find_datasets: "o3-mini"
+  temperature:
+    default: 0.1
+    esearch: 0.1
+    esummary: 0.1
+    elink: 0.1
+    efetch: 0.1
+    sequences: 0.1
+    ncbi_fetch: 0.1
+    bigquery: 0.1
+    entrez: 0.1
+    sragent: 0.1
+    metadata: 0.1
+    router: 0.1
+    accessions: 0.1
+    entrez_convert: 0.1
+    find_datasets: 0.1
+  reasoning_effort:
+    default: "low"
+    esearch: "low"
+    esummary: "low"
+    elink: "low"
+    efetch: "low"
+    sequences: "low"
+    ncbi_fetch: "low"
+    bigquery: "medium"
+    entrez: "medium"
+    sragent: "medium"
+    metadata: "high"
+    router: "medium"
+    accessions: "low"
+    entrez_convert: "medium"
+    find_datasets: "medium"

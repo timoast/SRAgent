@@ -1,7 +1,7 @@
 # import
 ## batteries
 import asyncio
-from typing import Annotated, Callable
+from typing import Annotated, Callable, Optional
 ## 3rd party
 from dotenv import load_dotenv
 from langchain_core.tools import tool
@@ -13,11 +13,11 @@ from SRAgent.agents.utils import set_model
 from SRAgent.tools.sequences import sra_stat, fastq_dump
 
 # functions
-def create_sequences_agent(model_name: str="o3-mini") -> Callable:
+def create_sequences_agent(model_name: Optional[str]=None) -> Callable:
     """
     Create an agent to call the sequence-based tools
     """
-    model = set_model(model_name=model_name)
+    model = set_model(model_name=model_name, agent_name="sequences")
     agent = create_react_agent(
         model=model,
         tools=[sra_stat, fastq_dump],

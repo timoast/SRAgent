@@ -2,7 +2,7 @@
 ## batteries
 import os
 import asyncio
-from typing import Annotated, Callable
+from typing import Annotated, Callable, Optional
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -16,11 +16,11 @@ from SRAgent.tools.esearch import esearch_scrna
 from SRAgent.tools.entrez_db import which_entrez_databases
 
 # functions
-def create_find_datasets_agent(model_name: str="o3-mini") -> Callable:
+def create_find_datasets_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses esearch to find datasets.
     """
-    model = set_model(model_name=model_name, reasoning_effort="medium")
+    model = set_model(model_name=model_name, agent_name="find_datasets")
     agent = create_react_agent(
         model=model,
         tools=[esearch_scrna],

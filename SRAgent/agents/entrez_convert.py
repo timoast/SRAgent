@@ -19,11 +19,11 @@ from SRAgent.tools.ncbi_fetch import fetch_geo_record, fetch_ncbi_record
 
 # functions
 def create_entrez_convert_agent(
-    model_name: str="o3-mini",
-    return_tool: bool=True,
+    model_name: str = None,
+    return_tool: bool = True,
 ) -> Callable:
     # create model
-    model_supervisor = set_model(model_name=model_name, reasoning_effort="medium")
+    model_supervisor = set_model(model_name=model_name, agent_name="entrez_convert")
 
     # set tools
     tools = [

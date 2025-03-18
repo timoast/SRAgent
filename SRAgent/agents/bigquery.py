@@ -1,7 +1,7 @@
 # import
 ## batteries
 import asyncio
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, Optional
 ## 3rd party
 from google.cloud import bigquery
 from langchain_core.tools import tool
@@ -14,9 +14,9 @@ from SRAgent.tools.bigquery import create_get_study_experiment_run, create_get_s
 from SRAgent.agents.entrez_convert import create_entrez_convert_agent
 
 # functions
-def create_bigquery_agent(model_name="o3-mini") -> Callable:
+def create_bigquery_agent(model_name: Optional[str]=None) -> Callable:
     # create model
-    model = set_model(model_name=model_name, reasoning_effort="medium")
+    model = set_model(model_name=model_name, agent_name="bigquery")
 
     # init client
     client = bigquery.Client()

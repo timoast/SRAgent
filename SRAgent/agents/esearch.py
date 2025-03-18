@@ -16,11 +16,11 @@ from SRAgent.tools.esearch import esearch
 
 
 # functions
-def create_esearch_agent(model_name: str="o3-mini") -> Callable:
+def create_esearch_agent(model_name: str = None) -> Callable:
     """
     Create an agent that uses Entrez esearch to help complete a task.
     """
-    model = set_model(model_name=model_name)
+    model = set_model(model_name=model_name, agent_name="esearch")
     agent = create_react_agent(
         model=model,
         tools=[esearch],

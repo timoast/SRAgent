@@ -259,7 +259,7 @@ def get_annot(key: str, state: dict) -> str:
 
 def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
-    model = set_model(model_name="o3-mini", reasoning_effort="high")
+    model = set_model(agent_name="metadata")
 
     async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig):
         """Structured data extraction"""
@@ -314,7 +314,7 @@ def create_get_metadata_node() -> Callable:
 
 def create_router_node() -> Callable:
     """Routing based on percieved completion of metadata extraction"""
-    model = set_model(model_name="o3-mini", reasoning_effort="medium")
+    model = set_model(agent_name="router")
 
     async def invoke_router_node(state: GraphState):
         """

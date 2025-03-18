@@ -2,7 +2,7 @@
 ## batteries
 import os
 import asyncio
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
+from typing import Annotated, Optional, Any, Callable
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -15,11 +15,11 @@ from SRAgent.tools.elink import elink
 from SRAgent.tools.entrez_db import which_entrez_databases
 
 
-def create_elink_agent(model_name: str="o3-mini") -> Callable:
+def create_elink_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses Entrez elink to help complete a task.
     """
-    model = set_model(model_name=model_name)
+    model = set_model(model_name=model_name, agent_name="elink")
     agent = create_react_agent(
         model=model,
         tools=[elink, which_entrez_databases],
@@ -63,4 +63,4 @@ if __name__ == "__main__":
         result = await agent.ainvoke(input)
         print(result)
     asyncio.run(main())
-    
+
