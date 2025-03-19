@@ -131,6 +131,7 @@ async def create_agent_stream(
                         step_cnt -= 1
             except (KeyError, IndexError, AttributeError):
                 print(f"Step {step_cnt}: {step}", file=sys.stderr)
+    # get final step, and handle different types
     try:
         final_step = final_step["agent"]["messages"][-1].content
     except KeyError:
@@ -140,4 +141,6 @@ async def create_agent_stream(
             if isinstance(final_step, str):
                 return final_step
             return str(final_step)
+    except TypeError:
+        return str(final_step)
     return final_step
