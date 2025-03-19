@@ -36,7 +36,8 @@ pip install .
 
 * `OPENAI_API_KEY` = API key for using the OpenAI API
   * **required**
-  * currently, no other models are supported besides OpenAI
+  * Currently, no other models are supported besides OpenAI
+  * See [Configuring models](#configuring-models) information on setting models
 * `EMAIL` = email for using the Entrez API
   * optional, but **HIGHLY** recommended
 * `NCBI_API_KEY` = API key for using the Entrez API
@@ -260,6 +261,25 @@ Using the `test` database:
 SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
   "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
+
+# Configuring models
+
+The models used by SRAgent are configured in the [settings.yml](./SRAgent/settings.yml) file.
+Options for updating the settings:
+
+## 1) Provide a new settings file
+
+* Create a new settings yaml file
+* Set the `DYNACONF_SETTINGS_PATH` environment variable to the path to the new settings file
+  * e.g., `export DYNACONF_SETTINGS_PATH=/path/to/settings.yml`
+* No need to (re)install the package. The settings will be loaded from the new file.
+
+## 2) Update and install
+
+* Clone the repository
+* Update the [settings.yml](./SRAgent/settings.yml) file
+* (Re)install the the package
+  * e.g., `pip install .`
 
 # Setting up the SQL database
 

@@ -1,7 +1,7 @@
+import os
 import sys
-import asyncio
 from importlib import resources
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 from dynaconf import Dynaconf
@@ -16,9 +16,15 @@ def load_settings() -> Dict[str, Any]:
     Returns:
         Dictionary containing settings for the specified environment
     """
-    s_path = str(resources.files("SRAgent").joinpath("settings.yml"))
+    # get path to settings
+    if os.getenv("DYNACONF_SETTINGS_PATH"):
+        s_path = os.getenv("DYNACONF_SETTINGS_PATH")
+    else:
+        s_path = str(resources.files("SRAgent").joinpath("settings.yml"))
+    if not os.path.exists(s_path):
+        raise FileNotFoundError(f"Settings file not found: {s_path}")
     settings = Dynaconf(
-        settings_files=["settings.yml", s_path], 
+        settings_files=[s_path], 
         environments=True, 
         env_switcher="DYNACONF"
     )
@@ -144,3 +150,9 @@ async def create_agent_stream(
     except TypeError:
         return str(final_step)
     return final_step
+
+# main
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    load_settings()
