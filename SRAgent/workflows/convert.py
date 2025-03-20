@@ -38,7 +38,8 @@ def create_convert_agent_node() -> Callable:
         # attempt to convert entrez ID via entrez_id_to_srx
         srx = await entrez_id_to_srx(str(state["entrez_id"]))
         if srx:
-            return {"messages" : [AIMessage(content=f"Obtained accessions: {', '.join(srx)}")]}
+            srx = ", ".join(set(srx))
+            return {"messages" : [AIMessage(content=f"Obtained accessions: {srx}")]}
         # fallback to convert agent
         response = await convert_agent.ainvoke({"messages" : state["messages"]})
         return {"messages" : [response["messages"][-1]]}
