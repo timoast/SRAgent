@@ -1,5 +1,6 @@
 # import 
 import os
+import re
 import asyncio
 import operator
 from enum import Enum
@@ -49,13 +50,31 @@ def create_convert_agent_node() -> Callable:
 class Acessions(BaseModel):
     srx: List[str]
 
+def extract_accessions(message: str) -> List[str]:
+    """
+    Extract SRX and ERX accessions from text using regex
+    Args:
+        message: Text message to extract accessions from
+    Returns:
+        List of unique SRX and ERX accessions
+    """
+    # Find all matches in the message
+    accessions = re.findall(r'(?:SRX|ERX)[0-9]{4,}+', message)
+    # Return unique accessions
+    return list(set(accessions))
+
 def create_get_accessions_node() -> Callable:
     model = set_model(agent_name="accessions")
     async def invoke_get_accessions_node(state: GraphState):
         """
         Structured data extraction
         """
-        # create prompt
+        # try regex extraction
+        accessions = extract_accessions(state["messages"][-1].content)
+        if accessions:
+            return {"SRX" : accessions}
+        # fallback to model
+        ## create prompt
         message = state["messages"][-1].content
         prompt = "\n".join([
             f"Extract SRX and ERX accessions (e.g., \"SRX123456\" or \"ERX223344\") from the message below.",
@@ -64,7 +83,7 @@ def create_get_accessions_node() -> Callable:
             message,
             "#-- END OF MESSAGE --#"
         ])
-        # invoke model with structured output
+        ## invoke model with structured output
         response = await model.with_structured_output(Acessions, strict=True).ainvoke(prompt)
         return {"SRX" : response.srx}
     return invoke_get_accessions_node
