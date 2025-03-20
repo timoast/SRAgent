@@ -134,10 +134,11 @@ def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """
-    Final state of the graph
-    """
-    """
     Return the final state of the graph
+    Args:
+        state: The final state of the graph
+    Returns:
+        The final state of the graph
     """
     # filter to messages that contain the SRX accession
     messages = []
@@ -149,6 +150,8 @@ def final_state(state: GraphState) -> Dict[str, Any]:
         for x in msg:
             if x.startswith("# SRX accession: "):
                 messages.append(x)
+    # filter to unique messages
+    messages = list(set(messages))
     # final message
     if len(messages) == 0:
         message = "No novel SRX accessions found."
