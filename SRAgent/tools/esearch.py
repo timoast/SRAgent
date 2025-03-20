@@ -117,12 +117,9 @@ def esearch_scrna(
     ## library prep methods to exclude
     esearch_query += ' NOT ("Smart-seq" OR "Smart-seq2" OR "Smart-seq3" OR "MARS-seq")'
 
-    # override max_ids
+    # override max_ids parameter with config
     if config.get("configurable", {}).get("max_datasets"):
         max_ids = config["configurable"]["max_datasets"]
-        ## debug model
-        if os.getenv("DYNACONF", "").lower() == "test":
-            max_ids = 2
 
     # use database to filter existing?
     filter_existing = config.get("configurable", {}).get("use_database", False)

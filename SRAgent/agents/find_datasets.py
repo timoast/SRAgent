@@ -19,6 +19,10 @@ from SRAgent.tools.entrez_db import which_entrez_databases
 def create_find_datasets_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses esearch to find datasets.
+    Args:
+        model_name: Override model name from settings
+    Returns:
+        Callable: Function to invoke the agent
     """
     model = set_model(model_name=model_name, agent_name="find_datasets")
     agent = create_react_agent(
@@ -30,7 +34,7 @@ def create_find_datasets_agent(model_name: Optional[str] = None) -> Callable:
             " - Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
             "# Strategy",
             " - If your initial search does not return any results, try different search terms or databases.",
-            " - You MUST make at least two attempts to find datasets.",
+            " - If the first attempt fails, you MUST make at least one more attempt to find datasets.",
             "# Response",
             " - You will return Entrez IDs.",
             " - Be sure to state which database you searched (e.g., GEO, SRA).",

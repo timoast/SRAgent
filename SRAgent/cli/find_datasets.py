@@ -66,6 +66,12 @@ def find_datasets_parser(subparsers):
         help='Use the scBaseCamp database to screen out existing datasets for adding the newly found datasets'
     )  
     sub_parser.add_argument(
+        '--tenant', type=str, default='prod',
+        choices=['prod', 'test'],
+        help='Tenant name for the SRAgent SQL database'
+
+    )
+    sub_parser.add_argument(
         '--reprocess-existing', action='store_true', default=False, 
         help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
     )  
@@ -74,6 +80,10 @@ async def _find_datasets_main(args):
     """
     Main function for invoking the find-datasets workflow
     """
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
+
     # set email and api key
     set_entrez_access()
     

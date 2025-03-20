@@ -30,11 +30,22 @@ def elink_error_check(batch_record):
         return error_elem
     return None
 
+def get_entrez_databases() -> List[str]:
+    """
+    Get a list of possible Entrez databases.
+    Returns:
+        List[str]: List of possible Entrez databases.
+    """
+    handle = Entrez.einfo()
+    record = Entrez.read(handle)
+    databases = record["DbList"]
+    return sorted(databases)
+
 @tool
 def elink(
     entrez_ids: Annotated[List[str], "List of Entrez IDs"],
     source_db: Annotated[str, "Source database (e.g., 'sra')"],
-    target_db: Annotated[str, "Target database (e.g., 'bioproject', 'biosample', 'pubmed')"],
+    target_db: Annotated[str, "Target database (e.g., 'sra', 'bioproject', 'biosample', 'pubmed')"],
 ) -> Annotated[str, "eLink results in XML format"]:
     """
     Find related entries between Entrez databases, particularly useful for finding
@@ -45,6 +56,14 @@ def elink(
     batch_size = 200  # Maximum number of IDs per request as per NCBI guidelines
     records = []
 
+    # check if the databases are valid
+    databases = get_entrez_databases()
+    if source_db not in databases:
+        return f"Invalid source database: {source_db}. Possible databases: {', '.join(databases)}"
+    if target_db not in databases:
+        return f"Invalid target database: {target_db}. Possible databases: {', '.join(databases)}"
+
+    # process the entrez IDs
     for id_batch in batch_ids(entrez_ids, batch_size):
         time.sleep(0.34)  # Respect NCBI's rate limits (no more than 3 requests per second)
         id_str = ",".join(id_batch)
@@ -111,12 +130,12 @@ def elink(
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
     Entrez.api_key = os.getenv('NCBI_API_KEY')
 
     # test esummary
     #input = {"entrez_ids" : ["35966237", "200254051"], "source_db" : "gds", "target_db" : "sra"}
     #input = {"entrez_ids" : ['200121737', '100024679', '303444964', '303444963', '303444962'], "source_db" : "gds", "target_db" : "sra"}
-    input = {"entrez_ids" : ["200277303"], "source_db" : "gds", "target_db" : "sra"}
+    input = {"entrez_ids" : ["200277303"], "source_db" : "gds", "target_db" : "sraX"}
     print(elink.invoke(input))

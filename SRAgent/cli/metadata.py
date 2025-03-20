@@ -43,13 +43,20 @@ def metadata_agent_parser(subparsers):
         '--max-parallel', type=int, default=2, help='Maximum parallel processing of SRX accessions'
     )
     sub_parser.add_argument(
+        '--no-srr', action='store_true', default=False, 
+        help='Do NOT upload SRR accessions to scBaseCamp SQL database'
+    )
+    sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
         help='Add the results to the scBaseCamp SQL database'
     )
     sub_parser.add_argument(
-        '--no-srr', action='store_true', default=False, 
-        help='Do NOT upload SRR accessions to scBaseCamp SQL database'
+        '--tenant', type=str, default='prod',
+        choices=['prod', 'test'],
+        help='Tenant name for the SRAgent SQL database'
+
     )
+
 
 async def _process_single_srx(
     entrez_srx, database, graph, step_summary_chain, config: dict, no_summaries: bool
@@ -94,8 +101,12 @@ async def _process_single_srx(
 
 async def _metadata_agent_main(args):
     """
-    Main function for invoking the entrez agent
+    Main function for invoking the metadata agent
     """
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
+
     # set email and api key
     Entrez.email = os.getenv("EMAIL")
     Entrez.api_key = os.getenv("NCBI_API_KEY")

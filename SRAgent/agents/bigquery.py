@@ -43,25 +43,26 @@ def create_bigquery_agent(model_name: Optional[str]=None) -> Callable:
         " 5. entrez_convert: Converts Entrez IDs to SRA accessions",
         "# Tool usage guidelines",
         " - If your are provided with an Entrez ID, use the entrez_convert tool to convert it to SRA or ENA accessions.",
-        "   - IMPORTANT: All get_*_metadata tools require SRA or ENA accessions"
+        "   - IMPORTANT: All get_*_metadata tools require SRA or ENA accessions",
         " - Use the get_study_experiment_run tool to convert accessions between study, experiment, and run levels.",
         " - Use the get_*_metadata tools to retrieve metadata for a specific accession type.",
-        " - Chain the tools as needed to gather complete information for a given study, experiment, or run.",
-        " - Be sure to provide all important information each each tool, such as accessions, databases, or metadata fields.",
+        " - Chain the tools as needed to gather the necessary information for a given study, experiment, or run.",
+        " - Be sure to provide all important information to each tool, such as accessions, databases, or metadata fields.",
         "# Warnings",
         " - Bulk RNA-seq is NOT the same as single-cell RNA-seq (scRNA-seq); be sure to distinguish between them.",
         "   - If you do not find evidence of single cell, do not assume it is scRNA-seq.",
-        "   - A single layout does not imply single-cell data.",
+        "   - A \"single layout\" does not imply single-cell data.",
         "# Response guidelines",
         " - If the query mentions one accession type but asks about another, automatically perform the necessary conversions",
-        " - Chain multiple tool calls when needed to gather complete information",
-        " - If you receive an error, explain it clearly and suggest alternatives",
+        " - Chain multiple tool calls when needed to gather the necessary information for the task",
+        " - If you receive an error, explain the error clearly and suggest alternatives",
+        " - If you are instructed to perform a conversion, be sure to provide the final converted value (e.g., SRX accession)",
         "# Output format",
         " - Keep responses concise and structured",
         " - Present metadata as key-value pairs",
         " - Group related information",
         " - Include accession IDs in outputs",
-        " - No markdown formatting",
+        " - Do not use markdown formatting",
     ])
 
     # create agent
@@ -90,10 +91,13 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
 
+    #msg = "Convert Entrez ID 36927723 (associated with the sra database) to the corresponding SRX or ERX accessions."
+    msg = "Convert Entrez ID 36927723 (associated with the sra database) to the corresponding SRX or ERX accessions. Provide detailed conversion mapping between the Entrez ID and experiment accessions."
+
     # test agent
     async def main():
         bigquery_agent = create_bigquery_agent()
-        input = {"message" : "Get the library layout for Entrez ID 35087715"}
+        input = {"message" : msg}
         result = await bigquery_agent.ainvoke(input)
         print(result)
     asyncio.run(main())

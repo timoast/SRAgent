@@ -30,6 +30,7 @@ class GraphState(TypedDict):
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     entrez_ids: Annotated[List[int], "List of dataset Entrez IDs"]
+    database: Annotated[List[str], "Database name (e.g., 'sra', 'gds')"]
 
 # nodes
 def create_find_datasets_node():
@@ -59,7 +60,7 @@ def create_get_entrez_ids_node() -> Callable:
     model = set_model(model_name="o3-mini", reasoning_effort="low")
     async def invoke_get_entrez_ids_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """
-        Structured data extraction
+        Structured data extraction of Entrez IDs from message
         """
         # create prompt
         message = state["messages"][-1].content
@@ -77,7 +78,7 @@ def create_get_entrez_ids_node() -> Callable:
             message,
             "#-- END OF MESSAGE --#"
         ])
-        # invoke model with structured output
+        # invoke model with structured output; try 3 times to get valid output
         entrez_ids = []
         database = ""
         for i in range(3):
@@ -97,6 +98,11 @@ def create_get_entrez_ids_node() -> Callable:
                 existing_ids = db_get_entrez_ids(conn=conn, database=database)
                 entrez_ids = [x for x in entrez_ids if x not in existing_ids]
 
+        # cap number of entrez IDs to max_datasets in config
+        max_datasets = config.get("configurable", {}).get("max_datasets")
+        if max_datasets and max_datasets > 0 and len(entrez_ids) > max_datasets:
+            entrez_ids = entrez_ids[:max_datasets]
+
         ## update the database
         if len(entrez_ids) > 0 and config.get("configurable", {}).get("use_database"):
             df = pd.DataFrame({
@@ -104,11 +110,12 @@ def create_get_entrez_ids_node() -> Callable:
                 "database": database,
                 "notes": "New dataset found by Find-Datasets agent"
             })
-            with db_connect() as conn:
-                db_upsert(df, "srx_metadata", conn=conn)
+            if config.get("configurable", {}).get("use_database"):
+                with db_connect() as conn:
+                    db_upsert(df, "srx_metadata", conn=conn)
 
         # return the extracted values
-        return {"entrez_ids": entrez_ids, "database": database}
+        return {"entrez_ids": entrez_ids, "database": [database]}
     return invoke_get_entrez_ids_node
 
 def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict[str, Any]]:
@@ -119,7 +126,7 @@ def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict
     responses = []
     for entrez_id in state["entrez_ids"]:
         input = {
-            "database": state["database"],
+            "database": state["database"][0],
             "entrez_id": entrez_id, 
         }
         responses.append(Send("srx_info_node", input))

@@ -98,7 +98,7 @@ async def _process_single_entrez_id(
 
 async def _SRX_info_agent_main(args):
     """
-    Main function for invoking the entrez agent
+    Main function for invoking the srx-info agent
     """
     # filter entrez_ids
     if args.use_database:
