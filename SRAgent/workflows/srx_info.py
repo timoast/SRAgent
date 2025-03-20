@@ -60,7 +60,7 @@ def create_convert_graph_node():
             f"Convert Entrez ID {entrez_id} to SRX or ERX accessions.",
             f"The Entrez ID is associated with the {database} database."
         ])
-        input = {"messages": [HumanMessage(message)]}
+        input = {"messages": [HumanMessage(content=message)], "entrez_id": entrez_id}
         return await graph.ainvoke(input)
     return invoke_convert_graph_node
 

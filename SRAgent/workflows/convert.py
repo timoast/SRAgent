@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 ## package
 from SRAgent.agents.utils import set_model
 from SRAgent.agents.sragent import create_sragent_agent
+from SRAgent.workflows.utils import entrez_id_to_srx
 
 
 # state
@@ -27,7 +28,6 @@ class GraphState(TypedDict):
     route: Annotated[str, "Route choice"]
     attempts: Annotated[int, operator.add]
 
-# functions
 ## convert agent
 def create_convert_agent_node() -> Callable:
     convert_agent = create_sragent_agent()
@@ -35,6 +35,11 @@ def create_convert_agent_node() -> Callable:
         """
         Invoke the Entrez convert agent to obtain SRA accessions
         """
+        # attempt to convert entrez ID via entrez_id_to_srx
+        srx = await entrez_id_to_srx(str(state["entrez_id"]))
+        if srx:
+            return {"messages" : [AIMessage(content=f"Obtained accessions: {', '.join(srx)}")]}
+        # fallback to convert agent
         response = await convert_agent.ainvoke({"messages" : state["messages"]})
         return {"messages" : [response["messages"][-1]]}
     return invoke_convert_agent_node
@@ -76,7 +81,7 @@ def create_router_node() -> Callable:
     """
     Router for the graph
     """
-    model = set_model(agent_name="router")
+    model = set_model(agent_name="convert_router")
 
     async def invoke_router(
         state: GraphState
@@ -171,7 +176,7 @@ if __name__ == "__main__":
 
     #-- setup --#
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
@@ -180,12 +185,13 @@ if __name__ == "__main__":
         #entrez_id = "30749595"
         #entrez_id = "307495950000"
         msg = f"Obtain all SRX and ERX accessions for the Entrez ID {entrez_id}"
-        input = {"messages" : [HumanMessage(content=msg)]}
+        input = {"messages" : [HumanMessage(content=msg)], "entrez_id" : entrez_id}
         config = {"max_concurrency" : 3, "recursion_limit": 30}
         graph = create_convert_graph()
         async for step in graph.astream(input, config=config):
             print(step)
     asyncio.run(main())
+    exit();
 
     # save graph image
     # from SRAgent.utils import save_graph_image

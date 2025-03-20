@@ -314,7 +314,7 @@ def create_get_metadata_node() -> Callable:
 
 def create_router_node() -> Callable:
     """Routing based on percieved completion of metadata extraction"""
-    model = set_model(agent_name="router")
+    model = set_model(agent_name="metadata_router")
 
     async def invoke_router_node(state: GraphState):
         """

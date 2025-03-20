@@ -17,7 +17,8 @@ test:
     bigquery: "o3-mini"
     entrez: "o3-mini"
     sragent: "o3-mini"
-    router: "o3-mini"
+    convert_router: "o3-mini"
+    metadata_router: "o3-mini"
     metadata: "gpt-4o"
     accessions: "o3-mini"
     entrez_convert: "o3-mini"
@@ -34,7 +35,8 @@ test:
     entrez: 0.1
     sragent: 0.1
     metadata: 0.1
-    router: 0.1
+    convert_router: 0.1
+    metadata_router: 0.1
     accessions: 0.1
     entrez_convert: 0.1
     find_datasets: 0.1
@@ -50,7 +52,8 @@ test:
     entrez: "medium"
     sragent: "medium"
     metadata: "high"
-    router: "medium"
+    convert_router: "low"
+    metadata_router: "medium"
     accessions: "low"
     entrez_convert: "medium"
     find_datasets: "medium"
@@ -68,7 +71,8 @@ prod:
     bigquery: "o3-mini"
     entrez: "o3-mini"
     sragent: "o3-mini"
-    router: "o3-mini"
+    convert_router: "o3-mini"
+    metadata_router: "o3-mini"
     metadata: "gpt-4o"
     accessions: "o3-mini"
     entrez_convert: "o3-mini"
@@ -85,7 +89,8 @@ prod:
     entrez: 0.1
     sragent: 0.1
     metadata: 0.1
-    router: 0.1
+    convert_router: 0.1
+    metadata_router: 0.1
     accessions: 0.1
     entrez_convert: 0.1
     find_datasets: 0.1
@@ -101,7 +106,8 @@ prod:
     entrez: "medium"
     sragent: "medium"
     metadata: "high"
-    router: "medium"
+    convert_router: "low"
+    metadata_router: "medium"
     accessions: "low"
     entrez_convert: "medium"
     find_datasets: "medium"

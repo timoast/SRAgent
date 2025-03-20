@@ -2,31 +2,26 @@ import os
 import asyncio
 import xml.etree.ElementTree as ET
 import aiohttp
+import time
+from Bio import Entrez
 
-async def entrez_id_to_srx_async(ids, email, api_key=None, max_concurrent=5):
+async def entrez_id_to_srx(sra_id, max_concurrent=5):
     """
-    Asynchronously convert SRA internal IDs or Entrez IDs to SRX/ERX accessions
+    Asynchronously convert an SRA internal ID or Entrez ID to SRX/ERX accessions
     
     Parameters:
     -----------
-    ids : str or list
-        Single ID or list of IDs to convert
-    email : str
-        Email address (required by NCBI for Entrez queries)
-    api_key : str, optional
-        NCBI API key for higher request limits
+    sra_id : str
+        Single SRA internal ID or Entrez ID to convert
     max_concurrent : int, optional
         Maximum number of concurrent requests to NCBI
         
     Returns:
     --------
-    dict
-        Dictionary mapping input IDs to their corresponding SRX/ERX accessions
-        If no accession is found, the value will be None
+    list
+        List of corresponding SRX/ERX accessions
+        If no accessions are found, returns an empty list
     """
-    # Ensure ids is a list
-    if isinstance(ids, str):
-        ids = [ids]
     
     # Base URLs for Entrez API
     elink_base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
@@ -35,12 +30,8 @@ async def entrez_id_to_srx_async(ids, email, api_key=None, max_concurrent=5):
     
     # Common parameters for all requests
     base_params = {
-        'tool': 'python_async_script',
-        'email': email
+        'tool': 'python_async_script'
     }
-    
-    if api_key:
-        base_params['api_key'] = api_key
     
     # Create a semaphore to limit concurrent connections
     semaphore = asyncio.Semaphore(max_concurrent)
@@ -49,6 +40,8 @@ async def entrez_id_to_srx_async(ids, email, api_key=None, max_concurrent=5):
         """Helper function to fetch and parse from a URL with parameters"""
         async with semaphore:
             merged_params = {**base_params, **params}
+            # Sleep for 0.34 seconds before making the API call to prevent abuse of NCBI API
+            await asyncio.sleep(0.34)
             async with session.get(url, params=merged_params) as response:
                 if response.status != 200:
                     text = await response.text()
@@ -186,28 +179,27 @@ async def entrez_id_to_srx_async(ids, email, api_key=None, max_concurrent=5):
             return input_id, None
     
     async with aiohttp.ClientSession() as session:
-        # Create tasks for all IDs
-        tasks = [process_id(session, input_id) for input_id in ids]
-        results = await asyncio.gather(*tasks)
-        
-        # Convert results to dictionary
-        return dict(results)
+        # Process a single ID and return its accessions directly
+        _, accessions = await process_id(session, sra_id)
+        return accessions if accessions else []
 
 # Example usage
 async def main():
     from dotenv import load_dotenv
     load_dotenv(override=True)
     
-    email = os.getenv("EMAIL")
-    ids_to_convert = ["30604662", "21712488", "28707082"]
+    Entrez.email = os.getenv("EMAIL")
     
-    result = await entrez_id_to_srx_async(ids_to_convert, email)
+    # Test individual IDs
+    test_ids = ["30604662", "21712488", "28707082"]
     
-    for input_id, accessions in result.items():
+    for test_id in test_ids:
+        accessions = await entrez_id_to_srx(test_id)
+        
         if accessions:
-            print(f"ID {input_id} corresponds to: {', '.join(accessions)}")
+            print(f"ID {test_id} corresponds to: {', '.join(accessions)}")
         else:
-            print(f"No SRX/ERX accession found for ID {input_id}")
+            print(f"No SRX/ERX accession found for ID {test_id}")
 
 if __name__ == "__main__":
     asyncio.run(main())
