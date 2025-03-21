@@ -42,10 +42,15 @@ def parse_cli_args() -> argparse.Namespace:
         '--model', type=str, default='text-embedding-3-small',
         help='Model to use for embeddings'
     )
+    parser.add_argument(
+        '--max-embeddings', type=int, default=None,
+        help='Maximum number of embeddings to generate'
+    )
     return parser.parse_args()
 
 def extract_definitions(
     graph: nx.MultiDiGraph,
+    max_embeddings: int | None = None
 ) -> List[Document]:
     """
     Extracts definition texts, metadata, and node IDs from the ontology graph.
@@ -67,15 +72,14 @@ def extract_definitions(
                 }
             )
         )
-        # debug
-        if len(documents) >= 10:
+        if max_embeddings and len(documents) >= max_embeddings:
             break
     return documents
 
 def main(args: argparse.Namespace) -> None:
     # Read the OBO file into a graph.
     graph = obonet.read_obo(args.obo_path)
-    documents = extract_definitions(graph)
+    documents = extract_definitions(graph, args.max_embeddings)
 
     if not documents:
         print("No definitions found in the OBO file.")
