@@ -30,7 +30,7 @@ class GraphState(TypedDict):
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     entrez_ids: Annotated[List[int], "List of dataset Entrez IDs"]
-    database: Annotated[List[str], "Database name (e.g., 'sra', 'gds')"]
+    database: Annotated[str, operator.add]  # Database name (e.g., 'sra', 'gds')
 
 # nodes
 def create_find_datasets_node():
@@ -115,7 +115,7 @@ def create_get_entrez_ids_node() -> Callable:
                     db_upsert(df, "srx_metadata", conn=conn)
 
         # return the extracted values
-        return {"entrez_ids": entrez_ids, "database": [database]}
+        return {"entrez_ids": entrez_ids, "database": database}
     return invoke_get_entrez_ids_node
 
 def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict[str, Any]]:
@@ -126,7 +126,7 @@ def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict
     responses = []
     for entrez_id in state["entrez_ids"]:
         input = {
-            "database": state["database"][0],
+            "database": state["database"],
             "entrez_id": entrez_id, 
         }
         responses.append(Send("srx_info_node", input))
@@ -184,7 +184,6 @@ def create_find_datasets_graph():
 
 # main
 if __name__ == "__main__":
-    from functools import partial
     from Bio import Entrez
 
     #-- setup --#
