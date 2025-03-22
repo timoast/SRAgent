@@ -12,7 +12,7 @@ from langchain_chroma import Chroma
 import chromadb
 import obonet
 import networkx as nx
-## package
+
 
 
 # functions
@@ -59,7 +59,7 @@ def query_vector_db(
     Perform a semantic search by querying a vector store 
     """
     # DEBUG: 
-    db_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-simple_chroma"
+    db_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-full_chroma"
     # load the vector store
     vector_store = load_vector_store(db_path)
     # query the vector store
@@ -109,7 +109,7 @@ def get_neighbors(
         return f"Invalid Uberon ID format: \"{uberon_id}\". The format must be \"UBERON:XXXXXXX\"."
 
     # DEBUG:
-    obo_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-simple.obo"
+    obo_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-full.obo"
 
     # Get the cached ontology graph or load it if not available
     g = get_ontology_graph(obo_path)
@@ -119,13 +119,18 @@ def get_neighbors(
     try:
         message += f"# Neighbors in the ontology for: \"{uberon_id}\"\n"
         for i,node_id in enumerate(g.neighbors(uberon_id), 1):
-            if not g.nodes[node_id]:
+            # filter out non-UBERON nodes
+            if not node_id.startswith("UBERON:") or not g.nodes[node_id]:
                 continue
+            # extract node name and description
             node_name = g.nodes[node_id]["name"]
             node_def = g.nodes[node_id]["def"]
             message += f"{i}. {node_id}\n"
             message += f"  Ontology name: {node_name}\n"
             message += f"  Description: {node_def}\n"
+            # limit to 50 neighbors
+            if i >= 50:
+                break
     except Exception as e:
         return f"Error getting neighbors: {e}"
 
@@ -172,10 +177,10 @@ if __name__ == "__main__":
     #print(results)
 
     # get neighbors
-    # input = {'uberon_id': 'UBERON:0000010'}
-    # #input = {'uberon_id': 'UBERON:0000013'}
-    # neighbors = get_neighbors.invoke(input)
-    # print(neighbors)
+    input = {'uberon_id': 'UBERON:0000010'}
+    input = {'uberon_id': 'UBERON:0002421'}
+    neighbors = get_neighbors.invoke(input)
+    print(neighbors); exit();
 
     # query OLS
     input = {'search_term': 'brain'}
