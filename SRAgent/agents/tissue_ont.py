@@ -42,16 +42,16 @@ def create_tissue_ont_agent(
         " - You must find the single most suitable Uberon ontology term that best describes the tissue.",
         " - You have a set of tools that can help you with this task.",
         "# Tools",
-        " - query_uberon_ols: Query the Ontology Lookup Service (OLS) for Uberon terms matching the search term."
         " - query_vector_db: Perform a semantic search on a vector database to find Uberon terms related to the target tissue. The database contains a collection of tissue descriptions and their corresponding Uberon terms.",
-        " - get_neighbors: Get the neighbors of a given Uberon term in the Uberon ontology. Useful for finding more specific or general terms.",
+        " - get_neighbors: Get the neighbors of a given Uberon term in the Uberon ontology. Useful for finding adjacent terms in the ontology.",
+        " - query_uberon_ols: Query the Ontology Lookup Service (OLS) for Uberon terms matching the search term.",
         "# Workflow",
-        " Step 1: Start with the query_uberon_ols and query_vector_db tools to find the most similar Uberon terms to the target tissue.",
-        " Step 2: Use the get_neighbors tool to explore more specific or general ontology terms for the Uberon terms returned in Step 1.",
-        "   - For example, you can find the neighbors of an Uberon term returned in Step 1 in the Uberon ontology.",
+        " Step 1: Start with the query_vector_db tools to find the most similar Uberon terms to the target tissue.",
+        " Step 2: Use the get_neighbors tool on the Uberon terms returned in Step 1 to help find the most suitable term.",
         "   - ALWAYS use the get_neighbors tool to explore more the terms adjacent to the terms returned in Step 1.",
         " Step 3: Repeat steps 1 and 2 to find the most suitable Uberon term.",
         "   - Perform between 1 and 3 iterations to find the most suitable term.",
+        " Step 4: [optional] Fall back to using query_uberon_ols if you cannot find a suitable term with query_vector_db and get_neighbors."
         "# Response",
         " - Provide the most suitable Uberon ontology ID (UBERON:XXXXXXX) that best describes the tissue.",
     ])
@@ -87,16 +87,30 @@ if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
     load_dotenv(override=True)
-    Entrez.email = os.getenv("EMAIL")
 
     async def main():
         # create entrez agent
-        agent = create_tissue_ont_agent()
+        agent = create_tissue_ont_agent(return_tool=False)
     
-        # invoke agent
-        msg = "Categorize the following tissue: brain"
+        # # Example 1: Simple tissue example
+        # print("\n=== Example 1: Simple tissue example ===")
+        # msg = "Categorize the following tissue: brain"
+        # input = {"messages": [HumanMessage(content=msg)]}
+        # result = await agent.ainvoke(input)
+        # print(f"Result for 'brain': {result['structured_response'].id}")
+        
+        # Example 2: More specific tissue example
+        print("\n=== Example 2: More specific tissue example ===")
+        msg = "Categorize the following tissue: hippocampus"
         input = {"messages": [HumanMessage(content=msg)]}
         result = await agent.ainvoke(input)
-        print(result)
+        print(f"Result for 'hippocampus': {result['structured_response'].id}")
+        
+        # # Example 3: Complex tissue description example
+        # print("\n=== Example 3: Complex tissue description example ===")
+        # msg = "Categorize the following tissue: the thin layer of epithelial cells lining the alveoli in lungs"
+        # input = {"messages": [HumanMessage(content=msg)]}
+        # result = await agent.ainvoke(input)
+        # print(f"Result for complex description: {result['structured_response'].id}")
         
     asyncio.run(main())
