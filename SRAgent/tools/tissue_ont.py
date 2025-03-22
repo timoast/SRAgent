@@ -2,6 +2,7 @@
 ## batteries
 import os
 import re
+import time
 import requests
 from typing import Annotated
 from functools import lru_cache
@@ -146,12 +147,21 @@ def query_uberon_ols(
     Query the Ontology Lookup Service (OLS) for Uberon terms matching the search term.
     """
     url = f"https://www.ebi.ac.uk/ols/api/search?q={search_term}&ontology=uberon"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-    except Exception as e:
-        return f"Error querying OLS API: {e}"
+    max_retries = 2
+    retry_delay = 1
+    
+    for retry in range(max_retries):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            break
+        except Exception as e:
+            if retry < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            return f"Error querying OLS API after {max_retries} attempts: {e}"
 
     results = data.get("response", {}).get("docs", [])
     if not results:
@@ -177,10 +187,10 @@ if __name__ == "__main__":
     #print(results)
 
     # get neighbors
-    input = {'uberon_id': 'UBERON:0000010'}
-    input = {'uberon_id': 'UBERON:0002421'}
-    neighbors = get_neighbors.invoke(input)
-    print(neighbors); exit();
+    # input = {'uberon_id': 'UBERON:0000010'}
+    # input = {'uberon_id': 'UBERON:0002421'}
+    # neighbors = get_neighbors.invoke(input)
+    # print(neighbors); exit();
 
     # query OLS
     input = {'search_term': 'brain'}

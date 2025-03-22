@@ -16,7 +16,9 @@ from langchain_chroma import Chroma
 
 # format logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-
+logging.getLogger('openai').setLevel(logging.WARNING)
+logging.getLogger('chromadb').setLevel(logging.WARNING)
+logging.getLogger('httpx').setLevel(logging.WARNING)
 
 # functions
 def parse_cli_args() -> argparse.Namespace:
