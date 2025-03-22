@@ -50,8 +50,8 @@ def create_tissue_ont_agent(
         " Step 2: Use the get_neighbors tool on the Uberon terms returned in Step 1 to help find the most suitable term.",
         "   - ALWAYS use the get_neighbors tool to explore more the terms adjacent to the terms returned in Step 1.",
         " Step 3: Repeat steps 1 and 2 to find the most suitable Uberon term.",
-        "   - Perform between 1 and 3 iterations to find the most suitable term.",
-        " Step 4: [optional] Fall back to using query_uberon_ols if you cannot find a suitable term with query_vector_db and get_neighbors."
+        "   - ALWAYS perform between 1 and 3 iterations to find the most suitable term.",
+        " Step 4: If you are uncertain about which term to select, use the query_uberon_ols tool to help find the most suitable term."
         "# Response",
         " - Provide the most suitable Uberon ontology ID (UBERON:XXXXXXX) that best describes the tissue.",
     ])
@@ -100,17 +100,17 @@ if __name__ == "__main__":
         # print(f"Result for 'brain': {result['structured_response'].id}")
         
         # Example 2: More specific tissue example
-        print("\n=== Example 2: More specific tissue example ===")
-        msg = "Categorize the following tissue: hippocampus"
-        input = {"messages": [HumanMessage(content=msg)]}
-        result = await agent.ainvoke(input)
-        print(f"Result for 'hippocampus': {result['structured_response'].id}")
-        
-        # # Example 3: Complex tissue description example
-        # print("\n=== Example 3: Complex tissue description example ===")
-        # msg = "Categorize the following tissue: the thin layer of epithelial cells lining the alveoli in lungs"
+        # print("\n=== Example 2: More specific tissue example ===")
+        # msg = "Categorize the following tissue: hippocampus"
         # input = {"messages": [HumanMessage(content=msg)]}
         # result = await agent.ainvoke(input)
-        # print(f"Result for complex description: {result['structured_response'].id}")
+        # print(f"Result for 'hippocampus': {result['structured_response'].id}")
+        
+        # # Example 3: Complex tissue description example
+        print("\n=== Example 3: Complex tissue description example ===")
+        msg = "Categorize the following tissue: the thin layer of epithelial cells lining the alveoli in lungs"
+        input = {"messages": [HumanMessage(content=msg)]}
+        result = await agent.ainvoke(input)
+        print(f"Result for complex description: {result['structured_response'].id}")
         
     asyncio.run(main())

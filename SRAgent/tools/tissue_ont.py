@@ -53,8 +53,7 @@ def load_vector_store(chroma_path: str, collection_name: str="uberon") -> Chroma
 @tool
 def query_vector_db(
     query: Annotated[str, "The semantic search query"],
-    k: Annotated[int, "The number of results to return"]=3,
-    #db_path: Annotated[str, "The path to the Chroma DB"] = 
+    k: Annotated[int, "The number of results to return"]=5,
     ) -> str: 
     """
     Perform a semantic search by querying a vector store 
@@ -95,7 +94,6 @@ def get_ontology_graph(obo_path: str) -> nx.MultiDiGraph:
     Returns:
         The ontology graph as a NetworkX MultiDiGraph
     """
-    print(f"Loading ontology graph from {obo_path}")
     return obonet.read_obo(obo_path)
 
 @tool 
