@@ -4,12 +4,14 @@ import os
 import re
 import requests
 from typing import Annotated
+from functools import lru_cache
 ## 3rd party
 from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 import chromadb
 import obonet
+import networkx as nx
 ## package
 
 
@@ -27,14 +29,11 @@ def verify_collection(persistent_client: chromadb.PersistentClient, collection_n
         msg += f"\nAvailable collections: {persistent_client.list_collections()}"
         raise Exception(msg)
 
-def load_vector_store(chroma_path: str) -> Chroma:
+def load_vector_store(chroma_path: str, collection_name: str="uberon") -> Chroma:
     """Load a Chroma vector store from the specified path."""
     # Ensure the path exists
     if not os.path.exists(chroma_path):
         raise FileNotFoundError(f"Chroma DB directory not found: {chroma_path}")
-    
-    # Use the base name of the path as the collection name
-    collection_name = os.path.basename(chroma_path.rstrip("/"))
 
     # Initialize embeddings
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
@@ -82,12 +81,28 @@ def query_vector_db(
         message = f"No results found for query: \"{query}\". Consider refining your query."
     return message
 
+# Cache for the ontology graph
+_ONTOLOGY_GRAPH = None
+
+@lru_cache(maxsize=1)
+def get_ontology_graph(obo_path: str) -> nx.MultiDiGraph:
+    """
+    Load and cache the ontology graph from the OBO file.
+    Uses lru_cache to ensure the graph is only loaded once.
+    Args:
+        obo_path: Path to the OBO file
+    Returns:
+        The ontology graph as a NetworkX MultiDiGraph
+    """
+    print(f"Loading ontology graph from {obo_path}")
+    return obonet.read_obo(obo_path)
+
 @tool 
 def get_neighbors(
     uberon_id: Annotated[str, "The Uberon ID (UBERON:XXXXXXX)"],
     ) -> str: 
     """
-    Get the neighbors of a given Uberon ID in the tissue ontology.
+    Get the neighbors of a given Uberon ID in the Uberon tissue ontology.
     """
     # check the ID format
     if not re.match(r"UBERON:\d{7}", uberon_id):
@@ -96,8 +111,8 @@ def get_neighbors(
     # DEBUG:
     obo_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-simple.obo"
 
-    # read the ontology graph
-    g = obonet.read_obo(obo_path)
+    # Get the cached ontology graph or load it if not available
+    g = get_ontology_graph(obo_path)
 
     # get neighbors
     message = ""
