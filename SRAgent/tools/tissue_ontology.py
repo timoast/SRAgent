@@ -190,6 +190,8 @@ def query_uberon_ols(
     for i, doc in enumerate(results, 1):
         # Each doc should have an 'obo_id', a 'label', and possibly a 'description'
         obo_id = doc.get("obo_id", "No ID")
+        if not obo_id.startswith("UBERON:"):
+            continue
         label = doc.get("label", "No label")
         description = doc.get("description", ["None provided"])
         try:
@@ -218,7 +220,7 @@ if __name__ == "__main__":
     # print(neighbors); exit();
 
     # query OLS
-    input = {'search_term': "cerebral cortex"}
+    input = {'search_term': "bone marrow"}
     results = query_uberon_ols.invoke(input)
     print(results)
     

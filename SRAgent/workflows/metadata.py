@@ -14,9 +14,10 @@ from langgraph.graph import START, END, StateGraph, MessagesState
 from langchain_core.runnables.config import RunnableConfig
 ## package
 from SRAgent.agents.utils import set_model
-from SRAgent.agents.sragent import create_sragent_agent
 from SRAgent.db.connect import db_connect 
 from SRAgent.db.upsert import db_upsert
+from SRAgent.agents.sragent import create_sragent_agent
+from SRAgent.workflows.tissue_ontology import create_tissue_ontology_workflow
 
 # classes
 class YesNo(Enum):
@@ -118,10 +119,12 @@ class PrimaryMetadataEnum(BaseModel):
 class SecondaryMetadataEnum(BaseModel):
     organism: OrganismEnum
     tissue: List[str]
-    tissue_ontology_term_id: List[str]
     disease: List[str]
     perturbation: List[str]
     cell_line: List[str]
+
+class TertiaryMetadataEnum(BaseModel):
+    tissue_ontology_term_id: List[str]
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
@@ -163,11 +166,13 @@ class GraphState(TypedDict):
     organism: Annotated[str, "Which organism was sequenced?"]
     ## secondary metadata
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
-    tissue: Annotated[List[str], "Which tissues were sequenced?"]
-    tissue_ontology_term_id: Annotated[List[str], "What is the ontology term for each sequenced tissue?"]
-    disease: Annotated[List[str], "Any disease information?"]
-    perturbation: Annotated[List[str], "Any treatment/perturbation information?"]
-    cell_line: Annotated[List[str], "Which cell lines were sequenced?"]
+    tissue: Annotated[List[str], "A list of tissues sequenced"]
+    disease: Annotated[List[str], "A list of diseases associated with the sequenced tissues"]
+    perturbation: Annotated[List[str], "A list of any treatments or perturbations associated with the sequenced tissues"]
+    cell_line: Annotated[List[str], "A list of the cell lines sequenced"]
+    ## tertiary metadata
+    tissue_ontology_term_id: Annotated[List[str], "A list of the ontology terms corresponding to the sequenced tissues"]
+    
 
 # functions
 def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
@@ -256,6 +261,31 @@ def get_extracted_fields(response) -> Dict[str, str]:
             fields[field_name] = max_str_len(field_value, max_len=max_len)
     return fields
 
+def create_tissue_ontology_node() -> Callable:
+    """Create a node to extract tissue ontology"""
+    agent = create_tissue_ontology_workflow()
+    
+    # create the node function
+    async def invoke_tissue_ontology_node(state: GraphState) -> Dict[str, Any]:
+        """Invoke the tissue ontology workflow"""
+        # create message prompt
+        tissue_description = state.get("tissue")
+        if tissue_description:
+            tissue_description = fmt(tissue_description)
+        else:
+            return {"tissue_ontology_term_id" : []}
+        organism = state.get("organism", "No organism provided")
+        message = "\n".join([
+            f"The tissues: {tissue_description}",
+            f"The organism: {organism}"
+        ])
+        # call the agent
+        response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
+        # return the structured response (term IDs)
+        return {"tissue_ontology_term_id" : response}
+
+    return invoke_tissue_ontology_node
+
 def get_annot(key: str, state: dict) -> str:
     """If the key matches a graph state field, return the field annotation"""
     try:
@@ -267,7 +297,7 @@ def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
     model = set_model(agent_name="metadata")
 
-    async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig):
+    async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """Structured data extraction"""
         metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
@@ -373,7 +403,7 @@ def create_router_node() -> Callable:
 def route_retry_metadata(state: GraphState) -> str:
     """Determine the route based on the current state of the conversation."""
     # move on to which node?
-    next_node = "bump_metadata_level_node" if state["metadata_level"] == "primary" else "SRX2SRR_node"
+    next_node = "bump_metadata_level_node" if state["metadata_level"] == "primary" else "tissue_ontology_node"
     max_attempts = 2 if state["metadata_level"] == "primary" else 1
     # limit the number of attempts
     if state["attempts"] >= max_attempts:
@@ -444,7 +474,7 @@ def add2db(state: GraphState, config: RunnableConfig):
             db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
 def fmt(x: Union[str, List[str]]) -> str:
-    """If a list, join them with a semicolon into one string"""
+    """If a list, join them with a comma into one string"""
     if type(x) != list:
         return x
     return ",".join([str(y) for y in x])
@@ -480,6 +510,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
     workflow.add_node("bump_metadata_level_node", bump_metadata_level)
+    workflow.add_node("tissue_ontology_node", create_tissue_ontology_node())
     workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_sragent_agent_node)
     if db_add:
        workflow.add_node("add2db_node", add2db)
@@ -491,6 +522,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_retry_metadata)
     workflow.add_edge("bump_metadata_level_node", "sragent_agent_node")
+    workflow.add_edge("tissue_ontology_node", "SRX2SRR_node")
     if db_add:
        workflow.add_edge("SRX2SRR_node", "add2db_node")
        workflow.add_edge("add2db_node", "final_state_node")

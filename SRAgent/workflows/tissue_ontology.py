@@ -12,7 +12,7 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 ## package
 from SRAgent.agents.utils import set_model
-from SRAgent.agents.tissue_ont import create_tissue_ont_agent
+from SRAgent.agents.tissue_ontology import create_tissue_ontology_agent
 
 # classes
 class UBERON_IDS(BaseModel):
@@ -20,16 +20,16 @@ class UBERON_IDS(BaseModel):
     ids: List[str] = Field(description="The selected Uberon ID (UBERON:XXXXXXX)")
 
 # functions
-def create_tissue_ont_workflow(
+def create_tissue_ontology_workflow(
     model_name: Optional[str]=None,
     return_tool: bool=True,
 ) -> Callable:
     # create model
-    model = set_model(model_name=model_name, agent_name="tissue_ont")
+    model = set_model(model_name=model_name, agent_name="tissue_ontology")
 
     # set tools
     tools = [
-        create_tissue_ont_agent(),
+        create_tissue_ontology_agent(),
     ]
   
     # state modifier
@@ -41,15 +41,15 @@ def create_tissue_ont_workflow(
         " - You must find the single most suitable Uberon ontology term that best describes the tissue description.",
         " - You have a set of tools that can help you with this task.",
         "# Tools",
-        " - create_tissue_ont_agent: Use this tool to find the most suitable Uberon ontology term that best describes the tissue description.",
+        " - create_tissue_ontology_agent: Use this tool to find the most suitable Uberon ontology term that best describes the tissue description.",
         "# Workflow",
         " 1. Identify each unique tissue description in the input.",
         "   - For example, 'brain cortex; eye lens; aortic valve;' should be split into the following separate descriptions:",
         "     - brain cortex",
         "     - eye lens",
         "     - aortic valve",
-        " 2. For each description (e.g., \"brain cortex\"), use the create_tissue_ont_agent tool to find the most suitable Uberon ontology term.",
-        "   - You MUST use the create_tissue_ont_agent tool for EACH tissue description."
+        " 2. For each description (e.g., \"brain cortex\"), use the create_tissue_ontology_agent tool to find the most suitable Uberon ontology term.",
+        "   - You MUST use the create_tissue_ontology_agent tool for EACH tissue description."
         "# Response",
         " - Provide the list of most suitable Uberon ontology IDs (UBERON:XXXXXXX) that best describe each tissue description.",
     ])
@@ -63,23 +63,19 @@ def create_tissue_ont_workflow(
 
     # create tool
     @tool
-    async def invoke_tissue_ont_workflow(
-        message: Annotated[str, "Message to send to the Tissue Ontology agent"],
+    async def invoke_tissue_ontology_workflow(
+        messages: Annotated[List[BaseMessage], "Messages to send to the Tissue Ontology agent"],
         config: RunnableConfig,
     ) -> Annotated[dict, "Response from the Tissue Ontology agent"]:
         """
         Invoke the Tissue Ontology agent with a message.
         The Tissue Ontology agent will annotate each tissue description with the most suitable Uberon term.
         """
-        # Invoke the agent with the message
-        result = await agent.ainvoke({"messages" : [AIMessage(content=message)]}, config=config)
-        msg = f"Tissue ontology term IDs: {', '.join(result['structured_response'].ids)}"
-        return {
-            "messages": [AIMessage(content=msg, name="tissue_ontology_agent")]
-        }
-        #return {"tissue_ontology_term_ids" : result["structured_response"].ids}
-    return invoke_tissue_ont_workflow
-
+        # The React agent expects messages in this format
+        response = await agent.ainvoke({"messages" : messages}, config=config)
+        # return ontology term IDs
+        return response['structured_response'].ids
+    return invoke_tissue_ontology_workflow
 
 # main 
 if __name__ == "__main__":
@@ -89,14 +85,14 @@ if __name__ == "__main__":
 
     async def main():
         # create workflow
-        workflow = create_tissue_ont_workflow()
+        workflow = create_tissue_ontology_workflow()
 
         # Example 1: Complex tissue description example
         print("\n=== Example 1: Complex tissue description example ===")
         msg = "Categorize the following tissues: the thin layer of epithelial cells lining the alveoli in lungs; brain cortex; eye lens"
         input = {"messages": [HumanMessage(content=msg)]}
-        result = await workflow.ainvoke(input)
-        print(result['messages'][-1].content)
+        results = await workflow.ainvoke(input)
+        print(results)
 
     # run
     asyncio.run(main())

@@ -12,19 +12,19 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 ## package
 from SRAgent.agents.utils import set_model
-from SRAgent.tools.tissue_ont import query_vector_db, get_neighbors, query_uberon_ols
+from SRAgent.tools.tissue_ontology import query_vector_db, get_neighbors, query_uberon_ols
 
 # classes
 class UBERON_ID(BaseModel):
     id: str = Field(description="The selected Uberon ID (UBERON:XXXXXXX)")
 
 # functions
-def create_tissue_ont_agent(
+def create_tissue_ontology_agent(
     model_name: Optional[str]=None,
     return_tool: bool=True,
 ) -> Callable:
     # create model
-    model = set_model(model_name=model_name, agent_name="tissue_ont")
+    model = set_model(model_name=model_name, agent_name="tissue_ontology")
 
     # set tools
     tools = [
@@ -69,7 +69,7 @@ def create_tissue_ont_agent(
 
     # create tool
     @tool
-    async def invoke_tissue_ont_agent(
+    async def invoke_tissue_ontology_agent(
         tissue_description: Annotated[str, "Tissue description to annotate with the most suitable Uberon term"],
         config: RunnableConfig,
     ) -> Annotated[dict, "Response from the Tissue Ontology agent with the most suitable Uberon term"]:
@@ -84,8 +84,7 @@ def create_tissue_ont_agent(
         return {
             "messages": [AIMessage(content=msg, name="tissue_ontology_agent")]
         }
-        #return {"tissue_ontology_term_id" : result["structured_response"].id}
-    return invoke_tissue_ont_agent
+    return invoke_tissue_ontology_agent
 
 # main
 if __name__ == "__main__":
@@ -95,7 +94,7 @@ if __name__ == "__main__":
 
     async def main():
         # create entrez agent
-        agent = create_tissue_ont_agent(return_tool=False)
+        agent = create_tissue_ontology_agent(return_tool=False)
     
         # Example 1: Simple tissue example
         print("\n=== Example 1: Simple tissue example ===")

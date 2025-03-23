@@ -17,7 +17,6 @@ from SRAgent.agents.ncbi_fetch import create_ncbi_fetch_agent
 from SRAgent.agents.bigquery import create_bigquery_agent
 from SRAgent.agents.sequences import create_sequences_agent
 from SRAgent.agents.utils import create_step_summary_chain
-from SRAgent.workflows.tissue_ont import create_tissue_ont_workflow
 
 # functions
 def create_sragent_agent(
@@ -33,7 +32,6 @@ def create_sragent_agent(
         create_ncbi_fetch_agent(),
         create_bigquery_agent(),
         create_sequences_agent(),
-        create_tissue_ont_workflow(),
     ]
   
     # state modifier
@@ -60,15 +58,10 @@ def create_sragent_agent(
         "## Sequences Agent",
         " - The Sequences agent can fetch sequences and statistics on sequences (e.g., number of bases) from the NCBI database.",
         " - This agent is useful for questions about sequence data (e.g., number of bases, sequence length, etc.).",
-        "## Tissue Ontology Agent",
-        " - The Tissue Ontology agent can obtain tissue ontology terms based on a description of the tissue.",
-        " - Use this agent if you need to find the tissue ontology terms for one or more tissues.",
-        " - Provide the organism or other relevant context to the agent, when possible.",
         "# Strategy",
         " - Always try multiple approaches if the first attempt fails",
         " - Consider the following patterns:",
         "   - If searching for metadata, first try the BigQuery agent, and then try the Entrez and NCBI Fetch agents",
-        "     - If metadata includes tissue ontology, be sure to use the Tissue Ontology agent",
         "   - For accession conversions, try the BigQuery agent first, and then try the Entrez agent",
         "   - For sequence data, combine the Sequences agent with metadata from other agents",
         " - Keep track of what you have tried and what information you still need",
