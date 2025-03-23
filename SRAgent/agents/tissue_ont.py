@@ -80,7 +80,11 @@ def create_tissue_ont_agent(
         # Invoke the agent with the message
         messages = [HumanMessage(content=tissue_description)]
         result = await agent.ainvoke({"messages" : messages}, config=config)
-        return {"tissue_ontology_term_id" : result["structured_response"].id}
+        msg = f"Tissue ontology term ID: {result['structured_response'].id}"
+        return {
+            "messages": [AIMessage(content=msg, name="tissue_ontology_agent")]
+        }
+        #return {"tissue_ontology_term_id" : result["structured_response"].id}
     return invoke_tissue_ont_agent
 
 # main
@@ -93,12 +97,12 @@ if __name__ == "__main__":
         # create entrez agent
         agent = create_tissue_ont_agent(return_tool=False)
     
-        # # Example 1: Simple tissue example
-        # print("\n=== Example 1: Simple tissue example ===")
-        # msg = "Categorize the following tissue: brain"
-        # input = {"messages": [HumanMessage(content=msg)]}
-        # result = await agent.ainvoke(input)
-        # print(f"Result for 'brain': {result['structured_response'].id}")
+        # Example 1: Simple tissue example
+        print("\n=== Example 1: Simple tissue example ===")
+        msg = "Categorize the following tissue: brain cortex"
+        input = {"messages": [HumanMessage(content=msg)]}
+        result = await agent.ainvoke(input)
+        print(result['messages'][-1].content)
         
         # Example 2: More specific tissue example
         # print("\n=== Example 2: More specific tissue example ===")
@@ -107,11 +111,5 @@ if __name__ == "__main__":
         # result = await agent.ainvoke(input)
         # print(f"Result for 'hippocampus': {result['structured_response'].id}")
         
-        # # Example 3: Complex tissue description example
-        print("\n=== Example 3: Complex tissue description example ===")
-        msg = "Categorize the following tissues: the thin layer of epithelial cells lining the alveoli in lungs; brain cortex; eye lens; aortic valve;"
-        input = {"messages": [HumanMessage(content=msg)]}
-        result = await agent.ainvoke(input)
-        print(f"Result for complex description: {result['structured_response'].id}")
         
     asyncio.run(main())

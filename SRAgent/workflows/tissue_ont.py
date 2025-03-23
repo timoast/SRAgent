@@ -64,16 +64,20 @@ def create_tissue_ont_workflow(
     # create tool
     @tool
     async def invoke_tissue_ont_workflow(
-        messages: Annotated[List[BaseMessage], "Messages to send to the Tissue Ontology workflow"],
+        message: Annotated[str, "Message to send to the Tissue Ontology agent"],
         config: RunnableConfig,
-    ) -> Annotated[dict, "Response from the Tissue Ontology workflow"]:
+    ) -> Annotated[dict, "Response from the Tissue Ontology agent"]:
         """
-        Invoke the Tissue Ontology workflow with a message.
-        The Tissue Ontology workflow will annotate each tissue description with the most suitable Uberon term.
+        Invoke the Tissue Ontology agent with a message.
+        The Tissue Ontology agent will annotate each tissue description with the most suitable Uberon term.
         """
         # Invoke the agent with the message
-        result = await agent.ainvoke({"messages" : messages}, config=config)
-        return {"tissue_ontology_term_ids" : result["structured_response"].ids}
+        result = await agent.ainvoke({"messages" : [AIMessage(content=message)]}, config=config)
+        msg = f"Tissue ontology term IDs: {', '.join(result['structured_response'].ids)}"
+        return {
+            "messages": [AIMessage(content=msg, name="tissue_ontology_agent")]
+        }
+        #return {"tissue_ontology_term_ids" : result["structured_response"].ids}
     return invoke_tissue_ont_workflow
 
 
@@ -91,8 +95,8 @@ if __name__ == "__main__":
         print("\n=== Example 1: Complex tissue description example ===")
         msg = "Categorize the following tissues: the thin layer of epithelial cells lining the alveoli in lungs; brain cortex; eye lens"
         input = {"messages": [HumanMessage(content=msg)]}
-        ontology_term_ids = await workflow.ainvoke(input)
-        print(f"Result for complex description: {','.join(ontology_term_ids['tissue_ontology_term_ids'])}")
+        result = await workflow.ainvoke(input)
+        print(result['messages'][-1].content)
 
     # run
     asyncio.run(main())

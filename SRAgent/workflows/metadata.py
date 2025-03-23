@@ -117,10 +117,11 @@ class PrimaryMetadataEnum(BaseModel):
 
 class SecondaryMetadataEnum(BaseModel):
     organism: OrganismEnum
-    tissue: str
-    disease: str
-    perturbation: str
-    cell_line: str
+    tissue: List[str]
+    tissue_ontology_term_id: List[str]
+    disease: List[str]
+    perturbation: List[str]
+    cell_line: List[str]
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
@@ -158,14 +159,15 @@ class GraphState(TypedDict):
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
-    tech_10x: Annotated[List[str], "If 10X Genomics, which particular 10X technologies?"]
+    tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
     organism: Annotated[str, "Which organism was sequenced?"]
     ## secondary metadata
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
-    tissue: Annotated[str, "Which tissue was sequenced?"]
-    disease: Annotated[str, "Any disease information?"]
-    perturbation: Annotated[str, "Any treatment/perturbation information?"]
-    cell_line: Annotated[str, "Any cell line information?"]
+    tissue: Annotated[List[str], "Which tissues were sequenced?"]
+    tissue_ontology_term_id: Annotated[List[str], "What is the ontology term for each sequenced tissue?"]
+    disease: Annotated[List[str], "Any disease information?"]
+    perturbation: Annotated[List[str], "Any treatment/perturbation information?"]
+    cell_line: Annotated[List[str], "Which cell lines were sequenced?"]
 
 # functions
 def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
@@ -221,6 +223,8 @@ def create_sragent_agent_node():
 
 def max_str_len(x: str, max_len:int = 100) -> str:
     """Find the maximum length string in a list"""
+    if isinstance(x, list):
+        x = ",".join(x)
     if not isinstance(x, str):
         return x
     return x if len(x) <= max_len else x[:max_len-3] + "..."
@@ -239,6 +243,8 @@ def get_extracted_fields(response) -> Dict[str, str]:
         # set the max string length
         if field_name == "tissue":
             max_len = 80
+        elif field_name == "tissue_ontology_term_id":
+            max_len = 155
         else:
             max_len = 100
         # get the field value
@@ -411,13 +417,14 @@ def add2db(state: GraphState, config: RunnableConfig):
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
         "lib_prep": state["lib_prep"],
-        "tech_10x": fmt(state["tech_10x"]),
+        "tech_10x": state["tech_10x"],
         "cell_prep": state["cell_prep"],
         "organism": state["organism"],
-        "tissue": state["tissue"],
-        "disease": state["disease"],
-        "perturbation": state["perturbation"],
-        "cell_line": state["cell_line"],
+        "tissue": fmt(state["tissue"]),
+        "tissue_ontology_term_id": fmt(state["tissue_ontology_term_id"]),
+        "disease": fmt(state["disease"]),
+        "perturbation": fmt(state["perturbation"]),
+        "cell_line": fmt(state["cell_line"]),
         "notes": "Metadata obtained by SRAgent"
     }]
     data = pd.DataFrame(data)
@@ -520,7 +527,7 @@ if __name__ == "__main__":
 
     #-- setup --#
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
@@ -538,6 +545,7 @@ if __name__ == "__main__":
         async for step in graph.astream(input, subgraphs=False, config=config):
             print(step)
     asyncio.run(main())
+    exit();
 
     # Save the graph image
     # from SRAgent.utils import save_graph_image
