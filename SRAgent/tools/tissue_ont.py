@@ -20,6 +20,13 @@ import networkx as nx
 def verify_collection(persistent_client: chromadb.PersistentClient, collection_name: str) -> None:
     """
     Verify that the collection exists and has documents
+    Args:
+        persistent_client: The persistent Chroma client
+        collection_name: The name of the collection to verify
+    Returns:
+        None
+    Raises:
+        Exception: If the collection does not exist or has no documents
     """
     try:
         collection = persistent_client.get_collection(collection_name)
@@ -31,7 +38,17 @@ def verify_collection(persistent_client: chromadb.PersistentClient, collection_n
         raise Exception(msg)
 
 def load_vector_store(chroma_path: str, collection_name: str="uberon") -> Chroma:
-    """Load a Chroma vector store from the specified path."""
+    """
+    Load a Chroma vector store from the specified path.
+    Args:
+        chroma_path: The path to the Chroma DB directory
+        collection_name: The name of the collection to load
+    Returns:
+        A Chroma vector store
+    Raises:
+        FileNotFoundError: If the Chroma DB directory does not exist
+        Exception: If the collection does not exist or has no documents
+    """
     # Ensure the path exists
     if not os.path.exists(chroma_path):
         raise FileNotFoundError(f"Chroma DB directory not found: {chroma_path}")
