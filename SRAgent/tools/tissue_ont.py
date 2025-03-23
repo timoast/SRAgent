@@ -70,7 +70,7 @@ def load_vector_store(chroma_path: str, collection_name: str="uberon") -> Chroma
 @tool
 def query_vector_db(
     query: Annotated[str, "The semantic search query"],
-    k: Annotated[int, "The number of results to return"]=5,
+    k: Annotated[int, "The number of results to return"]=3,
     ) -> str: 
     """
     Perform a semantic search by querying a vector store 
@@ -161,7 +161,12 @@ def query_uberon_ols(
     """
     Query the Ontology Lookup Service (OLS) for Uberon terms matching the search term.
     """
-    url = f"https://www.ebi.ac.uk/ols/api/search?q={search_term}&ontology=uberon"
+    # Format search term for URL (handle special characters)
+    import urllib.parse
+    encoded_search_term = urllib.parse.quote(search_term)
+    #print(f"Encoded search term: {encoded_search_term}"); exit();
+    
+    url = f"https://www.ebi.ac.uk/ols/api/search?q={encoded_search_term}&ontology=uberon"
     max_retries = 2
     retry_delay = 1
     
@@ -187,19 +192,25 @@ def query_uberon_ols(
         # Each doc should have an 'obo_id', a 'label', and possibly a 'description'
         obo_id = doc.get("obo_id", "No ID")
         label = doc.get("label", "No label")
-        description = doc.get("description", ["No description"])[0]  # description is usually a list
+        description = doc.get("description", ["None provided"])
+        try:
+            description = description[0]
+        except IndexError:
+            pass
+        if not description:
+            description = "None provided"
+        # print description class
         message += f"{i}. {obo_id} - {label}\n   Description: {description}\n"
     return message
-
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv(override=True)
 
     # semantic search
-    #query = "brain"
-    #results = query_vector_db.invoke({"query" : query})
-    #print(results)
+    # query = "brain"
+    # results = query_vector_db.invoke({"query" : query})
+    # print(results)
 
     # get neighbors
     # input = {'uberon_id': 'UBERON:0000010'}
@@ -208,7 +219,7 @@ if __name__ == "__main__":
     # print(neighbors); exit();
 
     # query OLS
-    input = {'search_term': 'brain'}
+    input = {'search_term': "cerebral cortex"}
     results = query_uberon_ols.invoke(input)
     print(results)
     
