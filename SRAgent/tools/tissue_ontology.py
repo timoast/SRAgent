@@ -2,8 +2,13 @@
 ## batteries
 import os
 import re
+import sys
 import time
+import shutil
+import tarfile
+import tempfile
 import requests
+import urllib.parse
 from typing import Annotated
 from functools import lru_cache
 ## 3rd party
@@ -13,6 +18,7 @@ from langchain_chroma import Chroma
 import chromadb
 import obonet
 import networkx as nx
+import appdirs
 
 
 # functions
@@ -30,7 +36,7 @@ def verify_collection(persistent_client: chromadb.PersistentClient, collection_n
     try:
         collection = persistent_client.get_collection(collection_name)
         count = collection.count()
-        print(f"Found {count} documents in collection '{collection_name}'")
+        print(f"Found {count} documents in collection '{collection_name}'", file=sys.stdout)
     except Exception as e:
         msg = f"Error accessing collection: {e}"
         msg += f"\nAvailable collections: {persistent_client.list_collections()}"
@@ -74,11 +80,59 @@ def query_vector_db(
     """
     Perform a semantic search by querying a vector store 
     """
-    # DEBUG: 
-    db_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-full_chroma"
-    # load the vector store
-    vector_store = load_vector_store(db_path)
-    # query the vector store
+    # Determine the cache directory using appdirs
+    cache_dir = appdirs.user_cache_dir("SRAgent")
+    chroma_dir_name = "uberon-full_chroma"
+    chroma_dir_path = os.path.join(cache_dir, chroma_dir_name)
+    
+    # Create the cache directory if it doesn't exist
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    # Check if the Chroma DB directory exists
+    if not os.path.exists(chroma_dir_path) or not os.listdir(chroma_dir_path):
+        # Download and extract the tarball
+        gcp_url = "https://storage.googleapis.com/arc-ctc-scbasecamp/2025-02-25/tissue_ontology/uberon-full_chroma.tar.gz"
+        tarball_path = os.path.join(cache_dir, "uberon-full_chroma.tar.gz")
+        
+        print(f"Downloading Chroma DB from {gcp_url}...", file=sys.stdout)
+        try:
+            # Download the tarball
+            response = requests.get(gcp_url, stream=True)
+            response.raise_for_status()
+            with open(tarball_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            print(f"Downloaded to {tarball_path}, extracting...", file=sys.stdout)
+            
+            # Extract the tarball
+            with tarfile.open(tarball_path) as tar:
+                # Create a temporary directory for extraction
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    tar.extractall(path=temp_dir)
+                    # Find the extracted directory
+                    extracted_items = os.listdir(temp_dir)
+                    if extracted_items:
+                        extracted_dir = os.path.join(temp_dir, extracted_items[0])
+                        # If the extraction created a directory with the right name, move it
+                        if os.path.isdir(extracted_dir):
+                            # Remove any existing directory
+                            if os.path.exists(chroma_dir_path):
+                                shutil.rmtree(chroma_dir_path)
+                            # Move the extracted directory to the cache
+                            shutil.move(extracted_dir, chroma_dir_path)
+            
+            print(f"Extraction complete, Chroma DB available at {chroma_dir_path}", file=sys.stdout)
+            
+            # Clean up the downloaded tarball
+            os.remove(tarball_path)
+        except Exception as e:
+            return f"Error downloading or extracting Chroma DB: {e}"
+    
+    # Load the vector store
+    vector_store = load_vector_store(chroma_dir_path)
+    
+    # Query the vector store
     message = ""
     try:
         results = vector_store.similarity_search(query, k=k)
@@ -123,8 +177,26 @@ def get_neighbors(
     if not re.match(r"UBERON:\d{7}", uberon_id):
         return f"Invalid Uberon ID format: \"{uberon_id}\". The format must be \"UBERON:XXXXXXX\"."
 
-    # DEBUG:
-    obo_path = "/home/nickyoungblut/dev/python/SRAgent/tmp/tissue_ontology/uberon-full.obo"
+    # Determine the cache directory using appdirs
+    cache_dir = appdirs.user_cache_dir("SRAgent")
+    obo_filename = "uberon-full.obo"
+    obo_path = os.path.join(cache_dir, obo_filename)
+    
+    # Create the cache directory if it doesn't exist
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    # Download the OBO file if it doesn't exist
+    if not os.path.exists(obo_path) or not os.listdir(cache_dir):
+        obo_url = "http://purl.obolibrary.org/obo/uberon/uberon-full.obo"
+        print(f"Downloading Uberon ontology from {obo_url}...", file=sys.stdout)
+        try:
+            response = requests.get(obo_url)
+            response.raise_for_status()
+            with open(obo_path, "wb") as f:
+                f.write(response.content)
+            print(f"Downloaded and saved to {obo_path}", file=sys.stdout)
+        except Exception as e:
+            return f"Error downloading Uberon ontology: {e}"
 
     # Get the cached ontology graph or load it if not available
     g = get_ontology_graph(obo_path)
@@ -209,15 +281,15 @@ if __name__ == "__main__":
     load_dotenv(override=True)
 
     # semantic search
-    # query = "brain"
-    # results = query_vector_db.invoke({"query" : query})
-    # print(results)
+    query = "brain"
+    results = query_vector_db.invoke({"query" : query})
+    print(results); exit();
 
-    # get neighbors
-    # input = {'uberon_id': 'UBERON:0000010'}
-    # input = {'uberon_id': 'UBERON:0002421'}
-    # neighbors = get_neighbors.invoke(input)
-    # print(neighbors); exit();
+    #  get neighbors
+    input = {'uberon_id': 'UBERON:0000010'}
+    #input = {'uberon_id': 'UBERON:0002421'}
+    neighbors = get_neighbors.invoke(input)
+    print(neighbors); exit();
 
     # query OLS
     input = {'search_term': "bone marrow"}
