@@ -15,7 +15,6 @@ import obonet
 import networkx as nx
 
 
-
 # functions
 def verify_collection(persistent_client: chromadb.PersistentClient, collection_name: str) -> None:
     """
