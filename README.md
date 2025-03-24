@@ -187,7 +187,8 @@ SRAgent metadata "entrez-id_srx-accession.csv"
 
 ## Tissue-ontology agent
 
-An agent for categorizing tissue descriptions using the Uberon ontology. The agent helps identify the most suitable Uberon ontology term for a given tissue description.
+An agent for categorizing tissue descriptions using the Uberon ontology. 
+The agent helps identify the most suitable Uberon ontology term for a given tissue description.
 
 * Input: Free text description of one or more tissues
 * Output: Uberon ontology IDs (UBERON:XXXXXXX) for each tissue description

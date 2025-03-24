@@ -498,7 +498,11 @@ def final_state(state: GraphState):
     for k,v in get_metadata_items("secondary").items():
         metadata.append(f" - {v}: {state[k]}")
     for k,v in get_metadata_items("tertiary").items():
-        metadata.append(f" - {v}: {state[k]}")
+        try:
+            result = ", ".join(state[k])
+        except ValueError:
+            result = state[k]
+        metadata.append(f" - {v}: {result}")
     # create the message
     message = "\n".join([
         "# SRX accession: " + state["SRX"],
