@@ -81,6 +81,7 @@ def create_sragent_agent(
         " - If you have all the information needed, provide a final response; otherwise, continue calling agents.",
         "# Notes",
         " - Bulk RNA-seq is NOT the same as single-cell RNA-seq (scRNA-seq); be sure to distinguish between them.",
+        " - \"single cell\" typically refers to whole-cell sequencing; \"nucleus\" is usually stated if single nucleus sequencing.",
         "# Final response",
         " - Be concise; use lists when possible",
         " - Do not use markdown headers or other complex formatting",

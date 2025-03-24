@@ -131,11 +131,6 @@ class ChoicesEnum(Enum):
     CONTINUE = "CONTINUE"
     STOP = "STOP"
 
-class MetadataLevelsEnum(Enum):
-    """Choices for the router"""
-    PRIMARY = "primary"
-    SECONDARY = "secondary"
-
 class Choice(BaseModel):
     """Choice to continue or stop"""
     Choice: ChoicesEnum
@@ -147,7 +142,6 @@ class SRR(BaseModel):
 class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    #extracted_metadata: Annotated[Sequence[BaseMessage], "extractd metadata"]
     route: Annotated[str, "Route"]
     attempts: Annotated[int, "Number of attempts to extract metadata"]
     metadata_level: Annotated[str, "Metadata level"]
@@ -166,12 +160,12 @@ class GraphState(TypedDict):
     organism: Annotated[str, "Which organism was sequenced?"]
     ## secondary metadata
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
-    tissue: Annotated[List[str], "A list of tissues sequenced"]
-    disease: Annotated[List[str], "A list of diseases associated with the sequenced tissues"]
-    perturbation: Annotated[List[str], "A list of any treatments or perturbations associated with the sequenced tissues"]
-    cell_line: Annotated[List[str], "A list of the cell lines sequenced"]
+    tissue: Annotated[str, "Which tissues were sequenced?"]
+    disease: Annotated[str, "Any disease information?"]
+    perturbation: Annotated[str, "Any treatment/perturbation information?"]
+    cell_line: Annotated[str, "Any cell line information?"]
     ## tertiary metadata
-    tissue_ontology_term_id: Annotated[List[str], "A list of the ontology terms corresponding to the sequenced tissues"]
+    tissue_ontology_term_id: Annotated[List[str], "The ontology terms corresponding to the sequenced tissues"]
     
 
 # functions
@@ -186,8 +180,10 @@ def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
         to_include = PrimaryMetadataEnum.model_fields.keys()
     elif metadata_level == "secondary":
         to_include = SecondaryMetadataEnum.model_fields.keys()
+    elif metadata_level == "tertiary":
+        to_include = TertiaryMetadataEnum.model_fields.keys()
     else:
-        raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
+        raise ValueError("The metadata_level must be 'primary', 'secondary', or 'tertiary'.")
 
     # get the metadata items
     metadata_items = {}
@@ -226,7 +222,7 @@ def create_sragent_agent_node():
         }
     return invoke_sragent_agent_node
 
-def max_str_len(x: str, max_len:int = 100) -> str:
+def max_str_len(x: str, max_len:int = 300) -> str:
     """Find the maximum length string in a list"""
     if isinstance(x, list):
         x = ",".join(x)
@@ -246,12 +242,10 @@ def get_extracted_fields(response) -> Dict[str, str]:
     fields = {}
     for field_name in response.model_fields.keys():
         # set the max string length
-        if field_name == "tissue":
-            max_len = 80
-        elif field_name == "tissue_ontology_term_id":
-            max_len = 155
-        else:
+        if field_name == "organism":
             max_len = 100
+        else:
+            max_len = 300
         # get the field value
         field_value = getattr(response, field_name)
         # add to fields dict
@@ -260,31 +254,6 @@ def get_extracted_fields(response) -> Dict[str, str]:
         else:
             fields[field_name] = max_str_len(field_value, max_len=max_len)
     return fields
-
-def create_tissue_ontology_node() -> Callable:
-    """Create a node to extract tissue ontology"""
-    agent = create_tissue_ontology_workflow()
-    
-    # create the node function
-    async def invoke_tissue_ontology_node(state: GraphState) -> Dict[str, Any]:
-        """Invoke the tissue ontology workflow"""
-        # create message prompt
-        tissue_description = state.get("tissue")
-        if tissue_description:
-            tissue_description = fmt(tissue_description)
-        else:
-            return {"tissue_ontology_term_id" : []}
-        organism = state.get("organism", "No organism provided")
-        message = "\n".join([
-            f"The tissues: {tissue_description}",
-            f"The organism: {organism}"
-        ])
-        # call the agent
-        response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
-        # return the structured response (term IDs)
-        return {"tissue_ontology_term_id" : response}
-
-    return invoke_tissue_ontology_node
 
 def get_annot(key: str, state: dict) -> str:
     """If the key matches a graph state field, return the field annotation"""
@@ -308,7 +277,8 @@ def create_get_metadata_node() -> Callable:
             " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\", \"likely\", or \"assumed\").",
             " - If there is not enough information to determine the metadata, respond with \"unsure\" or \"other\", depending on the metadata field.",
             " - If the selected \"lib_prep\" field is NOT \"10X_Genomics\", the \"tech_10x\" field should be \"not_applicable\".",
-            " - Keep free text responses short; use less than 100 characters.",
+            " - \"single cell\" typically refers to whole-cell sequencing; \"nucleus\" is usually stated if single nucleus sequencing.",
+            " - Keep free text responses short; use less than 300 characters.",
             "# The specific metadata to extract",
             metadata_items
         ])
@@ -418,6 +388,39 @@ def bump_metadata_level(state: GraphState) -> str:
         "attempts" : 0
     }
 
+def create_tissue_ontology_node() -> Callable:
+    """Create a node to extract tissue ontology"""
+    agent = create_tissue_ontology_workflow()
+    
+    # create the node function
+    async def invoke_tissue_ontology_node(state: GraphState) -> Dict[str, Any]:
+        """Invoke the tissue ontology workflow"""
+        # create message prompt
+        tissues = state.get("tissue")
+        if tissues:
+            tissues = fmt(tissues)
+        else:
+            return {"tissue_ontology_term_id" : []}
+        organism = state.get("organism", "No organism provided")
+        disease= state.get("disease", "No disease provided")
+        perturbation = state.get("perturbation", "No perturbation provided")
+        cell_line = state.get("cell_line", "No cell line provided")
+        message = "\n".join([
+            "# Primary information",
+            f"The tissues: {tissues}",
+            "# Secondary information",
+            f"The organism: {organism}",
+            f"The disease: {disease}",
+            f"The perturbation: {perturbation}",
+            f"The cell line: {cell_line}",
+        ])
+        # call the agent
+        response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
+        # return the structured response (term IDs)
+        return {"tissue_ontology_term_id" : response}
+
+    return invoke_tissue_ontology_node
+
 async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
     # format the message
@@ -486,6 +489,8 @@ def final_state(state: GraphState):
     for k,v in get_metadata_items("primary").items():
         metadata.append(f" - {v}: {state[k]}")
     for k,v in get_metadata_items("secondary").items():
+        metadata.append(f" - {v}: {state[k]}")
+    for k,v in get_metadata_items("tertiary").items():
         metadata.append(f" - {v}: {state[k]}")
     # create the message
     message = "\n".join([

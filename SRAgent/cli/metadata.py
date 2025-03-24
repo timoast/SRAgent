@@ -24,7 +24,8 @@ def metadata_agent_parser(subparsers):
     )
     sub_parser.set_defaults(func=metadata_agent_main)
     sub_parser.add_argument(
-        'srx_accession_csv', type=str, help='CSV of entrez_id,srx_accession'
+        'srx_accession_csv', type=str, 
+        help='CSV of entrez_id,srx_accession. Headers required'
     )    
     sub_parser.add_argument(
         '--database', type=str, default='sra', choices=['gds', 'sra'], 
@@ -126,7 +127,7 @@ async def _metadata_agent_main(args):
     }
 
     # read in entrez_id and srx_accession
-    entrez_srx = pd.read_csv(args.srx_accession_csv).to_records(index=False)
+    entrez_srx = pd.read_csv(args.srx_accession_csv, comment="#").to_records(index=False)
 
     # Create semaphore to limit concurrent processing
     semaphore = asyncio.Semaphore(args.max_parallel)
