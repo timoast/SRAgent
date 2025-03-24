@@ -15,9 +15,15 @@ from SRAgent.agents.utils import set_model
 from SRAgent.agents.tissue_ontology import create_tissue_ontology_agent
 
 # classes
+class UBERON_ID(BaseModel):
+    id: str = Field(
+        description="The Uberon term ID (UBERON:XXXXXXX) for the tissue description or 'No suitable ontology term found' if no term is found."
+    )
+
 class UBERON_IDS(BaseModel):
-    #descriptions: List[str] = Field(description="Each unique tissue description provided in the input.")
-    ids: List[str] = Field(description="The selected Uberon ID (UBERON:XXXXXXX)")
+    ids: List[UBERON_ID] = Field(
+        description="The Uberon term IDs (UBERON:XXXXXXX) for each tissue description, if available."
+    )
 
 # functions
 def create_tissue_ontology_workflow(
@@ -50,8 +56,13 @@ def create_tissue_ontology_workflow(
         "     - aortic valve",
         " 2. For each description (e.g., \"brain cortex\"), use the create_tissue_ontology_agent tool to find the most suitable Uberon ontology term.",
         "   - You MUST use the create_tissue_ontology_agent tool for EACH tissue description."
+        "# Notes",
+        " - There is no valid Uberon ontology term for \"tumor\" or \"cancer\".",
+        "   - You must be provided with the tissue context for the tumor/cancer.",
+        "   - For example, \"tumor of of the skin\" is valid, but \"tumor\" is not valid.",
+        "   - Only call the create_tissue_ontology_agent tool when you have the tissue context for tumor/cancer.",
         "# Response",
-        " - Provide the list of most suitable Uberon ontology IDs (UBERON:XXXXXXX) that best describe each tissue description.",
+        " - Provide the Uberon ontology IDs (UBERON:XXXXXXX) that describe each tissue description, if they are available.",
     ])
     # create agent
     agent = create_react_agent(
@@ -69,12 +80,17 @@ def create_tissue_ontology_workflow(
     ) -> Annotated[dict, "Response from the Tissue Ontology agent"]:
         """
         Invoke the Tissue Ontology agent with a message.
-        The Tissue Ontology agent will annotate each tissue description with the most suitable Uberon term.
+        The Tissue Ontology agent will annotate each tissue description with the most suitable Uberon term,
+        or "No suitable ontology term found" if no term is found.
         """
         # The React agent expects messages in this format
         response = await agent.ainvoke({"messages" : messages}, config=config)
-        # return ontology term IDs
-        return response['structured_response'].ids
+        # filter out ids that do not start with "UBERON:"
+        ids = [x.id for x in response['structured_response'].ids if x.id.startswith("UBERON:")]
+        if not ids:
+            return []
+        return ids
+    
     return invoke_tissue_ontology_workflow
 
 # main 
@@ -89,7 +105,9 @@ if __name__ == "__main__":
 
         # Example 1: Complex tissue description example
         print("\n=== Example 1: Complex tissue description example ===")
-        msg = "Categorize the following tissues: the thin layer of epithelial cells lining the alveoli in lungs; brain cortex; eye lens"
+        #msg = "Categorize the following tissues: the thin layer of epithelial cells lining the alveoli in lungs; brain cortex; eye lens"
+        #msg = "Tissues: lung,tumor,adjacent non-affected lung"
+        msg = "Tissues: tumor"
         input = {"messages": [HumanMessage(content=msg)]}
         results = await workflow.ainvoke(input)
         print(results)

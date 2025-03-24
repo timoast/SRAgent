@@ -10,13 +10,14 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_openai.chat_models.base import OpenAIRefusalError
 ## package
 from SRAgent.agents.utils import set_model
 from SRAgent.tools.tissue_ontology import query_vector_db, get_neighbors, query_uberon_ols
 
 # classes
 class UBERON_ID(BaseModel):
-    id: str = Field(description="The selected Uberon ID (UBERON:XXXXXXX)")
+    id: str = Field(description="The selected Uberon ID (UBERON:XXXXXXX) or 'No suitable ontology term found'")
 
 # functions
 def create_tissue_ontology_agent(
@@ -47,13 +48,19 @@ def create_tissue_ontology_agent(
         " - query_uberon_ols: Query the Ontology Lookup Service (OLS) for Uberon terms matching the search term.",
         "# Workflow",
         " Step 1: Use the query_vector_db tool to find the most similar Uberon terms.",
+        "   - ALWAYS use the query_vector_db tool to find the most similar Uberon terms.",
         " Step 2: Use the get_neighbors tool on the Uberon terms returned in Step 1 to help find the most suitable term.",
         "   - ALWAYS use the get_neighbors tool to explore more the terms adjacent to the terms returned in Step 1.",
         " Step 3: Repeat steps 1 and 2 until you are confident in the most suitable term.",
         "   - ALWAYS perform between 1 and 3 iterations to find the most suitable term.",
-        " Step 4: If you are uncertain about which term to select, use the query_uberon_ols tool to help find the most suitable term."
+        " Step 4: If you are uncertain about which term to select, use the query_uberon_ols tool to help find the most suitable term.",
+        "# Notes",
+        " - There is no valid Uberon ontology term for \"tumor\" or \"cancer\". You must be provided with the tissue context for the cancer/tumor.",
+        "   - For example, UBERON:1000010 (mole) should only be used if the tissue description includes \"mole\" and/or \"skin\".",
+        "   - If the tissue context was not provided, return \"No suitable ontology term found\"; DO NOT return an Uberon term.",
         "# Response",
         " - Provide the most suitable Uberon ontology ID (UBERON:XXXXXXX) that best describes the tissue description.",
+        " - If a suitable term is not found, provide \"No suitable ontology term found\".",
     ])
     # create agent
     agent = create_react_agent(
@@ -70,17 +77,20 @@ def create_tissue_ontology_agent(
     # create tool
     @tool
     async def invoke_tissue_ontology_agent(
-        tissue_description: Annotated[str, "Tissue description to annotate with the most suitable Uberon term"],
+        tissue_description: Annotated[str, "Tissue description to annotate"],
         config: RunnableConfig,
-    ) -> Annotated[dict, "Response from the Tissue Ontology agent with the most suitable Uberon term"]:
+    ) -> Annotated[dict, "Response from the Tissue Ontology agent with the most suitable Uberon term, or 'No suitable ontology term found' if one cannot be found"]:
         """
         Invoke the Tissue Ontology agent with a message.
-        The Tissue Ontology agent will annotate a tissue description with the most suitable Uberon term.
+        The Tissue Ontology agent will annotate a tissue description with the most suitable Uberon term, if one can be found.
         """
-        # Invoke the agent with the message
-        messages = [HumanMessage(content=tissue_description)]
-        result = await agent.ainvoke({"messages" : messages}, config=config)
-        msg = f"Tissue ontology term ID: {result['structured_response'].id}"
+        try:
+            # Invoke the agent with the message
+            messages = [HumanMessage(content=tissue_description)]
+            result = await agent.ainvoke({"messages" : messages}, config=config)
+            msg = f"Tissue ontology term ID: {result['structured_response'].id}"
+        except OpenAIRefusalError:
+            msg = "No suitable ontology term found"
         return {
             "messages": [AIMessage(content=msg, name="tissue_ontology_agent")]
         }

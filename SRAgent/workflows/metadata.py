@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, Union, get_args, get_origin
 import pandas as pd
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
@@ -109,22 +109,22 @@ class CellPrepEnum(Enum):
 
 class PrimaryMetadataEnum(BaseModel):
     """Metadata to extract"""
-    is_illumina: YesNo
-    is_single_cell: YesNo
-    is_paired_end: YesNo
-    lib_prep: LibPrepEnum
-    tech_10x: Tech10XEnum
-    cell_prep: CellPrepEnum
+    is_illumina: YesNo = Field(description="Is the dataset Illumina sequence data?")
+    is_single_cell: YesNo = Field(description="Is the dataset single cell?")
+    is_paired_end: YesNo = Field(description="Is the dataset paired-end?")
+    lib_prep: LibPrepEnum = Field(description="The library preparation technology")
+    tech_10x: Tech10XEnum = Field(description="The 10x Genomics technology")
+    cell_prep: CellPrepEnum = Field(description="The cell preparation technology")
 
 class SecondaryMetadataEnum(BaseModel):
-    organism: OrganismEnum
-    tissue: List[str]
-    disease: List[str]
-    perturbation: List[str]
-    cell_line: List[str]
+    organism: OrganismEnum = Field(description="The organism sequenced")
+    tissue: str = Field(description="The tissues where sequenced")
+    disease: str = Field(description="The diseases of interest")
+    perturbation: str = Field(description="The perturbations of interest")
+    cell_line: str = Field(description="The cell lines of interest")
 
 class TertiaryMetadataEnum(BaseModel):
-    tissue_ontology_term_id: List[str]
+    tissue_ontology_term_id: List[str] = Field(description="A list of tissue ontology terms")
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
@@ -137,7 +137,7 @@ class Choice(BaseModel):
 
 class SRR(BaseModel):
     """SRR accessions"""
-    SRR: List[str]
+    SRR: List[str] = Field(description="A list of SRR accessions")
 
 class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
@@ -222,8 +222,15 @@ def create_sragent_agent_node():
         }
     return invoke_sragent_agent_node
 
-def max_str_len(x: str, max_len:int = 300) -> str:
-    """Find the maximum length string in a list"""
+def max_str_len(x: str, max_len: int=300) -> str:
+    """
+    Find the maximum length string in a list. If the string is longer than max_len, truncate it with "..."
+    Args:
+        x: The string or list of strings
+        max_len: The maximum length of the string
+    Returns:
+        The maximum length string
+    """
     if isinstance(x, list):
         x = ",".join(x)
     if not isinstance(x, str):
