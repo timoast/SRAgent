@@ -87,8 +87,6 @@ def create_tissue_ontology_workflow(
         response = await agent.ainvoke({"messages" : messages}, config=config)
         # filter out ids that do not start with "UBERON:"
         ids = [x.id for x in response['structured_response'].ids if x.id.startswith("UBERON:")]
-        if not ids:
-            return []
         return ids
     
     return invoke_tissue_ontology_workflow
