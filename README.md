@@ -134,7 +134,8 @@ Obtain specific metadata for >=1 SRA dataset.
   * If 10X Genomics, which particular 10X technologies?
   * Single nucleus or single cell RNA sequencing?
   * Which organism was sequenced?
-  * Which tissue was sequenced?
+  * Which tissue(s) were sequenced?
+  * Corresponding tissue ontology ID(s)
   * Any disease information?
   * Any treatment/purturbation information?
   * Any cell line information?
@@ -166,7 +167,6 @@ Use the SQL database to filter out already-processed datasets:
 SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
 ```
 
-
 ## Metadata agent
 
 Similar to the `SRX-info` agent, but you can provide SRX accessions directly, instead of Entrez IDs.
@@ -183,6 +183,37 @@ The metadata fields are the same as the `SRX-info` agent.
 
 ```bash
 SRAgent metadata "entrez-id_srx-accession.csv"
+```
+
+## Tissue-ontology agent
+
+An agent for categorizing tissue descriptions using the Uberon ontology. The agent helps identify the most suitable Uberon ontology term for a given tissue description.
+
+* Input: Free text description of one or more tissues
+* Output: Uberon ontology IDs (UBERON:XXXXXXX) for each tissue description
+* Workflow
+  * The agent processes each tissue description separately
+  * For each description, it identifies the most suitable Uberon ontology term
+  * The agent returns the corresponding Uberon ID for each tissue
+
+#### Examples
+
+Categorize a single tissue:
+
+```bash
+SRAgent tissue-ontology "Categorize the following tissue: brain"
+```
+
+Categorize multiple tissues:
+
+```bash
+SRAgent tissue-ontology "Tissues: lung, heart, liver"
+```
+
+Finding ontology terms for complex tissue descriptions:
+
+```bash
+SRAgent tissue-ontology "Find the ontology term for the thin layer of epithelial cells lining the alveoli in lungs"
 ```
 
 ## find-datasets agent
@@ -251,7 +282,6 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms pig -- \
   - Corn (*Zea mays*)
 
 </details>
-
 
 #### Using an SQL database to store results
 
