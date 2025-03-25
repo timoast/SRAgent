@@ -2,7 +2,7 @@
 
 ```bash
 IMG_NAME=sragent
-IMG_VERSION=0.1.5
+IMG_VERSION=0.2.0
 REGION="us-east1"
 ```
 
@@ -13,8 +13,7 @@ Other vars in `.env`
 Build the image:
 
 ```bash
-docker build --platform linux/amd64 \
-  -t ${IMG_NAME}:${IMG_VERSION} .
+docker build --platform linux/amd64 -t ${IMG_NAME}:${IMG_VERSION} .
 ```
 
 Run the image:
@@ -68,7 +67,7 @@ gcloud run jobs update ${JOB_NAME} \
   --region=${REGION} \
   --image=${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${IMG_NAME}/${IMG_NAME}:${IMG_VERSION} \
   --set-env-vars=TZ=America/Los_Angeles \
-  --set-env-vars=DYNACONF="prod" \
+  --set-env-vars=DYNACONF="test" \
   --set-env-vars=EMAIL1="nick.youngblut@arcinstitute.org" \
   --set-env-vars=EMAIL2="yusuf.roohani@arcinstitute.org" \
   --set-env-vars=EMAIL3="chris.carpenter@arcinstitute.org" \
@@ -83,7 +82,7 @@ gcloud run jobs update ${JOB_NAME} \
   --set-secrets=NCBI_API_KEY6=NCBI_API_KEY_DAVE:latest \
   --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD:latest \
   --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_SCRECOUNTER:latest \
-  --task-timeout=60m \
+  --task-timeout=30m \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
