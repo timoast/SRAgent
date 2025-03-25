@@ -33,6 +33,9 @@ dependencies = [
     "pypika>=0.48.9",
     "psycopg2-binary>=2.9.10",
     "dynaconf>=3.2.6",
+    "chromadb>=0.6.3",
+    "langchain-chroma>=0.2.2",
+    "networkx>=3.4.2",
     "appdirs>=1.4.4"
 ]
 
