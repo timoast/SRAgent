@@ -312,6 +312,8 @@ def create_get_metadata_node() -> Callable:
                 extracted_fields["lib_prep"] = "other"
             if extracted_fields["lib_prep"] != "10x_Genomics":
                 extracted_fields["tech_10x"] = "not_applicable"
+            if extracted_fields["lib_prep"] == "10x_Genomics" and extracted_fields["tech_10x"] == "not_applicable":
+                extracted_fields["tech_10x"] = "other"
         except KeyError:
             pass
         # create the natural language response message   
