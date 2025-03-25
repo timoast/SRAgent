@@ -67,7 +67,6 @@ gcloud run jobs update ${JOB_NAME} \
   --region=${REGION} \
   --image=${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${IMG_NAME}/${IMG_NAME}:${IMG_VERSION} \
   --set-env-vars=TZ=America/Los_Angeles \
-  --set-env-vars=DYNACONF="test" \
   --set-env-vars=EMAIL1="nick.youngblut@arcinstitute.org" \
   --set-env-vars=EMAIL2="yusuf.roohani@arcinstitute.org" \
   --set-env-vars=EMAIL3="chris.carpenter@arcinstitute.org" \
@@ -86,7 +85,7 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-  --args="find-datasets","--use-database","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+  --args="find-datasets","--use-database","--tenant","test","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
 ## non-human/mouse organisms
@@ -99,7 +98,6 @@ gcloud run jobs update ${JOB_NAME} \
   --region=${REGION} \
   --image=${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${IMG_NAME}/${IMG_NAME}:${IMG_VERSION} \
   --set-env-vars=TZ=America/Los_Angeles \
-  --set-env-vars=DYNACONF="prod" \
   --set-env-vars=EMAIL1="nick.youngblut@arcinstitute.org" \
   --set-env-vars=EMAIL2="yusuf.roohani@arcinstitute.org" \
   --set-env-vars=EMAIL3="chris.carpenter@arcinstitute.org" \
@@ -118,5 +116,5 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-   --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+  --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--tenant","test","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
