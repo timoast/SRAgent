@@ -60,7 +60,9 @@ docker tag ${IMG_NAME}:${IMG_VERSION} \
 ## human/mouse
 
 ```bash
+DB_TENANT="test"
 JOB_NAME="${IMG_NAME}-find-datasets"
+
 gcloud run jobs update ${JOB_NAME} \
   --service-account=${SERVICE_ACCOUNT_EMAIL} \
   --project=${GCP_PROJECT_ID} \
@@ -85,13 +87,15 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-  --args="find-datasets","--use-database","--tenant","test","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+  --args="find-datasets","--use-database","--tenant","${DB_TENANT}","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
 ## non-human/mouse organisms
 
 ```bash
+DB_TENANT="test"
 JOB_NAME="${IMG_NAME}-find-datasets-orgs"
+
 gcloud run jobs update ${JOB_NAME} \
   --service-account=${SERVICE_ACCOUNT_EMAIL} \
   --project=${GCP_PROJECT_ID} \
@@ -112,9 +116,9 @@ gcloud run jobs update ${JOB_NAME} \
   --set-secrets=NCBI_API_KEY6=NCBI_API_KEY_DAVE:latest \
   --set-secrets=GCP_SQL_DB_PASSWORD=GCP_SQL_DB_PASSWORD:latest \
   --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY_SCRECOUNTER:latest \
-  --task-timeout=60m \
+  --task-timeout=30m \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-  --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--tenant","test","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+  --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--tenant","${DB_TENANT}","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```

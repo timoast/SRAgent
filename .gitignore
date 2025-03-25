@@ -12,6 +12,7 @@ ignore/
 *ChrisC_metadata*
 counted_SRX.txt
 notebooks/czi_annotate/
+notebooks/sql_db_check/
 screenlog.*
 
 # Streamlit specific

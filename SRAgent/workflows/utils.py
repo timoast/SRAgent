@@ -33,7 +33,7 @@ async def fetch_url(session: aiohttp.ClientSession, url: str, params: Dict[str, 
     Returns:
         The response text if successful, None if all retries failed
     """
-    max_retries = 5
+    max_retries = 8
     retry_count = 0
     base_delay = 1.0  # Starting delay in seconds
     
