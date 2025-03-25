@@ -46,12 +46,13 @@ def arg_parse(args=None) -> dict:
     sragent_parser(subparsers)
     ## Metadata agent
     metadata_agent_parser(subparsers)
+    ## Tissue ontology
+    tissue_ontology_parser(subparsers)
     ## SRX info agent
     SRX_info_agent_parser(subparsers)
     ## Find datasets
     find_datasets_parser(subparsers)
-    ## Tissue ontology
-    tissue_ontology_parser(subparsers)
+    
     # parsing args
     return parser.parse_args()
 
