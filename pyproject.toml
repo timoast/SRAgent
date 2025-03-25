@@ -36,6 +36,7 @@ dependencies = [
     "chromadb>=0.6.3",
     "langchain-chroma>=0.2.2",
     "networkx>=3.4.2",
+    "obonet>=1.1.0",
     "appdirs>=1.4.4"
 ]
 
