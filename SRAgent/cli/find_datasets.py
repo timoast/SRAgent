@@ -29,7 +29,7 @@ def find_datasets_parser(subparsers):
         'message', type=str, help='Message to instruct the agent. See the Description'
     ) 
     sub_parser.add_argument(
-        '--max-datasets', type=int, default=10, help='Maximum number of datasets to analyze'
+        '--max-datasets', type=int, default=5, help='Maximum number of datasets to find and process'
     )
     sub_parser.add_argument(
         '--min-date', type=str, 
@@ -37,9 +37,8 @@ def find_datasets_parser(subparsers):
         help='Oldest date to search for datasets'
     )
     sub_parser.add_argument(
-        '--max-date', type=str, 
-        default=datetime.now().strftime("%Y/%m/%d"),
-        help='Oldest date to search for datasets'
+        '--max-date', type=str, default=datetime.now().strftime("%Y/%m/%d"),
+        help='Newest date to search for datasets'
     )
     sub_parser.add_argument(
         '--no-summaries', action='store_true', default=False, help='No LLM summaries'
