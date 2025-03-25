@@ -60,7 +60,7 @@ docker tag ${IMG_NAME}:${IMG_VERSION} \
 ## human/mouse
 
 ```bash
-DB_TENANT="test"
+SQL_DB_TENANT="test"
 JOB_NAME="${IMG_NAME}-find-datasets"
 
 gcloud run jobs update ${JOB_NAME} \
@@ -87,13 +87,13 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-  --args="find-datasets","--use-database","--tenant","${DB_TENANT}","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+  --args="find-datasets","--use-database","--tenant","${SQL_DB_TENANT}","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
 ## non-human/mouse organisms
 
 ```bash
-DB_TENANT="test"
+SQL_DB_TENANT="test"
 JOB_NAME="${IMG_NAME}-find-datasets-orgs"
 
 gcloud run jobs update ${JOB_NAME} \
@@ -120,5 +120,5 @@ gcloud run jobs update ${JOB_NAME} \
   --cpu=2 \
   --memory=2Gi \
   --max-retries=0 \
-  --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--tenant","${DB_TENANT}","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
+  --args="find-datasets","--organisms","rat","macaque","marmoset","horse","dog","bovine","sheep","pig","rabbit","naked_mole_rat","chimpanzee","gorilla","chicken","frog","zebrafish","fruit_fly","blood_fluke","roundworm","mosquito","thale_cress","rice","tomato","corn","--use-database","--tenant","${SQL_DB_TENANT}","--no-summaries","Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
