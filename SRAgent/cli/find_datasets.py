@@ -16,6 +16,64 @@ from SRAgent.agents.utils import create_step_summary_chain
 from SRAgent.tools.utils import set_entrez_access
 
 # functions
+human_mouse = ["human", "mouse"]
+other_orgs = organisms = [
+    # mammals
+    "rat",
+    "macaque",
+    "marmoset",
+    "horse",
+    "dog",
+    "bovine",
+    "sheep",
+    "pig",
+    "rabbit",
+    "naked_mole_rat",
+    "chimpanzee",
+    "gorilla",
+    "cat",
+    "bonobo",
+    "green_monkey",
+    "gray_short_tailed_opposum",
+    "vervet_monkey",
+    "goat",
+    "alpaca",
+    "chinchilla",
+    "domestic_guinea_pig",
+    "golden_hamster",
+    "eurasian_hedgehog",
+    "american_mink",
+    "rednecked_wallaby",
+    "sunda_pangolin",
+    "platypus",
+    "ferret",
+    "northern_tree_shrew",
+    # birds
+    "chicken",
+    "zebrafinch",
+    "goose",
+    "duck",
+    # reptiles
+    "turtle",
+    # amphibians
+    "frog",
+    "axolotl",
+    # fish
+    "zebrafish",
+    "salmon",
+    "stickleback",
+    # invertebrates
+    "fruit_fly",
+    "blood_fluke",
+    "roundworm",
+    "mosquito",
+    # plants
+    "thale_cress",
+    "rice",
+    "tomato",
+    "corn"
+]
+
 def find_datasets_parser(subparsers):
     help = 'Obtain datasets and process each via the srx-info workflow'
     desc = """
@@ -50,15 +108,9 @@ def find_datasets_parser(subparsers):
         '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
     )
     sub_parser.add_argument(
-        '-o', '--organisms', type=str, nargs='+', default=["human", "mouse"],
-        choices=[
-            "human", "mouse", "rat", "macaque", "marmoset", "horse", "dog", "bovine", "sheep", "pig", 
-            "rabbit", "naked_mole_rat", "chimpanzee", "gorilla",
-            "chicken", "frog", "zebrafish", 
-            "fruit_fly", "blood_fluke", "roundworm", "mosquito", 
-            "thale_cress", "rice", "tomato", "corn"
-        ],
-        help='Organisms to search for'
+        '-o', '--organisms', type=str, nargs='+', default=human_mouse,
+        choices=human_mouse + other_orgs + ["human-mouse", "other-orgs"],
+        help='Organisms to search for. Use "human-mouse" or "other-orgs" to select human/mouse or all other organisms'
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
@@ -91,7 +143,16 @@ async def _find_datasets_main(args):
     if not args.no_summaries:
         step_summary_chain = create_step_summary_chain()
 
-    # set graph inpu
+    # format organisms
+    if "human-mouse" in args.organisms:
+        args.organisms.remove("human-mouse")
+        args.organisms += human_mouse
+    if "other-orgs" in args.organisms:
+        args.organisms.remove("other-orgs")
+        args.organisms += other_orgs
+    args.organisms = sorted(list(set(args.organisms)))
+
+    # set graph config
     config = {
         "max_concurrency": args.max_concurrency,
         "recursion_limit": args.recursion_limit,

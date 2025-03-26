@@ -43,12 +43,37 @@ class OrganismEnum(Enum):
     NAKED_MOLE_RAT = "Heterocephalus glaber"
     CHIMPANZEE = "Pan troglodytes"
     GORILLA = "Gorilla gorilla"
+    CAT = "Felis catus"     # NEW
+    BONOBO = "Pan paniscus" # NEW
+    GREEN_MONKEY = "Chlorocebus aethiops" # NEW
+    GRAY_SHORT_TAILED_OPPOSUM = "Monodelphis domestica" # NEW
+    VERVET_MONKEY = "Chlorocebus pygerythrus" # NEW
+    GOAT = "Capra aegagrus" # NEW
+    ALPACA = "Vicugna pacos" # NEW
+    CHINCHILLA = "Chinchilla lanigera" # NEW
+    DOMESTIC_GUINEA_PIG = "Cavia porcellus" # NEW
+    GOLDEN_HAMSTER = "Mesocricetus auratus" # NEW
+    EURASIAN_HEDGEHOG = "Erinaceus europaeus" # NEW
+    AMERICAN_MINK = "Neovison vison" # NEW
+    REDNECKED_WALLABY = "Macropus rufogriseus" # NEW
+    SUNDA_PANGOLIN = "Manis javanica" # NEW
+    PLATYPUS = "Ornithorhynchus anatinus" # NEW
+    FERRET = "Mustela putorius" # NEW
+    NORTHERN_TREE_SHREW = "Tupaia belangeri" # NEW
     # birds
     CHICKEN = "Gallus gallus"
+    ZEBRAFINCH = "Taeniopygia guttata"   # NEW
+    GOOSE = "Anser cygnoides"        # NEW
+    DUCK = "Anas platyrhynchos"      # NEW
+    # reptiles
+    TURTLE = "Trachemys scripta"   # NEW
     # amphibians
     FROG = "Xenopus tropicalis"
+    AXOLOTL = "Ambystoma mexicanum"   # NEW
     # fish
     ZEBRAFISH = "Danio rerio"
+    SALMON = "Salmo salar"                  # NEW
+    STICKLEBACK = "Gasterosteus aculeatus"   # NEW
     # invertebrates
     FRUIT_FLY = "Drosophila melanogaster"
     ROUNDWORM = "Caenorhabditis elegans"
