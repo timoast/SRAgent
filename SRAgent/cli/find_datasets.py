@@ -15,7 +15,7 @@ from SRAgent.workflows.find_datasets import create_find_datasets_graph
 from SRAgent.agents.utils import create_step_summary_chain
 from SRAgent.tools.utils import set_entrez_access
 
-# functions
+# organism parameters
 human_mouse = ["human", "mouse"]
 other_orgs = organisms = [
     # mammals
@@ -74,6 +74,7 @@ other_orgs = organisms = [
     "corn"
 ]
 
+# functions
 def find_datasets_parser(subparsers):
     help = 'Obtain datasets and process each via the srx-info workflow'
     desc = """

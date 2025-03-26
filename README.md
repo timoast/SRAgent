@@ -260,27 +260,51 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms pig -- \
   - Naked mole-rat (*Heterocephalus glaber*)
   - Chimpanzee (*Pan troglodytes*)
   - Gorilla (*Gorilla gorilla*)
-
+  - Cat (*Felis catus*)
+  - Bonobo (*Pan paniscus*)
+  - Green monkey (*Chlorocebus aethiops*)
+  - Gray short-tailed opposum (*Monodelphis domestica*)
+  - Vervet monkey (*Chlorocebus pygerythrus*)
+  - Goat (*Capra aegagrus*)
+  - Alpaca (*Vicugna pacos*)
+  - Chinchilla (*Chinchilla lanigera*)
+  - Domestic guinea pig (*Cavia porcellus*)
+  - Golden hamster (*Mesocricetus auratus*)
+  - Eurasian hedgehog (*Erinaceus europaeus*)
+  - American mink (*Neovison vison*)
+  - Rednecked wallaby (*Macropus rufogriseus*)
+  - Sunda pangolin (*Manis javanica*)
+  - Platypus (*Ornithorhynchus anatinus*)
+  - Ferret (*Mustela putorius*)
+  - Northern tree shrew (*Tupaia belangeri*)
 - **Birds**
   - Chicken (*Gallus gallus*)
-
+  - Zebrafinch (*Taeniopygia guttata*)
+  - Goose (*Anser cygnoides*)
+  - Duck (*Anas platyrhynchos*)
+- **Reptiles**
+  - Turtle (*Trachemys scripta*)
 - **Amphibians**
   - Frog (*Xenopus tropicalis*)
-
+  - Axolotl (*Ambystoma mexicanum*)
 - **Fish**
   - Zebrafish (*Danio rerio*)
-
+  - Salmon (*Salmo salar*)
+  - Stickleback (*Gasterosteus aculeatus*)
 - **Invertebrates**
   - Fruit fly (*Drosophila melanogaster*)
   - Roundworm (*Caenorhabditis elegans*)
   - Mosquito (*Anopheles gambiae*)
   - Blood fluke (*Schistosoma mansoni*)
-
 - **Plants**
   - Thale cress (*Arabidopsis thaliana*)
   - Rice (*Oryza sativa*)
   - Tomato (*Solanum lycopersicum*)
   - Corn (*Zea mays*)
+- **Microorganisms**
+  - Metagenome
+- **Other**
+  - Other
 
 </details>
 

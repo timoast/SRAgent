@@ -14,61 +14,21 @@ from langchain_core.runnables.config import RunnableConfig
 from SRAgent.tools.utils import set_entrez_access
 from SRAgent.db.connect import db_connect
 from SRAgent.db.get import db_get_entrez_ids
+from SRAgent.organisms import OrganismEnum
 
 # functions
-ORGANISMS = {
-    # mammals
-    'human': 'Homo sapiens',
-    'mouse': 'Mus musculus',
-    'rat': 'Rattus norvegicus',  
-    'monkey': 'Simiiformes',      
-    'macaque': 'Macaca mulatta', 
-    'marmoset': 'Callithrix jacchus',
-    'horse': 'Equus caballus',
-    'dog': 'Canis lupus',
-    'bovine': 'Bos taurus',
-    'sheep': 'Ovis aries',
-    'pig': 'Sus scrofa',
-    'naked_mole_rat': 'Heterocephalus glaber',
-    'rabbit': 'Oryctolagus cuniculus',
-    'chimpanzee': 'Pan troglodytes',
-    'gorilla': 'Gorilla gorilla',
-    # birds
-    'chicken': 'Gallus gallus',
-    # amphibians
-    'frog': 'Xenopus tropicalis',
-    # fish
-    'zebrafish': 'Danio rerio',
-    # invertebrates
-    'fruit_fly': 'Drosophila melanogaster',
-    'caenorhabditis': 'Caenorhabditis elegans',
-    'roundworm': 'Caenorhabditis elegans',
-    'blood_fluke': 'Schistosoma mansoni',
-    'mosquito' : 'Anopheles gambiae',
-    'anopheles': 'Anopheles gambiae',
-    # plants
-    "arabidopsis" : "Arabidopsis thaliana",
-    "thale_cress" : "Arabidopsis thaliana",
-    "oryza" : "Oryza sativa",
-    "rice" : "Oryza sativa",
-    "solanum" : "Solanum lycopersicum",
-    "tomato" : "Solanum lycopersicum",
-    "zea" : "Zea mays",
-    "corn" : "Zea mays",
-    # fungi
-    "saccharomyces" : "Saccharomyces cerevisiae",
-    "yeast" : "Saccharomyces cerevisiae",
-}
 
 def to_sci_name(organism: str) -> str:
     """
-    Convert organism name to scientific name.
+    Convert organism name to scientific name using OrganismEnum.
     """
-    organism_str = organism.lower().replace(" ", "_")
+    organism_str = organism.replace(" ", "_").upper()
+    
     try:
-        return f'"{ORGANISMS[organism_str]}"'
+        enum_name = OrganismEnum[organism_str].value
+        return f'"{enum_name}"'
     except KeyError:
-        raise ValueError(f"Organism '{organism}' not found in list.")
+        raise ValueError(f"Organism '{organism}' not found in OrganismEnum.")
 
 ## default time span limits
 #MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
