@@ -88,7 +88,7 @@ def find_datasets_parser(subparsers):
         'message', type=str, help='Message to instruct the agent. See the Description'
     ) 
     sub_parser.add_argument(
-        '--max-datasets', type=int, default=5, help='Maximum number of datasets to find and process'
+        '--max-datasets', type=int, default=10, help='Maximum number of datasets to find and process'
     )
     sub_parser.add_argument(
         '--min-date', type=str, 

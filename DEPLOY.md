@@ -60,7 +60,7 @@ docker tag ${IMG_NAME}:${IMG_VERSION} \
 ## human/mouse
 
 ```bash
-SQL_DB_TENANT="test"
+SQL_DB_TENANT="prod"
 JOB_NAME="${IMG_NAME}-find-datasets"
 
 gcloud run jobs update ${JOB_NAME} \
@@ -93,7 +93,7 @@ gcloud run jobs update ${JOB_NAME} \
 ## non-human/mouse organisms
 
 ```bash
-SQL_DB_TENANT="test"
+SQL_DB_TENANT="prod"
 JOB_NAME="${IMG_NAME}-find-datasets-orgs"
 
 gcloud run jobs update ${JOB_NAME} \
