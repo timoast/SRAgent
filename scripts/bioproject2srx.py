@@ -25,7 +25,9 @@ def retry_with_backoff(func, max_retries=10, initial_delay=1.0, backoff_factor=2
         
         while True:
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                time.sleep(0.3)
+                return result
             except urllib.error.HTTPError as e:
                 if e.code == 429 and retries < max_retries:
                     # Add jitter to prevent synchronized retries
@@ -42,7 +44,9 @@ def retry_with_backoff(func, max_retries=10, initial_delay=1.0, backoff_factor=2
                     raise
     return wrapper
 
-def fetch_srx_accessions(bioproject_id, email, max_records=None, max_retries=5, initial_delay=1.0, backoff_factor=2.0):
+def fetch_sra_records(
+    bioproject_id, email, max_records=None, max_retries=5, initial_delay=1.0, backoff_factor=2.0
+    ) -> list[tuple[str, str, str]]:
     # set email
     Entrez.email = email
 
@@ -72,8 +76,8 @@ def fetch_srx_accessions(bioproject_id, email, max_records=None, max_retries=5, 
     if max_records is not None:
         sra_ids = sra_ids[:max_records]
 
-    # fetch SRX accessions and titles
-    srx_records = {}
+    # fetch SRX and SRR accessions and titles
+    records = []
     for sra_id in sra_ids:
         print(f"efetch of sra for: {sra_id}", file=sys.stderr)
         handle = efetch_with_retry(db="sra", id=sra_id, rettype="runinfo", retmode="text")
@@ -85,16 +89,19 @@ def fetch_srx_accessions(bioproject_id, email, max_records=None, max_retries=5, 
             fields = line.split(",")
             try:
                 experiment_acc = fields[header["Experiment"]]
+                run_acc = fields[header["Run"]]
                 # Extract the experiment title/name if available, otherwise use a placeholder
                 experiment_name = fields[header["LibraryName"]] if "LibraryName" in header and fields[header["LibraryName"]] else "No title available"
-                srx_records[experiment_acc] = experiment_name
-            except KeyError:
+                records.append((experiment_name, experiment_acc, run_acc))
+            except KeyError as e:
+                print(f"Error extracting data: {e}", file=sys.stderr)
                 continue
-    print(f"  Total SRX records: {len(srx_records)}", file=sys.stderr)
-    return [(acc, name) for acc, name in sorted(srx_records.items())]
+    print(f"  Total SRA records found: {len(records)}", file=sys.stderr)
+    # Sort by experiment accession and then run accession
+    return sorted(records, key=lambda x: (x[1], x[2]))
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch all SRX accessions from a BioProject")
+    parser = argparse.ArgumentParser(description="Fetch SRA records from a BioProject")
     parser.add_argument("bioproject_id", help="NCBI BioProject accession (e.g., PRJNA123456)")
     parser.add_argument("--email", required=True, help="Your email for NCBI Entrez access")
     parser.add_argument("--max-retries", type=int, default=5, 
@@ -103,14 +110,14 @@ def main():
                        help="Initial delay in seconds between retries")
     parser.add_argument("--backoff-factor", type=float, default=2.0,
                        help="Multiplicative factor for exponential backoff")
-    parser.add_argument("--format", choices=['tab', 'csv'], default='tab', 
-                       help="Output format: tab-delimited or comma-separated")
+    parser.add_argument("--format", choices=['tab', 'csv'], default='csv', 
+                       help="Output format: tab-delimited or comma-separated (default: csv)")
     parser.add_argument("--max-records", type=int, default=None, 
                        help="Maximum number of records to fetch")
     args = parser.parse_args()
 
     try:
-        srx_records = fetch_srx_accessions(
+        sra_records = fetch_sra_records(
             args.bioproject_id, 
             args.email,
             max_records=args.max_records,
@@ -118,12 +125,11 @@ def main():
             initial_delay=args.initial_delay,
             backoff_factor=args.backoff_factor
         )
-        delimiter = '\t' if args.format == 'tab' else ','
         # Print header
-        print(f"Accession{delimiter}Name")
+        print("exp_name,srx,srr")
         # Print records
-        for acc, name in srx_records:
-            print(f"{acc}{delimiter}{name}")
+        for exp_name, srx, srr in sra_records:
+            print(",".join([exp_name, srx, srr]))
     except urllib.error.HTTPError as e:
         if e.code == 429:
             print(f"Error: HTTP 429 Too Many Requests - Maximum retry attempts exceeded. "
