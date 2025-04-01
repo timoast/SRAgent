@@ -94,8 +94,7 @@ def esearch_batch(
     verbose: bool=False, 
     filter_existing: bool=False,
     max_retries: int=3, 
-    base_delay: float=3.0,
-    max_to_search: int=50000,
+    base_delay: float=3.0
     ) -> List[str]:
     """
     Search for Entrez IDs using the Entrez.esearch function.
@@ -106,21 +105,19 @@ def esearch_batch(
         verbose: bool=False,
         filter_existing: bool=False,
         max_retries: int=3,
-        base_delay: float=3.0,
-        max_to_search: int=100000,
+        base_delay: float=3.0
+    Returns:
+        List[str]: List of Entrez IDs
     """
     # get existing Entrez IDs
     existing_ids = set()
     if filter_existing:
         with db_connect() as conn:
             existing_ids = {str(x) for x in db_get_entrez_ids(conn=conn, database=database)}
-    
     # search for novel Entrez IDs
     ids = []
     retstart = 0
-    retmax = min(10000, max_ids) if max_ids else 10000  # NCBI limit is 10000 per request
-    total_retmax = max_ids if max_ids else float('inf')
-    
+    retmax = 10000
     while True:
         for attempt in range(max_retries):
             set_entrez_access()
@@ -128,24 +125,18 @@ def esearch_batch(
                 search_handle = Entrez.esearch(
                     db=database, 
                     term=esearch_query, 
-                    retstart=retstart,
+                    retstart=retstart, 
                     retmax=retmax,
                     sort='pub+date'
                 )
                 search_results = Entrez.read(search_handle)
                 search_handle.close()
-                
-                # Add new IDs that aren't in existing_ids
-                new_ids = [x for x in search_results['IdList'] if x not in existing_ids]
-                ids.extend(list(set(new_ids)))
-                
-                # Update retstart for next batch
+                ids.extend([x for x in search_results['IdList'] if x not in existing_ids])
                 retstart += retmax
-                
-                # Sleep to respect NCBI rate limits
                 time.sleep(0.34)
+                if verbose:
+                    print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
                 break
-                
             except HTTPError as e:
                 if e.code == 429 and attempt < max_retries - 1:
                     wait_time = base_delay * 2 ** attempt
@@ -160,20 +151,13 @@ def esearch_batch(
                return list(set(ids))
         else:
             break
-            
-        # Check if we've reached our target number of IDs
-        if len(ids) >= total_retmax:
+        # if max_ids is set and has been reached, break
+        if max_ids and len(ids) >= max_ids:
             break
-            
-        # Check if we've retrieved all available results
+        # if retstart has hit total records in esearch query, break
         if retstart >= int(search_results['Count']):
             break
 
-        # if retstart is greater than max_to_search, break
-        if retstart > max_to_search:
-            break
-            
-    # Remove duplicates and limit to max_ids if specified
     ids = list(set(ids))
     if max_ids:
         ids = ids[:max_ids]
@@ -203,7 +187,7 @@ def esearch(
     for x in ["SRR", "ERR", "GSE", "GSM", "GDS", "ERX", "DRR", "PRJ", "SAM", "SRP", "SRX"]:
         if esearch_query == x:
             return f"Invalid query: {esearch_query}"
-    
+
     # query
     records = []
     retstart = 0
@@ -258,16 +242,15 @@ if __name__ == "__main__":
 
     # query for scRNA-seq 
     config = {"configurable": {
-        "organisms": ["human", "mouse", "rat", "dog"],
-        "min_date": "2021/01/01",
+        "min_date": "2016/01/01",
         "max_date": "2025/12/31",
     }}
-    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
-    #query = '("bulk RNA sequencing")'
-    input = {"esearch_query" : query, "database" : "sra"}
-    #input = {"esearch_query" : query, "database" : "gds"}
-    #input = {"organisms" : ["Homo sapien", "Mus musculus"]} 
-    #input = {"organisms" : ["yeast"], "max_ids" : 10000}
+    input = {
+        "query_terms" : ["10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
+        "organism" : ["human", "mouse"],
+        "max_ids" : 10,
+        "database" : "sra"
+    }
     print(esearch_scrna.invoke(input, config=config))
 
     # esearch accession
