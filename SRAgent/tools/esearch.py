@@ -110,8 +110,11 @@ def esearch_batch(
             set_entrez_access()
             try:
                 search_handle = Entrez.esearch(
-                    db=database, term=esearch_query, 
-                    retstart=retstart, retmax=retmax
+                    db=database, 
+                    term=esearch_query, 
+                    retstart=retstart,
+                    retmax=retmax,
+                    sort='pub+date'
                 )
                 search_results = Entrez.read(search_handle)
                 search_handle.close()
@@ -229,8 +232,8 @@ if __name__ == "__main__":
     }}
     query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
     #query = '("bulk RNA sequencing")'
-    input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
-    #input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
+    input = {"esearch_query" : query, "database" : "sra"}
+    #input = {"esearch_query" : query, "database" : "gds"}
     #input = {"organisms" : ["Homo sapien", "Mus musculus"]} 
     #input = {"organisms" : ["yeast"], "max_ids" : 10000}
     print(esearch_scrna.invoke(input, config=config))
