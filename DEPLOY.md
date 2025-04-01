@@ -8,6 +8,10 @@ REGION="us-east1"
 
 Other vars in `.env`
 
+```bash
+source .env
+```
+
 # Docker 
 
 Build the image:

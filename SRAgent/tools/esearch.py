@@ -94,8 +94,21 @@ def esearch_batch(
     verbose: bool=False, 
     filter_existing: bool=False,
     max_retries: int=3, 
-    base_delay: float=3.0
+    base_delay: float=3.0,
+    max_to_search: int=50000,
     ) -> List[str]:
+    """
+    Search for Entrez IDs using the Entrez.esearch function.
+    Args:
+        esearch_query: str,
+        database: str,
+        max_ids: Optional[int]=None,
+        verbose: bool=False,
+        filter_existing: bool=False,
+        max_retries: int=3,
+        base_delay: float=3.0,
+        max_to_search: int=100000,
+    """
     # get existing Entrez IDs
     existing_ids = set()
     if filter_existing:
@@ -154,6 +167,10 @@ def esearch_batch(
             
         # Check if we've retrieved all available results
         if retstart >= int(search_results['Count']):
+            break
+
+        # if retstart is greater than max_to_search, break
+        if retstart > max_to_search:
             break
             
     # Remove duplicates and limit to max_ids if specified
