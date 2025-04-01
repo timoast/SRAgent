@@ -2,6 +2,7 @@ import pytest
 from Bio import Entrez
 from SRAgent.tools.esearch import esearch
 from SRAgent.tools.esearch import to_sci_name
+from SRAgent.tools.esearch import esearch_batch
 from SRAgent.organisms import OrganismEnum
 
 def test_esearch_successful():
@@ -44,3 +45,21 @@ def test_to_sci_name_unknown_organism():
     """Test to_sci_name function with an unknown organism name"""
     with pytest.raises(ValueError, match="Organism 'nonexistent' not found in OrganismEnum"):
         to_sci_name("nonexistent")
+
+def test_esearch_batch_large_result():
+    """Test that esearch_batch can handle requests for more than 10000 records"""
+    # Use a query that returns many results
+    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
+    # Request 15000 records
+    ids = esearch_batch(
+        esearch_query=query,
+        database="sra",
+        max_ids=15000,
+        verbose=True
+    )
+    # Verify we got more than 10000 records
+    assert len(ids) > 10000, f"Expected more than 10000 records, got {len(ids)}"
+    # Verify we got exactly 15000 records
+    assert len(ids) == 15000, f"Expected 15000 records, got {len(ids)}"
+    # Verify all IDs are unique
+    assert len(set(ids)) == len(ids), "Found duplicate IDs in results"

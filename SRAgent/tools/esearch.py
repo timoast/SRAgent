@@ -101,10 +101,13 @@ def esearch_batch(
     if filter_existing:
         with db_connect() as conn:
             existing_ids = {str(x) for x in db_get_entrez_ids(conn=conn, database=database)}
+    
     # search for novel Entrez IDs
     ids = []
     retstart = 0
-    retmax = 10000
+    retmax = min(10000, max_ids) if max_ids else 10000  # NCBI limit is 10000 per request
+    total_retmax = max_ids if max_ids else float('inf')
+    
     while True:
         for attempt in range(max_retries):
             set_entrez_access()
@@ -118,12 +121,18 @@ def esearch_batch(
                 )
                 search_results = Entrez.read(search_handle)
                 search_handle.close()
-                ids.extend([x for x in search_results['IdList'] if x not in existing_ids])
+                
+                # Add new IDs that aren't in existing_ids
+                new_ids = [x for x in search_results['IdList'] if x not in existing_ids]
+                ids.extend(list(set(new_ids)))
+                
+                # Update retstart for next batch
                 retstart += retmax
+                
+                # Sleep to respect NCBI rate limits
                 time.sleep(0.34)
-                if verbose:
-                    print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
                 break
+                
             except HTTPError as e:
                 if e.code == 429 and attempt < max_retries - 1:
                     wait_time = base_delay * 2 ** attempt
@@ -138,10 +147,16 @@ def esearch_batch(
                return list(set(ids))
         else:
             break
-        if max_ids and len(ids) >= max_ids:
+            
+        # Check if we've reached our target number of IDs
+        if len(ids) >= total_retmax:
             break
+            
+        # Check if we've retrieved all available results
         if retstart >= int(search_results['Count']):
             break
+            
+    # Remove duplicates and limit to max_ids if specified
     ids = list(set(ids))
     if max_ids:
         ids = ids[:max_ids]
