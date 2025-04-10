@@ -24,15 +24,13 @@ class OrganismEnum(Enum):
     BONOBO = "Pan paniscus" # NEW
     GREEN_MONKEY = "Chlorocebus aethiops" # NEW
     GRAY_SHORT_TAILED_OPPOSUM = "Monodelphis domestica" # NEW
-    VERVET_MONKEY = "Chlorocebus pygerythrus" # NEW
-    GOAT = "Capra aegagrus" # NEW
+    GOAT = "Capra hircus" # NEW
     ALPACA = "Vicugna pacos" # NEW
     CHINCHILLA = "Chinchilla lanigera" # NEW
     DOMESTIC_GUINEA_PIG = "Cavia porcellus" # NEW
     GOLDEN_HAMSTER = "Mesocricetus auratus" # NEW
     EURASIAN_HEDGEHOG = "Erinaceus europaeus" # NEW
     AMERICAN_MINK = "Neovison vison" # NEW
-    REDNECKED_WALLABY = "Macropus rufogriseus" # NEW
     SUNDA_PANGOLIN = "Manis javanica" # NEW
     PLATYPUS = "Ornithorhynchus anatinus" # NEW
     FERRET = "Mustela putorius" # NEW
