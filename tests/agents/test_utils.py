@@ -138,6 +138,60 @@ class TestSetModel:
         with pytest.raises(ValueError, match="Model unsupported-model not supported"):
             set_model()
 
+    @patch("SRAgent.agents.utils.load_settings")
+    def test_set_model_with_claude(self, mock_load_settings):
+        """Test set_model with claude model"""
+        # Mock settings
+        mock_settings = {
+            "models": {"default": "claude-3-7-sonnet-20250219"},
+            "temperature": {"default": 0.1},
+            "reasoning_effort": {"default": "low"}
+        }
+        mock_load_settings.return_value = mock_settings
+        
+        # Test with claude model and low reasoning effort
+        with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
+            model = set_model()
+            mock_chat.assert_called_once_with(
+                model="claude-3-7-sonnet-20250219", 
+                temperature=None, 
+                thinking={"type": "enabled", "budget_tokens": 1024},
+                max_tokens=2048
+            )
+        
+        # Test with claude model and medium reasoning effort
+        mock_settings["reasoning_effort"]["default"] = "medium"
+        with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
+            model = set_model()
+            mock_chat.assert_called_once_with(
+                model="claude-3-7-sonnet-20250219", 
+                temperature=None, 
+                thinking={"type": "enabled", "budget_tokens": 4096},
+                max_tokens=5120
+            )
+        
+        # Test with claude model and high reasoning effort
+        mock_settings["reasoning_effort"]["default"] = "high"
+        with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
+            model = set_model()
+            mock_chat.assert_called_once_with(
+                model="claude-3-7-sonnet-20250219", 
+                temperature=None, 
+                thinking={"type": "enabled", "budget_tokens": 16384},
+                max_tokens=17408
+            )
+        
+        # Test with claude model and disabled reasoning effort
+        mock_settings["reasoning_effort"]["default"] = "none"
+        with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
+            model = set_model()
+            mock_chat.assert_called_once_with(
+                model="claude-3-7-sonnet-20250219", 
+                temperature=0.1, 
+                thinking={"type": "disabled"},
+                max_tokens=1024
+            )
+
 
 class TestCreateStepSummaryChain:
     """Tests for create_step_summary_chain function"""

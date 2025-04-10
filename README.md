@@ -35,16 +35,18 @@ pip install .
 ## Environmental variables
 
 * `OPENAI_API_KEY` = API key for using the OpenAI API
-  * **required**
-  * Currently, no other models are supported besides OpenAI
+  * **required** when using OpenAI models
   * See [Configuring models](#configuring-models) information on setting models
+* `ANTHROPIC_API_KEY` = API key for using the Anthropic API
+  * **required** when using Claude models
 * `EMAIL` = email for using the Entrez API
   * optional, but **HIGHLY** recommended
 * `NCBI_API_KEY` = API key for using the Entrez API
   * optional, increases rate limits
-* `DYNACONF` = switch between "test" and "prod" environments
+* `DYNACONF` = switch between "test", "prod", and "claude" environments
   * optional, default is "prod"
-  * this only affects the SQL database used, and no database is used by default
+  * this affects the SQL database used and models selected
+  * no database is used by default
 
 # Testing
 
@@ -333,6 +335,40 @@ Options for updating the settings:
 * Update the [settings.yml](./SRAgent/settings.yml) file
 * (Re)install the the package
   * e.g., `pip install .`
+
+## Using Claude models
+
+SRAgent supports using Anthropic's Claude models:
+
+* Set the `ANTHROPIC_API_KEY` environment variable to your Anthropic API key
+* Switch to the Claude environment using `export DYNACONF=claude`
+  * Update the [settings.yml](./SRAgent/settings.yml) file, as needed
+  * See [Configuring models](#configuring-models) information on setting model parameters
+* Run SRAgent commands as usual
+
+Claude models support different reasoning effort levels:
+* `low`: 1024 thinking tokens (best for simple tasks)
+* `medium`: 4096 thinking tokens (good balance)
+* `high`: 16384 thinking tokens (best for complex reasoning)
+* Anything else: Disables thinking tokens feature
+
+Example:
+```bash
+export ANTHROPIC_API_KEY=your_api_key
+export DYNACONF=claude
+SRAgent entrez "Convert GSE121737 to SRX accessions"
+```
+
+You can also customize the specific Claude model in settings.yml:
+```yaml
+claude:
+  models:
+    default: "claude-3-7-sonnet-latest"  # Or any other Claude model version
+  temperature:
+    default: 0.1
+  reasoning_effort:
+    default: "medium"  # Set your preferred reasoning effort
+```
 
 # Setting up the SQL database
 

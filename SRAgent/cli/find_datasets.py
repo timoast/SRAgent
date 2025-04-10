@@ -121,7 +121,6 @@ def find_datasets_parser(subparsers):
         '--tenant', type=str, default='prod',
         choices=['prod', 'test'],
         help='Tenant name for the SRAgent SQL database'
-
     )
     sub_parser.add_argument(
         '--reprocess-existing', action='store_true', default=False, 

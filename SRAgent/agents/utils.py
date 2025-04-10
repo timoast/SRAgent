@@ -1,8 +1,10 @@
 import os
+import re
 import sys
 from importlib import resources
 from typing import Dict, Any, Optional
 from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import PromptTemplate
 from dynaconf import Dynaconf
 
@@ -35,7 +37,7 @@ def set_model(
     temperature: Optional[float] = None,
     reasoning_effort: Optional[str] = None,
     agent_name: str = "default",
-) -> ChatOpenAI:
+) -> Any:
     """
     Create a model instance with settings from configuration
     
@@ -55,16 +57,32 @@ def set_model(
     temp = temperature or settings["temperature"].get(agent_name, settings["temperature"]["default"])
     effort = reasoning_effort or settings["reasoning_effort"].get(agent_name, settings["reasoning_effort"]["default"])
 
-    # Only reasoning effort or temperature can be set for certain models
-    if model_name.startswith("gpt-4o"):
-        effort = None
-    elif model_name.startswith("o1") or model_name.startswith("o3"):
-        temp = None
+    # Check model provider and initialize appropriate model
+    if model_name.startswith("claude"): # e.g.,  "claude-3-7-sonnet-20250219"
+        max_tokens = 1024       
+        if effort == "low":
+            think_tokens = 1024
+        elif effort == "medium":
+            think_tokens = 1024 * 4
+        elif effort == "high":
+            think_tokens = 1024 * 16
+        else:
+            think_tokens = 0
+        if think_tokens > 0:
+            max_tokens += think_tokens
+            thinking = {"type": "enabled", "budget_tokens": think_tokens}
+            temp = None
+        else:
+            thinking = {"type": "disabled"}
+        model = ChatAnthropic(model=model_name, temperature=temp, thinking=thinking, max_tokens=max_tokens)
+    elif model_name.startswith("gpt-4o"):
+        # GPT-4o models use temperature but not reasoning_effort
+        model = ChatOpenAI(model_name=model_name, temperature=temp, reasoning_effort=None)
+    elif re.search(r"^o[0-9]-", model_name):
+        # o[0-9] models use reasoning_effort but not temperature
+        model = ChatOpenAI(model_name=model_name, temperature=None, reasoning_effort=effort)
     else:
         raise ValueError(f"Model {model_name} not supported")
-    
-    # Initialize model
-    model = ChatOpenAI(model_name=model_name, temperature=temp, reasoning_effort=effort)
 
     return model
 
@@ -155,4 +173,11 @@ async def create_agent_stream(
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv(override=True)
-    load_settings()
+
+    # load settings
+    settings = load_settings()
+    print(settings)
+
+    # set model
+    model = set_model(model_name="claude-3-7-sonnet-20250219", agent_name="default")
+    print(model)
