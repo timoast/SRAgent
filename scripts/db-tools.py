@@ -50,6 +50,9 @@ db-tools.py --delete-srx-screcounter SRR1234567
 
 # upsert from a csv
 db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_metadata.csv
+
+# count records in all tables
+db-tools.py --count-records
     """
     parser = argparse.ArgumentParser(
         description=desc, epilog=epi, formatter_class=CustomFormatter
@@ -69,6 +72,10 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
     parser.add_argument(
         '--glimpse', action="store_true", default=False,
         help='Glimpse all tables in database'
+    )
+    parser.add_argument(
+        '--count-records', action="store_true", default=False,
+        help='Count records in all tables in database'
     )
     parser.add_argument(
         '--view', type=str, default=None,
@@ -132,6 +139,19 @@ def dump_all_tables(dump_dir: str, tenant: str, conn: connection) -> List[str]:
         outfiles.append(outfile)
     return outfiles
 
+def count_records_per_table(conn: connection) -> None:
+    """Count records in each table in the database
+    Args:
+        conn: Database connection
+    """
+    db_tables = db_list_tables(conn)
+    
+    for table in db_tables:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {table}")
+            count = cur.fetchone()[0]
+            print(f"{table}: {count}")
+
 # functions
 def main(args):
     # set pandas options
@@ -147,6 +167,11 @@ def main(args):
         with db_connect() as conn:
             print("Tables in the database:")
             print("\n".join(db_list_tables(conn)))
+
+    # count records in tables
+    if args.count_records:
+        with db_connect() as conn:
+            count_records_per_table(conn)
 
     # glimpse tables
     if args.glimpse:
