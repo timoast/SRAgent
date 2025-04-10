@@ -2,7 +2,7 @@
 ## batteries
 import os
 import asyncio
-from typing import Annotated, Callable
+from typing import Annotated, Callable, Optional
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -11,15 +11,20 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.tools.esearch import esearch_scrna
 from SRAgent.tools.entrez_db import which_entrez_databases
 
 # functions
-def create_find_datasets_agent(model_name: str="gpt-4o") -> Callable:
+def create_find_datasets_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses esearch to find datasets.
+    Args:
+        model_name: Override model name from settings
+    Returns:
+        Callable: Function to invoke the agent
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.1)
+    model = set_model(model_name=model_name, agent_name="find_datasets")
     agent = create_react_agent(
         model=model,
         tools=[esearch_scrna],
@@ -29,7 +34,7 @@ def create_find_datasets_agent(model_name: str="gpt-4o") -> Callable:
             " - Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
             "# Strategy",
             " - If your initial search does not return any results, try different search terms or databases.",
-            " - You MUST make at least two attempts to find datasets.",
+            " - If the first attempt fails, you MUST make at least one more attempt to find datasets.",
             "# Response",
             " - You will return Entrez IDs.",
             " - Be sure to state which database you searched (e.g., GEO, SRA).",

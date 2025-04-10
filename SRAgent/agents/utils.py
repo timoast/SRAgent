@@ -1,8 +1,90 @@
+import os
+import re
 import sys
-import asyncio
-from typing import List, Dict, Any
+from importlib import resources
+from typing import Dict, Any, Optional
 from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import PromptTemplate
+from dynaconf import Dynaconf
+
+def load_settings() -> Dict[str, Any]:
+    """
+    Load settings from settings.yml file
+    
+    Args:
+        env: Environment to load settings for ('test' or 'prod')
+        
+    Returns:
+        Dictionary containing settings for the specified environment
+    """
+    # get path to settings
+    if os.getenv("DYNACONF_SETTINGS_PATH"):
+        s_path = os.getenv("DYNACONF_SETTINGS_PATH")
+    else:
+        s_path = str(resources.files("SRAgent").joinpath("settings.yml"))
+    if not os.path.exists(s_path):
+        raise FileNotFoundError(f"Settings file not found: {s_path}")
+    settings = Dynaconf(
+        settings_files=[s_path], 
+        environments=True, 
+        env_switcher="DYNACONF"
+    )
+    return settings
+
+def set_model(
+    model_name: Optional[str] = None,
+    temperature: Optional[float] = None,
+    reasoning_effort: Optional[str] = None,
+    agent_name: str = "default",
+) -> Any:
+    """
+    Create a model instance with settings from configuration
+    
+    Args:
+        model_name: Override model name from settings
+        temperature: Override temperature from settings
+        reasoning_effort: Override reasoning effort from settings
+        agent_name: Name of the agent to get settings for
+    Returns:
+        Configured model instance
+    """
+    # Load settings
+    settings = load_settings()
+    
+    # Use provided params or get from settings
+    model_name = model_name or settings["models"].get(agent_name, settings["models"]["default"])
+    temp = temperature or settings["temperature"].get(agent_name, settings["temperature"]["default"])
+    effort = reasoning_effort or settings["reasoning_effort"].get(agent_name, settings["reasoning_effort"]["default"])
+
+    # Check model provider and initialize appropriate model
+    if model_name.startswith("claude"): # e.g.,  "claude-3-7-sonnet-20250219"
+        max_tokens = 1024       
+        if effort == "low":
+            think_tokens = 1024
+        elif effort == "medium":
+            think_tokens = 1024 * 4
+        elif effort == "high":
+            think_tokens = 1024 * 16
+        else:
+            think_tokens = 0
+        if think_tokens > 0:
+            max_tokens += think_tokens
+            thinking = {"type": "enabled", "budget_tokens": think_tokens}
+            temp = None
+        else:
+            thinking = {"type": "disabled"}
+        model = ChatAnthropic(model=model_name, temperature=temp, thinking=thinking, max_tokens=max_tokens)
+    elif model_name.startswith("gpt-4o"):
+        # GPT-4o models use temperature but not reasoning_effort
+        model = ChatOpenAI(model_name=model_name, temperature=temp, reasoning_effort=None)
+    elif re.search(r"^o[0-9]-", model_name):
+        # o[0-9] models use reasoning_effort but not temperature
+        model = ChatOpenAI(model_name=model_name, temperature=None, reasoning_effort=effort)
+    else:
+        raise ValueError(f"Model {model_name} not supported")
+
+    return model
 
 def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):
     """
@@ -73,6 +155,7 @@ async def create_agent_stream(
                         step_cnt -= 1
             except (KeyError, IndexError, AttributeError):
                 print(f"Step {step_cnt}: {step}", file=sys.stderr)
+    # get final step, and handle different types
     try:
         final_step = final_step["agent"]["messages"][-1].content
     except KeyError:
@@ -82,4 +165,19 @@ async def create_agent_stream(
             if isinstance(final_step, str):
                 return final_step
             return str(final_step)
+    except TypeError:
+        return str(final_step)
     return final_step
+
+# main
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+
+    # load settings
+    settings = load_settings()
+    print(settings)
+
+    # set model
+    model = set_model(model_name="claude-3-7-sonnet-20250219", agent_name="default")
+    print(model)

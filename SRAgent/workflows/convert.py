@@ -1,5 +1,6 @@
 # import 
 import os
+import re
 import asyncio
 import operator
 from enum import Enum
@@ -10,7 +11,9 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.sragent import create_sragent_agent
+from SRAgent.workflows.utils import entrez_id_to_srx
 
 
 # state
@@ -26,7 +29,6 @@ class GraphState(TypedDict):
     route: Annotated[str, "Route choice"]
     attempts: Annotated[int, operator.add]
 
-# functions
 ## convert agent
 def create_convert_agent_node() -> Callable:
     convert_agent = create_sragent_agent()
@@ -34,6 +36,12 @@ def create_convert_agent_node() -> Callable:
         """
         Invoke the Entrez convert agent to obtain SRA accessions
         """
+        # attempt to convert entrez ID via entrez_id_to_srx
+        srx = await entrez_id_to_srx(str(state["entrez_id"]))
+        if srx:
+            srx = ", ".join(set(srx))
+            return {"messages" : [AIMessage(content=f"Obtained accessions: {srx}")]}
+        # fallback to convert agent
         response = await convert_agent.ainvoke({"messages" : state["messages"]})
         return {"messages" : [response["messages"][-1]]}
     return invoke_convert_agent_node
@@ -42,13 +50,31 @@ def create_convert_agent_node() -> Callable:
 class Acessions(BaseModel):
     srx: List[str]
 
+def extract_accessions(message: str) -> List[str]:
+    """
+    Extract SRX and ERX accessions from text using regex
+    Args:
+        message: Text message to extract accessions from
+    Returns:
+        List of unique SRX and ERX accessions
+    """
+    # Find all matches in the message
+    accessions = re.findall(r'(?:SRX|ERX)[0-9]{4,}+', message)
+    # Return unique accessions
+    return list(set(accessions))
+
 def create_get_accessions_node() -> Callable:
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    model = set_model(agent_name="accessions")
     async def invoke_get_accessions_node(state: GraphState):
         """
         Structured data extraction
         """
-        # create prompt
+        # try regex extraction
+        accessions = extract_accessions(state["messages"][-1].content)
+        if accessions:
+            return {"SRX" : accessions}
+        # fallback to model
+        ## create prompt
         message = state["messages"][-1].content
         prompt = "\n".join([
             f"Extract SRX and ERX accessions (e.g., \"SRX123456\" or \"ERX223344\") from the message below.",
@@ -57,7 +83,7 @@ def create_get_accessions_node() -> Callable:
             message,
             "#-- END OF MESSAGE --#"
         ])
-        # invoke model with structured output
+        ## invoke model with structured output
         response = await model.with_structured_output(Acessions, strict=True).ainvoke(prompt)
         return {"SRX" : response.srx}
     return invoke_get_accessions_node
@@ -75,7 +101,7 @@ def create_router_node() -> Callable:
     """
     Router for the graph
     """
-    model = ChatOpenAI(model="gpt-4o", temperature=0)
+    model = set_model(agent_name="convert_router")
 
     async def invoke_router(
         state: GraphState
@@ -170,7 +196,7 @@ if __name__ == "__main__":
 
     #-- setup --#
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
@@ -179,12 +205,13 @@ if __name__ == "__main__":
         #entrez_id = "30749595"
         #entrez_id = "307495950000"
         msg = f"Obtain all SRX and ERX accessions for the Entrez ID {entrez_id}"
-        input = {"messages" : [HumanMessage(content=msg)]}
+        input = {"messages" : [HumanMessage(content=msg)], "entrez_id" : entrez_id}
         config = {"max_concurrency" : 3, "recursion_limit": 30}
         graph = create_convert_graph()
         async for step in graph.astream(input, config=config):
             print(step)
     asyncio.run(main())
+    exit();
 
     # save graph image
     # from SRAgent.utils import save_graph_image

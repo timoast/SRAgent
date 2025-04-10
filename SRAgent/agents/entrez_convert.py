@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.esearch import create_esearch_agent
 from SRAgent.agents.esummary import create_esummary_agent
 from SRAgent.agents.elink import create_elink_agent
@@ -18,11 +19,11 @@ from SRAgent.tools.ncbi_fetch import fetch_geo_record, fetch_ncbi_record
 
 # functions
 def create_entrez_convert_agent(
-    model_name: str="gpt-4o",
-    return_tool: bool=True,
+    model_name: str = None,
+    return_tool: bool = True,
 ) -> Callable:
     # create model
-    model_supervisor = ChatOpenAI(model=model_name, temperature=0.1)
+    model_supervisor = set_model(model_name=model_name, agent_name="entrez_convert")
 
     # set tools
     tools = [
@@ -39,17 +40,16 @@ def create_entrez_convert_agent(
         "You have a team of agents who can perform specific tasks using Entrez tools.",
         "Your goal is to convert Entrez IDs to SRA or ENA accessions.",
         "Provide guidance to the agents to help them complete the task successfully.",    
-        "\n",
         "# Strategy",
-        "Be sure to provide context to the agents (e.g., \"Use esearch to find SRA accessions associated with Entrez ID 123456.\")."
-        "Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
-        "If there are dozens of records, batch the IDs and call the agent multiple times to avoid rate limits and token count limits.",
-        "\n",
+        " - Be sure to provide context to the agents (e.g., \"Use esearch to find SRA accessions associated with Entrez ID 123456.\").",
+        " - Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
+        " - If there are dozens of records, batch the IDs and call the agent multiple times to avoid rate limits and token count limits.",
         "# Execution Rules",
         " - Continue sending tasks to your agents until you successfully complete the task.",
         " - Be very concise; provide simple lists when possible; do not include unnecessary wording.",
+        "# Response Format",
+        " - Be sure to provide the final conversion results (e.g., SRA accessions).",
         " - Write your output as plain text instead of markdown.",
-        "\n",
         "#Example workflows",
         "## Task: Convert the SRA Entrez ID 123456 to SRA accessions",
         "  1. fetch NCBI record: fetch the NCBI record for the Entrez ID 123456",

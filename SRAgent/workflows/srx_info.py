@@ -14,7 +14,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import START, END, StateGraph
 from langchain_core.runnables.config import RunnableConfig
 ## package
-from SRAgent.workflows.convert import create_convert_graph, invoke_convert_graph
+from SRAgent.workflows.convert import create_convert_graph
 from SRAgent.workflows.metadata import create_metadata_graph, invoke_metadata_graph, get_metadata_items
 from SRAgent.db.connect import db_connect 
 from SRAgent.db.upsert import db_upsert
@@ -60,7 +60,7 @@ def create_convert_graph_node():
             f"Convert Entrez ID {entrez_id} to SRX or ERX accessions.",
             f"The Entrez ID is associated with the {database} database."
         ])
-        input = {"messages": [HumanMessage(message)]}
+        input = {"messages": [HumanMessage(content=message)], "entrez_id": entrez_id}
         return await graph.ainvoke(input)
     return invoke_convert_graph_node
 

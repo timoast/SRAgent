@@ -11,10 +11,19 @@ def _fetch_ncbi_record(
     database: Annotated[str, "The NCBI database to fetch data from (sra or gds)."] = "sra",
 ) -> str:
     url = f"https://www.ncbi.nlm.nih.gov/{database}/?term={term}"
-    response = requests.get(url)
+    for attempt in range(3): 
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                break
+            time.sleep(2 ** attempt) 
+        except Exception as e:
+            if attempt == 2: 
+                return f"Error: Unable to fetch data for accession {term}. Exception: {str(e)}"
+            time.sleep(2 ** attempt)
+    
     if response.status_code != 200:
         return f"Error: Unable to fetch data for accession {term}. Status code: {response.status_code}"
-    
     # final data
     gds_data = []
 
@@ -68,7 +77,17 @@ def _fetch_pubmed_record(
 ) -> str:
     """Fetches the NCBI PubMed page for a given PubMed ID."""
     url = f"https://pubmed.ncbi.nlm.nih.gov/{term}"
-    response = requests.get(url)
+    for attempt in range(3):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                break
+            time.sleep(2 ** attempt)
+        except Exception as e:
+            if attempt == 2:
+                return f"Error: Unable to fetch data for PubMed ID {term}. Exception: {str(e)}"
+            time.sleep(2 ** attempt)
+    
     if response.status_code != 200:
         return f"Error: Unable to fetch data for PubMed ID {term}. Status code: {response.status_code}"
     
@@ -113,7 +132,17 @@ def _fetch_geo_record(
     GEO_accession: Annotated[str, "The GEO accession to fetch data for."]
 ) -> str:
     url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={GEO_accession}"
-    response = requests.get(url)
+    for attempt in range(3):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                break
+            time.sleep(2 ** attempt)
+        except Exception as e:
+            if attempt == 2:
+                return f"Error: Unable to fetch data for GEO accession {GEO_accession}. Exception: {str(e)}"
+            time.sleep(2 ** attempt)
+    
     if response.status_code != 200:
         return f"Error: Unable to fetch data for GEO accession {GEO_accession}. Status code: {response.status_code}"
     return "\n\n".join(_extract_geo_sections(response, GEO_accession))
@@ -143,7 +172,7 @@ if __name__ == "__main__":
 
     # test fetch_sra_record
     input = {"terms" : ["200277303"], "database" : "gds"}
-    # print(fetch_ncbi_record.invoke(input))
+    print(fetch_ncbi_record.invoke(input))
 
     # test fetch_pubmed_record
     input = {"terms" : ["34747624"]}

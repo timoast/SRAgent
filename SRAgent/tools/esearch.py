@@ -14,61 +14,21 @@ from langchain_core.runnables.config import RunnableConfig
 from SRAgent.tools.utils import set_entrez_access
 from SRAgent.db.connect import db_connect
 from SRAgent.db.get import db_get_entrez_ids
+from SRAgent.organisms import OrganismEnum
 
 # functions
-ORGANISMS = {
-    # mammals
-    'human': 'Homo sapiens',
-    'mouse': 'Mus musculus',
-    'rat': 'Rattus norvegicus',  
-    'monkey': 'Simiiformes',      
-    'macaque': 'Macaca mulatta', 
-    'marmoset': 'Callithrix jacchus',
-    'horse': 'Equus caballus',
-    'dog': 'Canis lupus',
-    'bovine': 'Bos taurus',
-    'sheep': 'Ovis aries',
-    'pig': 'Sus scrofa',
-    'naked_mole_rat': 'Heterocephalus glaber',
-    'rabbit': 'Oryctolagus cuniculus',
-    'chimpanzee': 'Pan troglodytes',
-    'gorilla': 'Gorilla gorilla',
-    # birds
-    'chicken': 'Gallus gallus',
-    # amphibians
-    'frog': 'Xenopus tropicalis',
-    # fish
-    'zebrafish': 'Danio rerio',
-    # invertebrates
-    'fruit_fly': 'Drosophila melanogaster',
-    'caenorhabditis': 'Caenorhabditis elegans',
-    'roundworm': 'Caenorhabditis elegans',
-    'blood_fluke': 'Schistosoma mansoni',
-    'mosquito' : 'Anopheles gambiae',
-    'anopheles': 'Anopheles gambiae',
-    # plants
-    "arabidopsis" : "Arabidopsis thaliana",
-    "thale_cress" : "Arabidopsis thaliana",
-    "oryza" : "Oryza sativa",
-    "rice" : "Oryza sativa",
-    "solanum" : "Solanum lycopersicum",
-    "tomato" : "Solanum lycopersicum",
-    "zea" : "Zea mays",
-    "corn" : "Zea mays",
-    # fungi
-    "saccharomyces" : "Saccharomyces cerevisiae",
-    "yeast" : "Saccharomyces cerevisiae",
-}
 
 def to_sci_name(organism: str) -> str:
     """
-    Convert organism name to scientific name.
+    Convert organism name to scientific name using OrganismEnum.
     """
-    organism_str = organism.lower().replace(" ", "_")
+    organism_str = organism.replace(" ", "_").upper()
+    
     try:
-        return f'"{ORGANISMS[organism_str]}"'
+        enum_name = OrganismEnum[organism_str].value
+        return f'"{enum_name}"'
     except KeyError:
-        raise ValueError(f"Organism '{organism}' not found in list.")
+        raise ValueError(f"Organism '{organism}' not found in OrganismEnum.")
 
 ## default time span limits
 #MAX_DATE = (datetime.now()).strftime('%Y/%m/%d')
@@ -108,7 +68,7 @@ def esearch_scrna(
         esearch_query += f" AND ({organisms})"
 
     # other filters
-    esearch_query += ' AND "transcriptomic single cell"[Source]'
+    #esearch_query += ' AND "transcriptomic single cell"[Source]'
     esearch_query += ' AND "public"[Access]'
     esearch_query += ' AND "has data"[Properties]'
     esearch_query += ' AND "library layout paired"[Filter]'
@@ -117,17 +77,16 @@ def esearch_scrna(
     ## library prep methods to exclude
     esearch_query += ' NOT ("Smart-seq" OR "Smart-seq2" OR "Smart-seq3" OR "MARS-seq")'
 
-    # override max_ids
+    # override max_ids parameter with config
     if config.get("configurable", {}).get("max_datasets"):
         max_ids = config["configurable"]["max_datasets"]
-        ## debug model
-        if os.getenv("DYNACONF", "").lower() == "test":
-            max_ids = 2
 
     # use database to filter existing?
     filter_existing = config.get("configurable", {}).get("use_database", False)
 
     # return entrez IDs 
+    #target_entrez_ids = ["22334366", "22138327", "21929846"];
+    #return esearch_batch(esearch_query, database, max_ids=3, target_entrez_ids=target_entrez_ids, verbose=True);
     return esearch_batch(esearch_query, database, max_ids=max_ids, filter_existing=filter_existing)
 
 def esearch_batch(
@@ -137,8 +96,23 @@ def esearch_batch(
     verbose: bool=False, 
     filter_existing: bool=False,
     max_retries: int=3, 
-    base_delay: float=3.0
+    base_delay: float=3.0,
+    target_entrez_ids: Optional[List[str]]=None
     ) -> List[str]:
+    """
+    Search for Entrez IDs using the Entrez.esearch function.
+    Args:
+        esearch_query: Query string
+        database: Database name, e.g. sra, gds, or pubmed
+        max_ids: Maximum number of IDs to return
+        verbose: Print progress to stderr
+        filter_existing: Filter existing IDs in the SQL database
+        max_retries: Maximum number of retries to get Entrez IDs
+        base_delay: Delay between retries, in seconds
+        target_entrez_ids: List of specific Entrez IDs to find in the search results
+    Returns:
+        List[str]: List of Entrez IDs
+    """
     # get existing Entrez IDs
     existing_ids = set()
     if filter_existing:
@@ -152,17 +126,26 @@ def esearch_batch(
         for attempt in range(max_retries):
             set_entrez_access()
             try:
+                # search for Entrez IDs
                 search_handle = Entrez.esearch(
-                    db=database, term=esearch_query, 
-                    retstart=retstart, retmax=retmax
+                    db=database, 
+                    term=esearch_query, 
+                    retstart=retstart, 
+                    retmax=retmax,
+                    sort='pub+date'
                 )
                 search_results = Entrez.read(search_handle)
                 search_handle.close()
-                ids.extend([x for x in search_results['IdList'] if x not in existing_ids])
+                if verbose:
+                    print(f'processed {retstart} of {search_results["Count"]} records', file=sys.stderr);
+                # filter entrez ids
+                if target_entrez_ids:   
+                    ids.extend([x for x in search_results['IdList'] if x in target_entrez_ids])
+                else:
+                    ids.extend([x for x in search_results['IdList'] if x not in existing_ids])
+                # update retstart
                 retstart += retmax
                 time.sleep(0.34)
-                if verbose:
-                    print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
                 break
             except HTTPError as e:
                 if e.code == 429 and attempt < max_retries - 1:
@@ -178,13 +161,19 @@ def esearch_batch(
                return list(set(ids))
         else:
             break
+        # if max_ids is set and has been reached, break
         if max_ids and len(ids) >= max_ids:
             break
+        # if retstart has hit total records in esearch query, break
         if retstart >= int(search_results['Count']):
             break
+
+    # return max_ids of the obtained unique ids
     ids = list(set(ids))
     if max_ids:
         ids = ids[:max_ids]
+    if verbose:
+        print(f"No. of IDs found: {len(ids)}", file=sys.stderr)
     return ids
 
 @tool 
@@ -211,7 +200,7 @@ def esearch(
     for x in ["SRR", "ERR", "GSE", "GSM", "GDS", "ERX", "DRR", "PRJ", "SAM", "SRP", "SRX"]:
         if esearch_query == x:
             return f"Invalid query: {esearch_query}"
-    
+
     # query
     records = []
     retstart = 0
@@ -266,16 +255,15 @@ if __name__ == "__main__":
 
     # query for scRNA-seq 
     config = {"configurable": {
-        "organisms": ["human", "mouse", "rat", "dog"],
-        "min_date": "2021/01/01",
+        "min_date": "2016/01/01",
         "max_date": "2025/12/31",
     }}
-    query = '("single cell RNA sequencing" OR "single cell RNA-seq")'
-    #query = '("bulk RNA sequencing")'
-    input = {"esearch_query" : query, "database" : "sra", "previous_days" : 90}
-    #input = {"esearch_query" : query, "database" : "gds", "previous_days" : 60}
-    #input = {"organisms" : ["Homo sapien", "Mus musculus"]} 
-    #input = {"organisms" : ["yeast"], "max_ids" : 10000}
+    input = {
+        "query_terms" : ["10X Genomics", "single cell RNA sequencing", "single cell RNA-seq"],
+        "organism" : ["human", "mouse"],
+        "max_ids" : 10,
+        "database" : "sra"
+    }
     print(esearch_scrna.invoke(input, config=config))
 
     # esearch accession

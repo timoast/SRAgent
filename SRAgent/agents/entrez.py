@@ -12,6 +12,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables.config import RunnableConfig
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.esearch import create_esearch_agent
 from SRAgent.agents.esummary import create_esummary_agent
 from SRAgent.agents.efetch import create_efetch_agent
@@ -20,12 +21,11 @@ from SRAgent.agents.utils import create_step_summary_chain
 
 # functions
 def create_entrez_agent(
-    model_name="gpt-4o",
+    model_name=None,
     return_tool: bool=True,
 ) -> Callable:
     # create model
-    model_supervisor = ChatOpenAI(model=model_name, temperature=0.1)
-
+    model_supervisor = set_model(model_name=model_name, agent_name="entrez")
     # set tools
     tools = [
         create_esearch_agent(),

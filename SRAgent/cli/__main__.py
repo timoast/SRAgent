@@ -13,6 +13,7 @@ from SRAgent.cli.sragent import sragent_parser, sragent_main
 from SRAgent.cli.metadata import metadata_agent_parser, metadata_agent_main
 from SRAgent.cli.srx_info import SRX_info_agent_parser, SRX_info_agent_main
 from SRAgent.cli.find_datasets import find_datasets_parser, find_datasets_main
+from SRAgent.cli.tissue_ontology import tissue_ontology_parser, tissue_ontology_main
 
 
 # functions
@@ -45,10 +46,13 @@ def arg_parse(args=None) -> dict:
     sragent_parser(subparsers)
     ## Metadata agent
     metadata_agent_parser(subparsers)
+    ## Tissue ontology
+    tissue_ontology_parser(subparsers)
     ## SRX info agent
     SRX_info_agent_parser(subparsers)
     ## Find datasets
     find_datasets_parser(subparsers)
+    
     # parsing args
     return parser.parse_args()
 
@@ -68,6 +72,8 @@ def main():
         sragent_main(args)
     elif args.command.lower() == "metadata":
         metadata_agent_main(args)
+    elif args.command.lower() == "tissue-ontology":
+        tissue_ontology_main(args)
     elif args.command.lower() == "srx-info":
         SRX_info_agent_main(args)
     elif args.command.lower() == "find-datasets":

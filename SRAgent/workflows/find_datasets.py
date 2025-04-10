@@ -16,6 +16,7 @@ from langgraph.graph import START, END, StateGraph
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.agents.find_datasets import create_find_datasets_agent
 from SRAgent.workflows.srx_info import create_SRX_info_graph
 from SRAgent.db.connect import db_connect
@@ -29,6 +30,7 @@ class GraphState(TypedDict):
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     entrez_ids: Annotated[List[int], "List of dataset Entrez IDs"]
+    database: Annotated[str, operator.add]  # Database name (e.g., 'sra', 'gds')
 
 # nodes
 def create_find_datasets_node():
@@ -55,10 +57,10 @@ class EntrezInfo(BaseModel):
     database: str
 
 def create_get_entrez_ids_node() -> Callable:
-    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    model = set_model(model_name="o3-mini", reasoning_effort="low")
     async def invoke_get_entrez_ids_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """
-        Structured data extraction
+        Structured data extraction of Entrez IDs from message
         """
         # create prompt
         message = state["messages"][-1].content
@@ -76,7 +78,7 @@ def create_get_entrez_ids_node() -> Callable:
             message,
             "#-- END OF MESSAGE --#"
         ])
-        # invoke model with structured output
+        # invoke model with structured output; try 3 times to get valid output
         entrez_ids = []
         database = ""
         for i in range(3):
@@ -96,6 +98,11 @@ def create_get_entrez_ids_node() -> Callable:
                 existing_ids = db_get_entrez_ids(conn=conn, database=database)
                 entrez_ids = [x for x in entrez_ids if x not in existing_ids]
 
+        # cap number of entrez IDs to max_datasets in config
+        max_datasets = config.get("configurable", {}).get("max_datasets")
+        if max_datasets and max_datasets > 0 and len(entrez_ids) > max_datasets:
+            entrez_ids = entrez_ids[:max_datasets]
+
         ## update the database
         if len(entrez_ids) > 0 and config.get("configurable", {}).get("use_database"):
             df = pd.DataFrame({
@@ -103,8 +110,9 @@ def create_get_entrez_ids_node() -> Callable:
                 "database": database,
                 "notes": "New dataset found by Find-Datasets agent"
             })
-            with db_connect() as conn:
-                db_upsert(df, "srx_metadata", conn=conn)
+            if config.get("configurable", {}).get("use_database"):
+                with db_connect() as conn:
+                    db_upsert(df, "srx_metadata", conn=conn)
 
         # return the extracted values
         return {"entrez_ids": entrez_ids, "database": database}
@@ -126,10 +134,11 @@ def continue_to_srx_info(state: GraphState, config: RunnableConfig) -> List[Dict
 
 def final_state(state: GraphState) -> Dict[str, Any]:
     """
-    Final state of the graph
-    """
-    """
     Return the final state of the graph
+    Args:
+        state: The final state of the graph
+    Returns:
+        The final state of the graph
     """
     # filter to messages that contain the SRX accession
     messages = []
@@ -141,6 +150,8 @@ def final_state(state: GraphState) -> Dict[str, Any]:
         for x in msg:
             if x.startswith("# SRX accession: "):
                 messages.append(x)
+    # filter to unique messages
+    messages = list(set(messages))
     # final message
     if len(messages) == 0:
         message = "No novel SRX accessions found."
@@ -173,7 +184,6 @@ def create_find_datasets_graph():
 
 # main
 if __name__ == "__main__":
-    from functools import partial
     from Bio import Entrez
 
     #-- setup --#

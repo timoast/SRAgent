@@ -2,7 +2,7 @@
 ## batteries
 import os
 import asyncio
-from typing import Annotated, List, Dict, Tuple, Optional, Union, Any, Callable
+from typing import Annotated, Optional, Any, Callable
 ## 3rd party
 from Bio import Entrez
 from langchain_core.tools import tool
@@ -10,15 +10,16 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.tools.elink import elink
 from SRAgent.tools.entrez_db import which_entrez_databases
 
 
-def create_elink_agent(model_name: str="gpt-4o") -> Callable:
+def create_elink_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses Entrez elink to help complete a task.
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.1)
+    model = set_model(model_name=model_name, agent_name="elink")
     agent = create_react_agent(
         model=model,
         tools=[elink, which_entrez_databases],
@@ -62,4 +63,4 @@ if __name__ == "__main__":
         result = await agent.ainvoke(input)
         print(result)
     asyncio.run(main())
-    
+

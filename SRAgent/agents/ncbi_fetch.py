@@ -8,14 +8,15 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
+from SRAgent.agents.utils import set_model
 from SRAgent.tools.ncbi_fetch import fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record
 
 
-def create_ncbi_fetch_agent(model_name: str="gpt-4o-mini") -> Callable:
+def create_ncbi_fetch_agent(model_name: str = None) -> Callable:
     """
     Create an agent that queries the NCBI website 
     """
-    model = ChatOpenAI(model_name=model_name, temperature=0.1)
+    model = set_model(model_name=model_name, agent_name="ncbi_fetch")
     agent = create_react_agent(
         model=model,
         tools=[fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record],

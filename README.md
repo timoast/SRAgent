@@ -35,15 +35,18 @@ pip install .
 ## Environmental variables
 
 * `OPENAI_API_KEY` = API key for using the OpenAI API
-  * **required**
-  * currently, no other models are supported besides OpenAI
+  * **required** when using OpenAI models
+  * See [Configuring models](#configuring-models) information on setting models
+* `ANTHROPIC_API_KEY` = API key for using the Anthropic API
+  * **required** when using Claude models
 * `EMAIL` = email for using the Entrez API
   * optional, but **HIGHLY** recommended
 * `NCBI_API_KEY` = API key for using the Entrez API
   * optional, increases rate limits
-* `DYNACONF` = switch between "test" and "prod" environments
+* `DYNACONF` = switch between "test", "prod", and "claude" environments
   * optional, default is "prod"
-  * this only affects the SQL database used, and no database is used by default
+  * this affects the SQL database used and models selected
+  * no database is used by default
 
 # Testing
 
@@ -133,7 +136,8 @@ Obtain specific metadata for >=1 SRA dataset.
   * If 10X Genomics, which particular 10X technologies?
   * Single nucleus or single cell RNA sequencing?
   * Which organism was sequenced?
-  * Which tissue was sequenced?
+  * Which tissue(s) were sequenced?
+  * Corresponding tissue ontology ID(s)
   * Any disease information?
   * Any treatment/purturbation information?
   * Any cell line information?
@@ -156,7 +160,7 @@ SRAgent srx-info 25576380
 Multiple SRA datasets:
 
 ```bash
-SRAgent srx-info 36404865 36106630 32664033
+SRAgent srx-info 36106630 32664033 27694586
 ```
 
 Use the SQL database to filter out already-processed datasets:
@@ -164,7 +168,6 @@ Use the SQL database to filter out already-processed datasets:
 ```bash
 SRAgent srx-info --use-database 18060880 27454880 27454942 27694586
 ```
-
 
 ## Metadata agent
 
@@ -182,6 +185,38 @@ The metadata fields are the same as the `SRX-info` agent.
 
 ```bash
 SRAgent metadata "entrez-id_srx-accession.csv"
+```
+
+## Tissue-ontology agent
+
+An agent for categorizing tissue descriptions using the Uberon ontology. 
+The agent helps identify the most suitable Uberon ontology term for a given tissue description.
+
+* Input: Free text description of one or more tissues
+* Output: Uberon ontology IDs (UBERON:XXXXXXX) for each tissue description
+* Workflow
+  * The agent processes each tissue description separately
+  * For each description, it identifies the most suitable Uberon ontology term
+  * The agent returns the corresponding Uberon ID for each tissue
+
+#### Examples
+
+Categorize a single tissue:
+
+```bash
+SRAgent tissue-ontology "Categorize the following tissue: brain"
+```
+
+Categorize multiple tissues:
+
+```bash
+SRAgent tissue-ontology "Tissues: lung, heart, liver"
+```
+
+Finding ontology terms for complex tissue descriptions:
+
+```bash
+SRAgent tissue-ontology "Find the ontology term for the thin layer of epithelial cells lining the alveoli in lungs"
 ```
 
 ## find-datasets agent
@@ -227,30 +262,51 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms pig -- \
   - Naked mole-rat (*Heterocephalus glaber*)
   - Chimpanzee (*Pan troglodytes*)
   - Gorilla (*Gorilla gorilla*)
-
+  - Cat (*Felis catus*)
+  - Bonobo (*Pan paniscus*)
+  - Green monkey (*Chlorocebus aethiops*)
+  - Gray short-tailed opposum (*Monodelphis domestica*)
+  - Goat (*Capra hircus*)
+  - Alpaca (*Vicugna pacos*)
+  - Chinchilla (*Chinchilla lanigera*)
+  - Domestic guinea pig (*Cavia porcellus*)
+  - Golden hamster (*Mesocricetus auratus*)
+  - Eurasian hedgehog (*Erinaceus europaeus*)
+  - American mink (*Neovison vison*)
+  - Sunda pangolin (*Manis javanica*)
+  - Platypus (*Ornithorhynchus anatinus*)
+  - Ferret (*Mustela putorius*)
+  - Northern tree shrew (*Tupaia belangeri*)
 - **Birds**
   - Chicken (*Gallus gallus*)
-
+  - Zebrafinch (*Taeniopygia guttata*)
+  - Goose (*Anser cygnoides*)
+  - Duck (*Anas platyrhynchos*)
+- **Reptiles**
+  - Turtle (*Trachemys scripta*)
 - **Amphibians**
   - Frog (*Xenopus tropicalis*)
-
+  - Axolotl (*Ambystoma mexicanum*)
 - **Fish**
   - Zebrafish (*Danio rerio*)
-
+  - Salmon (*Salmo salar*)
+  - Stickleback (*Gasterosteus aculeatus*)
 - **Invertebrates**
   - Fruit fly (*Drosophila melanogaster*)
   - Roundworm (*Caenorhabditis elegans*)
   - Mosquito (*Anopheles gambiae*)
   - Blood fluke (*Schistosoma mansoni*)
-
 - **Plants**
   - Thale cress (*Arabidopsis thaliana*)
   - Rice (*Oryza sativa*)
   - Tomato (*Solanum lycopersicum*)
   - Corn (*Zea mays*)
+- **Microorganisms**
+  - Metagenome
+- **Other**
+  - Other
 
 </details>
-
 
 #### Using an SQL database to store results
 
@@ -259,6 +315,59 @@ Using the `test` database:
 ```bash
 SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
   "Obtain recent single cell RNA-seq datasets in the SRA database"
+```
+
+# Configuring models
+
+The models used by SRAgent are configured in the [settings.yml](./SRAgent/settings.yml) file.
+Options for updating the settings:
+
+## 1) Provide a new settings file
+
+* Create a new settings yaml file
+* Set the `DYNACONF_SETTINGS_PATH` environment variable to the path to the new settings file
+  * e.g., `export DYNACONF_SETTINGS_PATH=/path/to/settings.yml`
+* No need to (re)install the package. The settings will be loaded from the new file.
+
+## 2) Update and install
+
+* Clone the repository
+* Update the [settings.yml](./SRAgent/settings.yml) file
+* (Re)install the the package
+  * e.g., `pip install .`
+
+## Using Claude models
+
+SRAgent supports using Anthropic's Claude models:
+
+* Set the `ANTHROPIC_API_KEY` environment variable to your Anthropic API key
+* Switch to the Claude environment using `export DYNACONF=claude`
+  * Update the [settings.yml](./SRAgent/settings.yml) file, as needed
+  * See [Configuring models](#configuring-models) information on setting model parameters
+* Run SRAgent commands as usual
+
+Claude models support different reasoning effort levels:
+* `low`: 1024 thinking tokens (best for simple tasks)
+* `medium`: 4096 thinking tokens (good balance)
+* `high`: 16384 thinking tokens (best for complex reasoning)
+* Anything else: Disables thinking tokens feature
+
+Example:
+```bash
+export ANTHROPIC_API_KEY=your_api_key
+export DYNACONF=claude
+SRAgent entrez "Convert GSE121737 to SRX accessions"
+```
+
+You can also customize the specific Claude model in settings.yml:
+```yaml
+claude:
+  models:
+    default: "claude-3-7-sonnet-latest"  # Or any other Claude model version
+  temperature:
+    default: 0.1
+  reasoning_effort:
+    default: "medium"  # Set your preferred reasoning effort
 ```
 
 # Setting up the SQL database

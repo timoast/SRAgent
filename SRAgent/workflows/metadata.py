@@ -7,15 +7,18 @@ from enum import Enum
 from typing import Annotated, List, Dict, Any, Sequence, TypedDict, Callable, Union, get_args, get_origin
 import pandas as pd
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import START, END, StateGraph, MessagesState
 from langchain_core.runnables.config import RunnableConfig
 ## package
-from SRAgent.agents.sragent import create_sragent_agent
+from SRAgent.agents.utils import set_model
 from SRAgent.db.connect import db_connect 
 from SRAgent.db.upsert import db_upsert
+from SRAgent.agents.sragent import create_sragent_agent
+from SRAgent.workflows.tissue_ontology import create_tissue_ontology_workflow
+from SRAgent.organisms import OrganismEnum
 
 # classes
 class YesNo(Enum):
@@ -23,44 +26,6 @@ class YesNo(Enum):
     YES = "yes"
     NO = "no"
     UNSURE = "unsure"
-
-class OrganismEnum(Enum):
-    """Organism sequenced"""
-    # mammals
-    HUMAN = "Homo sapiens"
-    MOUSE = "Mus musculus"
-    RAT = "Rattus norvegicus"
-    MACAQUE = "Macaca mulatta"
-    MARMOSET = "Callithrix jacchus"
-    HORSE = "Equus caballus"
-    DOG = "Canis lupus"
-    BOVINE = "Bos taurus"
-    SHEEP = "Ovis aries"
-    PIG = "Sus scrofa"
-    RABBIT = "Oryctolagus cuniculus"
-    NAKED_MOLE_RAT = "Heterocephalus glaber"
-    CHIMPANZEE = "Pan troglodytes"
-    GORILLA = "Gorilla gorilla"
-    # birds
-    CHICKEN = "Gallus gallus"
-    # amphibians
-    FROG = "Xenopus tropicalis"
-    # fish
-    ZEBRAFISH = "Danio rerio"
-    # invertebrates
-    FRUIT_FLY = "Drosophila melanogaster"
-    ROUNDWORM = "Caenorhabditis elegans"
-    MOSQUITO = "Anopheles gambiae"
-    BLOOD_FLUKE = "Schistosoma mansoni"
-    # plants
-    THALE_CRESS = "Arabidopsis thaliana"
-    RICE = "Oryza sativa"
-    TOMATO = "Solanum lycopersicum"
-    CORN = "Zea mays" 
-    # microorganisms
-    METAGENOME = "metagenome"
-    # other
-    OTHER = "other"
 
 class Tech10XEnum(Enum):
     """10X Genomics library preparation technology"""
@@ -107,29 +72,27 @@ class CellPrepEnum(Enum):
 
 class PrimaryMetadataEnum(BaseModel):
     """Metadata to extract"""
-    is_illumina: YesNo
-    is_single_cell: YesNo
-    is_paired_end: YesNo
-    lib_prep: LibPrepEnum
-    tech_10x: Tech10XEnum
-    cell_prep: CellPrepEnum
+    is_illumina: YesNo = Field(description="Is the dataset Illumina sequence data?")
+    is_single_cell: YesNo = Field(description="Is the dataset single cell?")
+    is_paired_end: YesNo = Field(description="Is the dataset paired-end?")
+    lib_prep: LibPrepEnum = Field(description="The library preparation technology")
+    tech_10x: Tech10XEnum = Field(description="The 10x Genomics technology")
+    cell_prep: CellPrepEnum = Field(description="The cell preparation technology")
 
 class SecondaryMetadataEnum(BaseModel):
-    organism: OrganismEnum
-    tissue: str
-    disease: str
-    perturbation: str
-    cell_line: str
+    organism: OrganismEnum = Field(description="The organism sequenced")
+    tissue: str = Field(description="The tissues where sequenced")
+    disease: str = Field(description="The diseases of interest")
+    perturbation: str = Field(description="The perturbations of interest")
+    cell_line: str = Field(description="The cell lines of interest")
+
+class TertiaryMetadataEnum(BaseModel):
+    tissue_ontology_term_id: List[str] = Field(description="A list of tissue ontology terms")
 
 class ChoicesEnum(Enum):
     """Choices for the router"""
     CONTINUE = "CONTINUE"
     STOP = "STOP"
-
-class MetadataLevelsEnum(Enum):
-    """Choices for the router"""
-    PRIMARY = "primary"
-    SECONDARY = "secondary"
 
 class Choice(BaseModel):
     """Choice to continue or stop"""
@@ -137,12 +100,11 @@ class Choice(BaseModel):
 
 class SRR(BaseModel):
     """SRR accessions"""
-    SRR: List[str]
+    SRR: List[str] = Field(description="A list of SRR accessions")
 
 class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    #extracted_metadata: Annotated[Sequence[BaseMessage], "extractd metadata"]
     route: Annotated[str, "Route"]
     attempts: Annotated[int, "Number of attempts to extract metadata"]
     metadata_level: Annotated[str, "Metadata level"]
@@ -157,14 +119,17 @@ class GraphState(TypedDict):
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
-    tech_10x: Annotated[List[str], "If 10X Genomics, which particular 10X technologies?"]
+    tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
     organism: Annotated[str, "Which organism was sequenced?"]
     ## secondary metadata
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
-    tissue: Annotated[str, "Which tissue was sequenced?"]
+    tissue: Annotated[str, "Which tissues were sequenced?"]
     disease: Annotated[str, "Any disease information?"]
     perturbation: Annotated[str, "Any treatment/perturbation information?"]
     cell_line: Annotated[str, "Any cell line information?"]
+    ## tertiary metadata
+    tissue_ontology_term_id: Annotated[List[str], "The ontology terms corresponding to the sequenced tissues"]
+    
 
 # functions
 def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
@@ -178,8 +143,10 @@ def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
         to_include = PrimaryMetadataEnum.model_fields.keys()
     elif metadata_level == "secondary":
         to_include = SecondaryMetadataEnum.model_fields.keys()
+    elif metadata_level == "tertiary":
+        to_include = TertiaryMetadataEnum.model_fields.keys()
     else:
-        raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
+        raise ValueError("The metadata_level must be 'primary', 'secondary', or 'tertiary'.")
 
     # get the metadata items
     metadata_items = {}
@@ -218,22 +185,37 @@ def create_sragent_agent_node():
         }
     return invoke_sragent_agent_node
 
-def max_str_len(x: str, max_len:int = 100) -> str:
-    """Find the maximum length string in a list"""
+def max_str_len(x: str, max_len: int=300) -> str:
+    """
+    Find the maximum length string in a list. If the string is longer than max_len, truncate it with "..."
+    Args:
+        x: The string or list of strings
+        max_len: The maximum length of the string
+    Returns:
+        The maximum length string
+    """
+    if isinstance(x, list):
+        x = ",".join(x)
     if not isinstance(x, str):
         return x
     return x if len(x) <= max_len else x[:max_len-3] + "..."
     
-def get_extracted_fields(response):
-    """Dynamically extract fields from the response model"""
+def get_extracted_fields(response) -> Dict[str, str]:
+    """
+    Dynamically extract fields from the response model
+    Args:
+        response: The response object
+    Return:
+        A dictionary of the extracted fields: {field_name: field_value}
+    """
     # get the extracted metadata fields
     fields = {}
     for field_name in response.model_fields.keys():
         # set the max string length
-        if field_name == "tissue":
-            max_len = 80
-        else:
+        if field_name == "organism":
             max_len = 100
+        else:
+            max_len = 300
         # get the field value
         field_value = getattr(response, field_name)
         # add to fields dict
@@ -252,9 +234,9 @@ def get_annot(key: str, state: dict) -> str:
 
 def create_get_metadata_node() -> Callable:
     """Create a node to extract metadata"""
-    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+    model = set_model(agent_name="metadata")
 
-    async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig):
+    async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """Structured data extraction"""
         metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
         # format prompt
@@ -264,8 +246,9 @@ def create_get_metadata_node() -> Callable:
             " - The provided text is from 1 or more attempts to find the metadata, so you many need to combine information from multiple sources.",
             " - If there are multiple sources, use majority rules to determine the metadata values, but weigh ambiguous values less (e.g., \"unknown\", \"likely\", or \"assumed\").",
             " - If there is not enough information to determine the metadata, respond with \"unsure\" or \"other\", depending on the metadata field.",
-            " - If a 10X Genomics library preparation method is not selected, then the 10X technology should be \"not_applicable\".",
-            " - Keep free text responses short; use less than 100 characters.",
+            " - If the selected \"lib_prep\" field is NOT \"10X_Genomics\", the \"tech_10x\" field should be \"not_applicable\".",
+            " - \"single cell\" typically refers to whole-cell sequencing; \"nucleus\" is usually stated if single nucleus sequencing.",
+            " - Keep free text responses short; use less than 300 characters.",
             "# The specific metadata to extract",
             metadata_items
         ])
@@ -284,6 +267,18 @@ def create_get_metadata_node() -> Callable:
             raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
         response = await model.with_structured_output(selected_enum, strict=True).ainvoke(prompt)
         extracted_fields = get_extracted_fields(response)
+        # check logic
+        try:
+            if extracted_fields["is_single_cell"] != "yes":
+                extracted_fields["tech_10x"] = "not_applicable"
+            if extracted_fields["is_single_cell"] == "yes" and extracted_fields["lib_prep"] == "not_applicable":
+                extracted_fields["lib_prep"] = "other"
+            if extracted_fields["lib_prep"] != "10x_Genomics":
+                extracted_fields["tech_10x"] = "not_applicable"
+            if extracted_fields["lib_prep"] == "10x_Genomics" and extracted_fields["tech_10x"] == "not_applicable":
+                extracted_fields["tech_10x"] = "other"
+        except KeyError:
+            pass
         # create the natural language response message   
         message = "\n".join(
             ["# The extracted metadata:"] + 
@@ -297,7 +292,7 @@ def create_get_metadata_node() -> Callable:
 
 def create_router_node() -> Callable:
     """Routing based on percieved completion of metadata extraction"""
-    model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+    model = set_model(agent_name="metadata_router")
 
     async def invoke_router_node(state: GraphState):
         """
@@ -317,7 +312,7 @@ def create_router_node() -> Callable:
             " - You are a helpful bioinformatican who is evaluating the metadata extracted from the SRA experiment.",
             " - You will be provided with the extracted metadata and will determine if the metadata is complete.",
             " - Metadata values of \"unsure\" or \"other\" are considered incomplete.",
-            " - \"not_applicable\" is considered complete.",
+            " - \"not_applicable\" is considered complete if the metadata field is not applicable, given other metadata values.",
             " - If the metadata is incomplete, you will respond to let the system know if more information is needed.",
             "# Notes",
             " - The organism may be \"other\" if the organism is not a common model organism.",
@@ -350,7 +345,7 @@ def create_router_node() -> Callable:
 def route_retry_metadata(state: GraphState) -> str:
     """Determine the route based on the current state of the conversation."""
     # move on to which node?
-    next_node = "bump_metadata_level_node" if state["metadata_level"] == "primary" else "SRX2SRR_node"
+    next_node = "bump_metadata_level_node" if state["metadata_level"] == "primary" else "tissue_ontology_node"
     max_attempts = 2 if state["metadata_level"] == "primary" else 1
     # limit the number of attempts
     if state["attempts"] >= max_attempts:
@@ -365,13 +360,47 @@ def bump_metadata_level(state: GraphState) -> str:
         "attempts" : 0
     }
 
+def create_tissue_ontology_node() -> Callable:
+    """Create a node to extract tissue ontology"""
+    agent = create_tissue_ontology_workflow()
+    
+    # create the node function
+    async def invoke_tissue_ontology_node(state: GraphState) -> Dict[str, Any]:
+        """Invoke the tissue ontology workflow"""
+        # create message prompt
+        tissues = state.get("tissue")
+        if tissues:
+            tissues = fmt(tissues)
+        else:
+            return {"tissue_ontology_term_id" : []}
+        organism = state.get("organism", "No organism provided")
+        disease= state.get("disease", "No disease provided")
+        perturbation = state.get("perturbation", "No perturbation provided")
+        cell_line = state.get("cell_line", "No cell line provided")
+        message = "\n".join([
+            "# Primary information",
+            f"The tissues: {tissues}",
+            "# Secondary information",
+            f"The organism: {organism}",
+            f"The disease: {disease}",
+            f"The perturbation: {perturbation}",
+            f"The cell line: {cell_line}",
+        ])
+        # call the agent
+        response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
+        # return the structured response (term IDs)
+        return {"tissue_ontology_term_id" : response}
+
+    return invoke_tissue_ontology_node
+
 async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
     """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
     # format the message
+    suffix = "Generally, the bigquery agent can handle this task."
     if state["SRX"].startswith("SRX"):
-        message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions."
+        message = f"Find the SRR accessions for {state['SRX']}. Provide a list of SRR accessions. {suffix}"
     elif state["SRX"].startswith("ERX"):
-        message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions."
+        message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions. {suffix}"
     else:
         message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRX\" or \"ERR\"."
     # call the agent
@@ -393,13 +422,14 @@ def add2db(state: GraphState, config: RunnableConfig):
         "is_single_cell": state["is_single_cell"],
         "is_paired_end": state["is_paired_end"],
         "lib_prep": state["lib_prep"],
-        "tech_10x": fmt(state["tech_10x"]),
+        "tech_10x": state["tech_10x"],
         "cell_prep": state["cell_prep"],
         "organism": state["organism"],
-        "tissue": state["tissue"],
-        "disease": state["disease"],
-        "perturbation": state["perturbation"],
-        "cell_line": state["cell_line"],
+        "tissue": fmt(state["tissue"]),
+        "tissue_ontology_term_id": fmt(state["tissue_ontology_term_id"]),
+        "disease": fmt(state["disease"]),
+        "perturbation": fmt(state["perturbation"]),
+        "cell_line": fmt(state["cell_line"]),
         "notes": "Metadata obtained by SRAgent"
     }]
     data = pd.DataFrame(data)
@@ -419,7 +449,7 @@ def add2db(state: GraphState, config: RunnableConfig):
             db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
 def fmt(x: Union[str, List[str]]) -> str:
-    """If a list, join them with a semicolon into one string"""
+    """If a list, join them with a comma into one string"""
     if type(x) != list:
         return x
     return ",".join([str(y) for y in x])
@@ -432,6 +462,12 @@ def final_state(state: GraphState):
         metadata.append(f" - {v}: {state[k]}")
     for k,v in get_metadata_items("secondary").items():
         metadata.append(f" - {v}: {state[k]}")
+    for k,v in get_metadata_items("tertiary").items():
+        try:
+            result = ", ".join(state[k])
+        except ValueError:
+            result = state[k]
+        metadata.append(f" - {v}: {result}")
     # create the message
     message = "\n".join([
         "# SRX accession: " + state["SRX"],
@@ -455,6 +491,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow.add_node("get_metadata_node", create_get_metadata_node())
     workflow.add_node("router_node", create_router_node())
     workflow.add_node("bump_metadata_level_node", bump_metadata_level)
+    workflow.add_node("tissue_ontology_node", create_tissue_ontology_node())
     workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_sragent_agent_node)
     if db_add:
        workflow.add_node("add2db_node", add2db)
@@ -466,6 +503,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     workflow.add_edge("get_metadata_node", "router_node")
     workflow.add_conditional_edges("router_node", route_retry_metadata)
     workflow.add_edge("bump_metadata_level_node", "sragent_agent_node")
+    workflow.add_edge("tissue_ontology_node", "SRX2SRR_node")
     if db_add:
        workflow.add_edge("SRX2SRR_node", "add2db_node")
        workflow.add_edge("add2db_node", "final_state_node")
@@ -502,7 +540,7 @@ if __name__ == "__main__":
 
     #-- setup --#
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
     Entrez.email = os.getenv("EMAIL")
 
     #-- graph --#
@@ -520,6 +558,7 @@ if __name__ == "__main__":
         async for step in graph.astream(input, subgraphs=False, config=config):
             print(step)
     asyncio.run(main())
+    exit();
 
     # Save the graph image
     # from SRAgent.utils import save_graph_image

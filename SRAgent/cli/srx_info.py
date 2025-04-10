@@ -4,7 +4,7 @@ import os
 import sys
 import asyncio
 import argparse
-from typing import List
+from typing import List, Optional, Callable
 ## 3rd party
 from Bio import Entrez
 ## package
@@ -40,24 +40,38 @@ def SRX_info_agent_parser(subparsers):
         '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
     )
     sub_parser.add_argument(
-        '--max-parallel', type=int, default=2, help='Maximum parallel processing of entrez ids'
-    )
-    sub_parser.add_argument(
-        '--eval-dataset', type=str, default=None, nargs='+', help='>=1 eval dataset of Entrez IDs to query'
+        '--max-parallel', type=int, default=3, help='Maximum parallel processing of entrez ids'
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
-        help='Add the results to the scBaseCamp SQL database'
+        help='Add the results to the SRAgent SQL database'
+    )
+    sub_parser.add_argument(
+        '--tenant', type=str, default='prod',
+        choices=['prod', 'test'],
+        help='Tenant name for the SRAgent SQL database'
+
     )
     sub_parser.add_argument(
         '--reprocess-existing', action='store_true', default=False, 
-        help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
+        help='Reprocess existing Entrez IDs in the SRAgent database instead of re-processing them (assumning --use-database)'
     )
 
 async def _process_single_entrez_id(
-    entrez_id, database, graph, step_summary_chain, config: dict, no_summaries: bool
+    entrez_id, database, graph, 
+    step_summary_chain: Optional[Callable], 
+    config: dict, no_summaries: bool
 ):
-    """Process a single entrez_id"""
+    """
+    Process a single entrez_id.
+    Args:
+        entrez_id: The Entrez ID to process.
+        database: The database to use.
+        graph: The graph to use.
+        step_summary_chain: The step summary chain to use.
+        config: The config to use.
+        no_summaries: Whether to print summaries.
+    """
     input = {
         "entrez_id": entrez_id, 
         "database": database,
@@ -67,12 +81,12 @@ async def _process_single_entrez_id(
     async for step in graph.astream(input, config=config):
         i += 1
         final_state = step
-        if no_summaries:
-            nodes = ",".join(list(step.keys()))
-            print(f"[{entrez_id}] Step {i}: {nodes}")
-        else:
+        if step_summary_chain:
             msg = await step_summary_chain.ainvoke({"step": step})
             print(f"[{entrez_id}] Step {i}: {msg.content}")
+        else:
+            nodes = ",".join(list(step.keys()))
+            print(f"[{entrez_id}] Step {i}: {nodes}")
 
     if final_state:
         print(f"#-- Final results for Entrez ID {entrez_id} --#")
@@ -84,7 +98,7 @@ async def _process_single_entrez_id(
 
 async def _SRX_info_agent_main(args):
     """
-    Main function for invoking the entrez agent
+    Main function for invoking the srx-info agent
     """
     # filter entrez_ids
     if args.use_database:
@@ -102,7 +116,10 @@ async def _SRX_info_agent_main(args):
 
     # create supervisor agent
     graph = create_SRX_info_graph()
-    step_summary_chain = create_step_summary_chain()
+    if not args.no_summaries:
+        step_summary_chain = create_step_summary_chain()
+    else:
+        step_summary_chain = None
 
     # invoke agent
     config = {
@@ -135,6 +152,17 @@ async def _SRX_info_agent_main(args):
     await asyncio.gather(*tasks)
 
 def SRX_info_agent_main(args):
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
+    # filter to non-integer entrez_ids
+    problem_entrez_ids = [x for x in args.entrez_ids if not x.isnumeric()]
+    if problem_entrez_ids:
+        print("Invalid Entrez IDs found:", file=sys.stderr)
+        for x in problem_entrez_ids:
+            print(x, file=sys.stderr)
+        return 1
+    # run agent
     asyncio.run(_SRX_info_agent_main(args))
 
 # main

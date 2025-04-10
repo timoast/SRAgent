@@ -15,6 +15,65 @@ from SRAgent.workflows.find_datasets import create_find_datasets_graph
 from SRAgent.agents.utils import create_step_summary_chain
 from SRAgent.tools.utils import set_entrez_access
 
+# organism parameters
+human_mouse = ["human", "mouse"]
+other_orgs = organisms = [
+    # mammals
+    "rat",
+    "macaque",
+    "marmoset",
+    "horse",
+    "dog",
+    "bovine",
+    "sheep",
+    "pig",
+    "rabbit",
+    "naked_mole_rat",
+    "chimpanzee",
+    "gorilla",
+    "cat",
+    "bonobo",
+    "green_monkey",
+    "gray_short_tailed_opposum",
+    "vervet_monkey",
+    "goat",
+    "alpaca",
+    "chinchilla",
+    "domestic_guinea_pig",
+    "golden_hamster",
+    "eurasian_hedgehog",
+    "american_mink",
+    "rednecked_wallaby",
+    "sunda_pangolin",
+    "platypus",
+    "ferret",
+    "northern_tree_shrew",
+    # birds
+    "chicken",
+    "zebrafinch",
+    "goose",
+    "duck",
+    # reptiles
+    "turtle",
+    # amphibians
+    "frog",
+    "axolotl",
+    # fish
+    "zebrafish",
+    "salmon",
+    "stickleback",
+    # invertebrates
+    "fruit_fly",
+    "blood_fluke",
+    "roundworm",
+    "mosquito",
+    # plants
+    "thale_cress",
+    "rice",
+    "tomato",
+    "corn"
+]
+
 # functions
 def find_datasets_parser(subparsers):
     help = 'Obtain datasets and process each via the srx-info workflow'
@@ -29,7 +88,7 @@ def find_datasets_parser(subparsers):
         'message', type=str, help='Message to instruct the agent. See the Description'
     ) 
     sub_parser.add_argument(
-        '--max-datasets', type=int, default=10, help='Maximum number of datasets to analyze'
+        '--max-datasets', type=int, default=5, help='Maximum number of datasets to find and process'
     )
     sub_parser.add_argument(
         '--min-date', type=str, 
@@ -37,9 +96,8 @@ def find_datasets_parser(subparsers):
         help='Oldest date to search for datasets'
     )
     sub_parser.add_argument(
-        '--max-date', type=str, 
-        default=datetime.now().strftime("%Y/%m/%d"),
-        help='Oldest date to search for datasets'
+        '--max-date', type=str, default=datetime.now().strftime("%Y/%m/%d"),
+        help='Newest date to search for datasets'
     )
     sub_parser.add_argument(
         '--no-summaries', action='store_true', default=False, help='No LLM summaries'
@@ -51,20 +109,19 @@ def find_datasets_parser(subparsers):
         '--recursion-limit', type=int, default=200, help='Maximum recursion limit'
     )
     sub_parser.add_argument(
-        '-o', '--organisms', type=str, nargs='+', default=["human", "mouse"],
-        choices=[
-            "human", "mouse", "rat", "macaque", "marmoset", "horse", "dog", "bovine", "sheep", "pig", 
-            "rabbit", "naked_mole_rat", "chimpanzee", "gorilla",
-            "chicken", "frog", "zebrafish", 
-            "fruit_fly", "blood_fluke", "roundworm", "mosquito", 
-            "thale_cress", "rice", "tomato", "corn"
-        ],
-        help='Organisms to search for'
+        '-o', '--organisms', type=str, nargs='+', default=human_mouse,
+        choices=human_mouse + other_orgs + ["human-mouse", "other-orgs"],
+        help='Organisms to search for. Use "human-mouse" or "other-orgs" to select human/mouse or all other organisms'
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
         help='Use the scBaseCamp database to screen out existing datasets for adding the newly found datasets'
     )  
+    sub_parser.add_argument(
+        '--tenant', type=str, default='prod',
+        choices=['prod', 'test'],
+        help='Tenant name for the SRAgent SQL database'
+    )
     sub_parser.add_argument(
         '--reprocess-existing', action='store_true', default=False, 
         help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
@@ -74,6 +131,10 @@ async def _find_datasets_main(args):
     """
     Main function for invoking the find-datasets workflow
     """
+    # set tenant
+    if args.tenant:
+        os.environ["DYNACONF"] = args.tenant
+
     # set email and api key
     set_entrez_access()
     
@@ -82,7 +143,16 @@ async def _find_datasets_main(args):
     if not args.no_summaries:
         step_summary_chain = create_step_summary_chain()
 
-    # set graph inpu
+    # format organisms
+    if "human-mouse" in args.organisms:
+        args.organisms.remove("human-mouse")
+        args.organisms += human_mouse
+    if "other-orgs" in args.organisms:
+        args.organisms.remove("other-orgs")
+        args.organisms += other_orgs
+    args.organisms = sorted(list(set(args.organisms)))
+
+    # set graph config
     config = {
         "max_concurrency": args.max_concurrency,
         "recursion_limit": args.recursion_limit,
