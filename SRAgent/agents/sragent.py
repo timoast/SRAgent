@@ -72,7 +72,6 @@ def create_sragent_agent(
         " - Do not simplify metadata fields; ask the agent for the EXACT metadata field.",
         "   - For example, state \"Which 10X Genomics library preparation technology?\" to the agent instead of just \"10X Genomics data\".",
         " - Provide the agent with concise, clear directions.",
-        " - If an agent returns no results, try a different prompt format and/or another agent.",
         " - After each agent call, briefly analyze the agent's response:",
         "   - What information was obtained?",
         "   - Should I verify any questionable information with another data source?",
