@@ -182,6 +182,7 @@ def esearch(
     esearch_query: Annotated[str, "Entrez query string."],
     database: Annotated[str, "Database name (e.g., sra, gds, or pubmed)"],
     config: RunnableConfig,
+    verbose: Annotated[bool, "Print progress to stderr"]=False,
     )-> Annotated[str, "Entrez IDs of database records"]:
     """
     Run an Entrez search query and return the Entrez IDs of the results.
@@ -227,11 +228,13 @@ def esearch(
                     time.sleep(base_delay * 2 ** attempt)
                 else:
                     msg = f"HTTP Error searching {database} with query {esearch_query}: {e}"
-                    print(msg, file=sys.stderr)
+                    if verbose:
+                        print(msg, file=sys.stderr)
                     return msg
             except Exception as e:
                 msg = f"Error searching {database} with query {esearch_query}: {str(e)}"
-                print(msg, file=sys.stderr)
+                if verbose:
+                    print(msg, file=sys.stderr)
                 return msg
         else:
             break
