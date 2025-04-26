@@ -298,6 +298,13 @@ def create_router_node() -> Callable:
         """
         Router for the graph
         """
+        # bypassing the router node
+        return {
+            "route": "STOP",
+            "attempts": state.get("attempts", 0) + 1,
+            "messages": [AIMessage(content="Bypassing the router node")]
+        }
+
         # no need to evaluate secondary metadata
         if state["metadata_level"] != "primary":
             return {
