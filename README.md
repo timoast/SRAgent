@@ -234,7 +234,8 @@ processing them with the `SRX-info` agent.
 #### Examples
 
 ```bash
-SRAgent find-datasets "Obtain recent single cell RNA-seq datasets in the SRA database"
+SRAgent find-datasets --max-datasets 2 \
+  "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 
 #### Target specific organisms
@@ -313,7 +314,8 @@ SRAgent find-datasets --no-summaries --max-datasets 1 --organisms pig -- \
 Using the `test` database:
 
 ```bash
-SRAgent find-datasets --use-database --no-summaries --max-datasets 1 --organisms rat -- \
+SRAgent find-datasets --use-database --tenant test \
+  --no-summaries --max-datasets 1 --organisms rat -- \
   "Obtain recent single cell RNA-seq datasets in the SRA database"
 ```
 

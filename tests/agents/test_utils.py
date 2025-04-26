@@ -44,17 +44,17 @@ class TestSetModel:
         """Test set_model with default settings"""
         # Mock settings
         mock_settings = {
-            "models": {"default": "o3-mini"},
+            "models": {"default": "o4-mini"},
             "temperature": {"default": 0.1},
             "reasoning_effort": {"default": "low"}
         }
         mock_load_settings.return_value = mock_settings
         
-        # Test with o1/o3 model
+        # Test with o1/o3/o4 model
         with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
             model = set_model()
             mock_chat.assert_called_once_with(
-                model_name="o3-mini", 
+                model_name="o4-mini", 
                 temperature=None, 
                 reasoning_effort="low"
             )
@@ -64,17 +64,17 @@ class TestSetModel:
         """Test set_model with gpt-4o model"""
         # Mock settings
         mock_settings = {
-            "models": {"default": "gpt-4o"},
+            "models": {"default": "gpt-4.1-mini"},
             "temperature": {"default": 0.1},
             "reasoning_effort": {"default": "low"}
         }
         mock_load_settings.return_value = mock_settings
         
-        # Test with GPT-4o model
+        # Test with GPT-4.1-mini model
         with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
             model = set_model()
             mock_chat.assert_called_once_with(
-                model_name="gpt-4o", 
+                model_name="gpt-4.1-mini", 
                 temperature=0.1, 
                 reasoning_effort=None
             )
@@ -84,7 +84,7 @@ class TestSetModel:
         """Test set_model with parameter overrides"""
         # Mock settings
         mock_settings = {
-            "models": {"default": "o3-mini"},
+            "models": {"default": "o4-mini"},
             "temperature": {"default": 0.1},
             "reasoning_effort": {"default": "low"}
         }
@@ -93,12 +93,12 @@ class TestSetModel:
         # Test with override parameters
         with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
             model = set_model(
-                model_name="gpt-4o",
+                model_name="gpt-4.1-mini",
                 temperature=0.5,
                 reasoning_effort="high"
             )
             mock_chat.assert_called_once_with(
-                model_name="gpt-4o", 
+                model_name="gpt-4.1-mini", 
                 temperature=0.5, 
                 reasoning_effort=None
             )
@@ -108,7 +108,7 @@ class TestSetModel:
         """Test set_model with specific agent settings"""
         # Mock settings with agent-specific settings
         mock_settings = {
-            "models": {"default": "o3-mini", "entrez": "o3-large"},
+            "models": {"default": "o4-mini", "entrez": "o4-mini"},
             "temperature": {"default": 0.1, "entrez": 0.2},
             "reasoning_effort": {"default": "low", "entrez": "medium"}
         }
@@ -118,7 +118,7 @@ class TestSetModel:
         with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
             model = set_model(agent_name="entrez")
             mock_chat.assert_called_once_with(
-                model_name="o3-large", 
+                model_name="o4-mini", 
                 temperature=None, 
                 reasoning_effort="medium"
             )
@@ -202,7 +202,7 @@ class TestCreateStepSummaryChain:
             chain = create_step_summary_chain()
             # Check that ChatOpenAI was created with expected parameters
             mock_chat.assert_called_once_with(
-                model_name="gpt-4o-mini", 
+                model_name="gpt-4.1-mini", 
                 temperature=0, 
                 max_tokens=45
             )
@@ -214,10 +214,10 @@ class TestCreateStepSummaryChain:
     def test_create_step_summary_chain_with_custom_params(self):
         """Test create_step_summary_chain with custom parameters"""
         with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
-            chain = create_step_summary_chain(model="gpt-4o", max_tokens=100)
+            chain = create_step_summary_chain(model="gpt-4.1-mini", max_tokens=100)
             # Check that ChatOpenAI was created with expected parameters
             mock_chat.assert_called_once_with(
-                model_name="gpt-4o", 
+                model_name="gpt-4.1-mini", 
                 temperature=0, 
                 max_tokens=100
             )

@@ -9,7 +9,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage
 ## package
 from SRAgent.agents.utils import set_model
-from SRAgent.tools.ncbi_fetch import fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record
+from SRAgent.tools.ncbi_fetch import fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record, fetch_biosample_record, fetch_bioproject_record
 
 
 def create_ncbi_fetch_agent(model_name: str = None) -> Callable:
@@ -19,19 +19,14 @@ def create_ncbi_fetch_agent(model_name: str = None) -> Callable:
     model = set_model(model_name=model_name, agent_name="ncbi_fetch")
     agent = create_react_agent(
         model=model,
-        tools=[fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record],
+        tools=[fetch_geo_record, fetch_ncbi_record, fetch_pubmed_record, fetch_biosample_record, fetch_bioproject_record],
         state_modifier="\n".join([
             "# Instructions"
             " - You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
             " - You will use tools that directly request data from the NCBI website.",
-            " - You can query with both Entrez IDs and accessions.",
-            "# Tools",
-            " - fetch_ncbi_record: fetch NCBI information on SRA and GEO records (SRA and GEO accessions or Entrez IDs).",
-            "   - If no records are found for the provided database, try the other database.",
-            " - fetch_pubmed_record: fetch information on PubMed records (SRA acccessions or Entrez IDs).",
-            " - fetch_geo_record: fetch information on GEO accessions (do not provide Entrez IDs).",
+            " - You can query with both Entrez IDs and accessions (e.g. SRA, GEO, PubMed, Biosample, BioProject).",
             "# Strategy",
-            " - Continue calling tools until you have all the information you need.",
+            " - Always try multiple tools if the first tool does not return the information you need.",
             " - Be sure to provide all important information each each tool, such as accessions, databases, or metadata fields.",
             "# Notes",
             " - Bulk RNA-seq is NOT the same as single-cell RNA-seq (scRNA-seq); be sure to distinguish between them.",
@@ -39,7 +34,7 @@ def create_ncbi_fetch_agent(model_name: str = None) -> Callable:
             "# Response",
             " - Provide a concise summary of your findings.",
             " - Use lists when possible.",
-            " - Do not include helpful wording",
+            " - Do not include helpful wording like 'Here is the information I found'.",
         ])
     )
 
@@ -63,13 +58,15 @@ def create_ncbi_fetch_agent(model_name: str = None) -> Callable:
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
 
     # test agent
     async def main():
         invoke_ncbi_fetch_agent = create_ncbi_fetch_agent()
         #message = "Fetch information for Entrez ID 35447314"
-        message = "Fetch information for Entrez ID 200277303. The accession is associated with the gds database"
+        #message = "Fetch information for Entrez ID 200277303. The accession is associated with the gds database"
+        #message = "Fetch information for Biosample ID SAMN39619157"
+        #message = "Fetch information for BioProject ID PRJNA218110"
         result = await invoke_ncbi_fetch_agent.ainvoke(message)
         print(result)
     asyncio.run(main())

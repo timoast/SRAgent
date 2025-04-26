@@ -160,11 +160,148 @@ def fetch_geo_record(
         time.sleep(0.34)
     return "\n\n".join(data)
 
+def _fetch_biosample_record(
+    id: Annotated[str, "The Biosample ID to fetch data for."],
+) -> str:
+    """Fetches the NCBI Biosample page for a given Biosample ID."""
+    url = f"https://www.ncbi.nlm.nih.gov/biosample/{id}"
+    for attempt in range(3):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                break
+            time.sleep(2 ** attempt)
+        except Exception as e:
+            if attempt == 2:
+                return f"Error: Unable to fetch data for Biosample ID {id}. Exception: {str(e)}"
+            time.sleep(2 ** attempt)
+    
+    if response.status_code != 200:
+        return f"Error: Unable to fetch data for Biosample ID {id}. Status code: {response.status_code}"
+    
+    # parse the page
+    soup = BeautifulSoup(response.text, 'html.parser')
+    try:
+        title = soup.select_one('h2.title').get_text(strip=True)
+    except AttributeError:
+        title = "No title found"
+    try:
+        organism = soup.find('dt', string='Organism').find_next_sibling('dd').get_text(" ", strip=True)
+        organism = organism.split("cellular organisms")[0].strip()
+    except AttributeError:
+        organism = "No organism found"
+    try:
+        bioproject= soup.find('dt', string='BioProject').find_next_sibling('dd').get_text(" ", strip=True)
+    except AttributeError:
+        bioproject = "No BioProject found"
+    ## get the attributes
+    try:
+        tbl = soup.find('dt', string='Attributes').find_next_sibling('dd').find('table')
+        attrs = {r.th.get_text(strip=True): r.td.get_text(" ", strip=True) for r in tbl.find_all('tr')}
+    except AttributeError:
+        attrs = {}
+    # create the content string
+    content = f"# Biosample ID\n{id}\n\n" 
+    content += f"# Title\n{title}\n\n" 
+    content += f"# Organism\n{organism}\n\n" 
+    content += f"# BioProject\n{bioproject}\n\n"
+    if attrs:
+        content += "# Attributes\n"
+        for key, value in attrs.items():
+            content += f" - {key}: {value}\n"
+    return content
+
+@tool
+def fetch_biosample_record(
+    biosample_ids: Annotated[List[str], "A list of Biosample IDs"],
+) -> str:
+    """Fetches the NCBI Biosample page for a list of Biosample IDs.
+    Example Biosample IDs: SAMN38009944, SAMN38009945, SAMN38009946"""
+    data = []
+    for id in biosample_ids:
+        id = id.strip()
+        data.append(f"# Query term\n{id}")
+        data.append(_fetch_biosample_record(id))
+        time.sleep(0.34)
+    return "\n\n".join(data)
+
+def _fetch_bioproject_record(
+    id: Annotated[str, "The BioProject ID to fetch data for."],
+) -> str:
+    """Fetches the NCBI BioProject page for a given BioProject ID."""
+    url = f"https://www.ncbi.nlm.nih.gov/bioproject/{id}"
+    for attempt in range(3):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                break
+            time.sleep(2 ** attempt)
+        except Exception as e:
+            if attempt == 2:
+                return f"Error: Unable to fetch data for BioProject ID {id}. Exception: {str(e)}"
+            time.sleep(2 ** attempt)
+    
+    if response.status_code != 200:
+        return f"Error: Unable to fetch data for BioProject ID {id}. Status code: {response.status_code}"
+    
+    # parse the page
+    soup = BeautifulSoup(response.text, 'html.parser')
+    try:
+        title = soup.select_one('div.Title h2').get_text(strip=True)
+    except AttributeError:
+        title = "No title found"
+    try:
+        subtitle = soup.select_one("div.Title h3").text
+    except AttributeError:
+        subtitle = "No subtitle found"
+
+    ## get the attributes
+    try:
+        attrs = {}
+        for row in soup.select("#CombinedTable tr"):
+            tds = row.find_all("td")
+            if len(tds) == 2:
+                attrs[tds[0].text.strip()] = tds[1].get_text(" ", strip=True)
+    except AttributeError:
+        attrs = {}
+
+    # create the content string
+    content = f"# BioProject ID\n{id}\n\n" 
+    content += f"# Title\n{title}\n\n" 
+    content += f"# Subtitle\n{subtitle}\n\n" 
+    if attrs:
+        content += "# Attributes\n"
+        for key, value in attrs.items():
+            content += f" - {key}: {value}\n"
+    return content
+
+@tool
+def fetch_bioproject_record(
+    bioproject_ids: Annotated[List[str], "A list of BioProject IDs"],
+) -> str:
+    """Fetches the NCBI BioProject page for a list of BioProject IDs.
+    Example BioProject IDs: PRJNA218110 and PRJNA218111"""
+    data = []
+    for id in bioproject_ids:
+        id = id.strip()
+        data.append(f"# Query term\n{id}")
+        data.append(_fetch_bioproject_record(id))
+        time.sleep(0.34)
+    return "\n\n".join(data)
+
 # main
 if __name__ == "__main__":
     # setup
     from dotenv import load_dotenv
     load_dotenv()
+
+    # test biosample fetch
+    input = {"biosample_ids" : ["SAMN38009941"]}
+    #print(fetch_biosample_record.invoke(input))
+
+    # test bioproject fetch
+    input = {"bioproject_ids" : ["PRJNA218110"]}
+    print(fetch_bioproject_record.invoke(input))
 
     # test GEO fetch
     input = {"GEO_accessions" : ["GSE110878"]}
@@ -172,7 +309,7 @@ if __name__ == "__main__":
 
     # test fetch_sra_record
     input = {"terms" : ["200277303"], "database" : "gds"}
-    print(fetch_ncbi_record.invoke(input))
+    #print(fetch_ncbi_record.invoke(input))
 
     # test fetch_pubmed_record
     input = {"terms" : ["34747624"]}
