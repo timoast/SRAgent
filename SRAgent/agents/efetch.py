@@ -26,10 +26,13 @@ def create_efetch_agent(model_name: str="o3-mini") -> Callable:
         model=model,
         tools=[efetch, which_entrez_databases],
         state_modifier="\n".join([
-            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-            "Based on the task provided by your supervisor, use Entrez efetch to help complete the task.",
-            "If you are unsure of which database to query (sra or gds), you can use which_entrez_databases to determine which databases contain the Entrez ID.",
-            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            "# Instructions",
+            " - You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            " - Based on the task provided by your supervisor, use Entrez efetch to help complete the task.",
+            " - If you are unsure of which database to query (sra or gds), you can use which_entrez_databases to determine which databases contain the Entrez ID.",
+            "# Response",
+            " - Base your response on the evidence you found; do not infer information.",
+            " - Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
 

@@ -26,7 +26,7 @@ def create_entrez_agent(
 ) -> Callable:
     # create model
     model_supervisor = set_model(model_name=model_name, agent_name="entrez")
-    
+
     # set tools
     tools = [
         create_esearch_agent(),
@@ -58,6 +58,7 @@ def create_entrez_agent(
         "   - If you do not find evidence of single cell, do not assume it is scRNA-seq.",
         "   - A single layout does not imply single-cell data.",
         "# Response",
+        " - Base your response on the evidence you found; do not infer information.",
         " - Be very concise; provide simple lists when possible; do not include unnecessary wording.",
         " - Write your output as plain text instead of markdown.",
         "# Example workflows",

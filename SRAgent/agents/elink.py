@@ -24,13 +24,16 @@ def create_elink_agent(model_name: Optional[str] = None) -> Callable:
         model=model,
         tools=[elink, which_entrez_databases],
         state_modifier="\n".join([
-            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-            "Based on the task provided by your supervisor, use Entrez elink to help complete the task.",
-            "elink is useful for finding related entries between Entrez databases.",
-            "elink requires Entrez IDs; if you are provided with SRA or GEO accessions, simply state that you need the Entrez IDs.",
-            "If you are unsure of which database(s) to query (e.g., sra or gds), you can use which_entrez_databases to determine which databases contain the Entrez ID.",
-            "Note that elink results are composed of Entrez IDs and not accessions (e.g., SRA accessions).",
-            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            "# Instructions",
+            " - You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            " - Based on the task provided by your supervisor, use Entrez elink to help complete the task.",
+            " - elink is useful for finding related entries between Entrez databases.",
+            " - elink requires Entrez IDs; if you are provided with SRA or GEO accessions, simply state that you need the Entrez IDs.",
+            " - If you are unsure of which database(s) to query (e.g., sra or gds), you can use which_entrez_databases to determine which databases contain the Entrez ID.",
+            " - Note that elink results are composed of Entrez IDs and not accessions (e.g., SRA accessions).",
+            "# Response",
+            " - Base your response on the evidence you found; do not infer information.",
+            " - Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
 

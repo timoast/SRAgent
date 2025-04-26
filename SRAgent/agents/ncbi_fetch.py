@@ -32,6 +32,7 @@ def create_ncbi_fetch_agent(model_name: str = None) -> Callable:
             " - Bulk RNA-seq is NOT the same as single-cell RNA-seq (scRNA-seq); be sure to distinguish between them.",
             "   - If you do not find evidence of single cell, do not assume it is scRNA-seq.",
             "# Response",
+            " - Base your response on the evidence you found; do not infer information.",
             " - Provide a concise summary of your findings.",
             " - Use lists when possible.",
             " - Do not include helpful wording like 'Here is the information I found'.",
@@ -67,6 +68,7 @@ if __name__ == "__main__":
         #message = "Fetch information for Entrez ID 200277303. The accession is associated with the gds database"
         #message = "Fetch information for Biosample ID SAMN39619157"
         #message = "Fetch information for BioProject ID PRJNA1026523"
+        message = "Fetch BioProject PRJNA1143898 entry and state the library preparation method (e.g., 10X Genomics)."
         result = await invoke_ncbi_fetch_agent.ainvoke(message)
         print(result)
     asyncio.run(main())

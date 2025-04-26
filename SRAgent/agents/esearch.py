@@ -25,10 +25,13 @@ def create_esearch_agent(model_name: str = None) -> Callable:
         model=model,
         tools=[esearch],
         state_modifier="\n".join([
-            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-            "Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
-            "If the sra or gds database does not return findings, try the other database.",
-            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            "# Instructions",
+            " - You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            " - Based on the task provided by your supervisor, use Entrez esearch to help complete the task.",
+            " - If the sra or gds database does not return findings, try the other database.",
+            "# Response",
+            " - Base your response on the evidence you found; do not infer information.",
+            " - Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
     
