@@ -47,11 +47,11 @@ def create_sragent_agent(
         "   - Retrieve metadata for datasets.",
         "   - Assess sequence data for datasets.",
         "   - Link records across databases (e.g., SRA to PubMed, or SRA to GEO).",
-        " - Generally, this agent works with Entrez IDs.",
+        " - Generally, this agent works with Entrez IDs as input.",
         "## NCBI Fetch Agent",
         " - The NCBI Fetch agent can fetch data directly from the NCBI website (html).",
-        " - The agent can use any set of Entrez IDs and/or SRA, ENA, GEO, PubMed, Biosample, or BioProject accessions.",
-        " - It is a general purpose agent and is especially useful for confirming information from other agents.",
+        " - The agent can use any set of Entrez IDs and/or SRA, ENA, GEO, PubMed, Biosample, or BioProject accessions as input.",
+        " - The agent is general purpose, given the large range of input types it can handle.",
         "## BigQuery Agent",
         " - The BigQuery agent can use the SRA BigQuery tool to find metadata on SRA and ENA datasets.",
         " - The agent can also be used to convert accessions among the SRA (and ENA) hierarchy: studies (SRP) → experiments (SRX) → runs (SRR).",
@@ -61,7 +61,7 @@ def create_sragent_agent(
         "# Strategy",
         " - Always try multiple approaches if the first attempt fails.",
         " - Consider the following patterns:",
-        "   - If searching for metadata, first try the BigQuery agent, and then try the Entrez and NCBI Fetch agents.",
+        "   - If searching for metadata, first try the BigQuery agent, and then try the NCBI Fetch and Entrez agents.",
         "   - For accession conversions, try the BigQuery agent first, and then try the Entrez agent.",
         "   - For sequence data, combine the Sequences agent with metadata from other agents.",
         " - Keep track of what you have tried and what information you still need.",
@@ -129,11 +129,11 @@ if __name__ == "__main__":
     
         # invoke agent
         config = {"configurable": {"organisms": ["mouse", "rat"]}}
-        #msg = "Find rat scRNA-seq datasets in the SRA database"
+        # msg = "Find rat scRNA-seq datasets in the SRA database"
         # msg = "Convert GSE121737 to SRX accessions"
         # msg = "Is SRX20554853 paired-end Illumina data?"
-        msg = "What is the tissue description and tissue ontology for SRX20554853?"
-        # msg = "Obtain all SRR accessions for SRX20554853"
+        # msg = "What is the tissue description and tissue ontology for SRX20554853?"
+        msg = "Obtain all SRR accessions for SRX20554853"
         # msg = "List the collaborators for the SRX20554853 dataset"
         # msg = "\n".join([
         #     "For the SRA accession SRX25994842, find the following information:"

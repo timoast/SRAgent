@@ -46,11 +46,14 @@ def elink(
     entrez_ids: Annotated[List[str], "List of Entrez IDs"],
     source_db: Annotated[str, "Source database (e.g., 'sra')"],
     target_db: Annotated[str, "Target database (e.g., 'sra', 'bioproject', 'biosample', 'pubmed')"],
+    max_records: Annotated[int, "Maximum number of records to return"]=50,
 ) -> Annotated[str, "eLink results in XML format"]:
     """
     Find related entries between Entrez databases, particularly useful for finding
     BioProject, BioSample, or publication records related to SRA entries.
     """
+    if max_records < 1:
+        return "Maximum number of records must be greater than 0."
     set_entrez_access()
     ntries = 6
     batch_size = 200  # Maximum number of IDs per request as per NCBI guidelines
@@ -114,7 +117,7 @@ def elink(
         batch_record = truncate_values(batch_record, max_length=1000)
 
         # convert to XML to JSON
-        batch_record = xml2json(batch_record)
+        batch_record = xml2json(batch_record, max_records=max_records)
 
         # Check for errors in the response
         if "ERROR" in batch_record.upper():
@@ -137,5 +140,6 @@ if __name__ == "__main__":
     # test esummary
     #input = {"entrez_ids" : ["35966237", "200254051"], "source_db" : "gds", "target_db" : "sra"}
     #input = {"entrez_ids" : ['200121737', '100024679', '303444964', '303444963', '303444962'], "source_db" : "gds", "target_db" : "sra"}
-    input = {"entrez_ids" : ["200277303"], "source_db" : "gds", "target_db" : "sraX"}
+    #input = {"entrez_ids" : ["200277303"], "source_db" : "gds", "target_db" : "sraX"}
+    input = {'entrez_ids': ['218110'], 'source_db': 'bioproject', 'target_db': 'biosample'}
     print(elink.invoke(input))

@@ -59,7 +59,8 @@ if __name__ == "__main__":
     # test elink agent
     async def main():
         agent = create_elink_agent()
-        input = {"message": "Find SRA Entrez IDs for the GEO Entrez ID 200277303"}
+        #input = {"message": "Find SRA Entrez IDs for the GEO Entrez ID 200277303"}
+        input = {'message': 'dbfrom=bioproject id=PRJNA1026523 db=sra'}
         result = await agent.ainvoke(input)
         print(result)
     asyncio.run(main())

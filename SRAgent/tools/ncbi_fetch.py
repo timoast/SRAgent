@@ -280,7 +280,7 @@ def fetch_bioproject_record(
     bioproject_ids: Annotated[List[str], "A list of BioProject IDs"],
 ) -> str:
     """Fetches the NCBI BioProject page for a list of BioProject IDs.
-    Example BioProject IDs: PRJNA218110 and PRJNA218111"""
+    Example BioProject IDs: PRJNA218110 and PRJNA1026523"""
     data = []
     for id in bioproject_ids:
         id = id.strip()
@@ -300,7 +300,7 @@ if __name__ == "__main__":
     #print(fetch_biosample_record.invoke(input))
 
     # test bioproject fetch
-    input = {"bioproject_ids" : ["PRJNA218110"]}
+    input = {"bioproject_ids" : ["PRJNA1026523"]}
     print(fetch_bioproject_record.invoke(input))
 
     # test GEO fetch

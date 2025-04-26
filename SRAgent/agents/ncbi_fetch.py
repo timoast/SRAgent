@@ -66,7 +66,7 @@ if __name__ == "__main__":
         #message = "Fetch information for Entrez ID 35447314"
         #message = "Fetch information for Entrez ID 200277303. The accession is associated with the gds database"
         #message = "Fetch information for Biosample ID SAMN39619157"
-        #message = "Fetch information for BioProject ID PRJNA218110"
+        #message = "Fetch information for BioProject ID PRJNA1026523"
         result = await invoke_ncbi_fetch_agent.ainvoke(message)
         print(result)
     asyncio.run(main())

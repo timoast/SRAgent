@@ -26,6 +26,7 @@ def create_entrez_agent(
 ) -> Callable:
     # create model
     model_supervisor = set_model(model_name=model_name, agent_name="entrez")
+    
     # set tools
     tools = [
         create_esearch_agent(),
