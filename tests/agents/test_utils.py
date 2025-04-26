@@ -166,8 +166,8 @@ class TestSetModel:
             mock_chat.assert_called_once_with(
                 model="claude-3-7-sonnet-20250219", 
                 temperature=None, 
-                thinking={"type": "enabled", "budget_tokens": 4096},
-                max_tokens=5120
+                thinking={"type": "enabled", "budget_tokens": 3072},
+                max_tokens=4096
             )
         
         # Test with claude model and high reasoning effort
@@ -177,8 +177,8 @@ class TestSetModel:
             mock_chat.assert_called_once_with(
                 model="claude-3-7-sonnet-20250219", 
                 temperature=None, 
-                thinking={"type": "enabled", "budget_tokens": 16384},
-                max_tokens=17408
+                thinking={"type": "enabled", "budget_tokens": 8192},
+                max_tokens=9216
             )
         
         # Test with claude model and disabled reasoning effort

@@ -17,7 +17,6 @@ from SRAgent.db.get import db_get_entrez_ids
 from SRAgent.organisms import OrganismEnum
 
 # functions
-
 def to_sci_name(organism: str) -> str:
     """
     Convert organism name to scientific name using OrganismEnum.
@@ -154,11 +153,13 @@ def esearch_batch(
                         print(f"Got HTTP 429; retrying in {wait_time} s...", file=sys.stderr)
                     time.sleep(wait_time)
                 else:
-                    print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
+                    if verbose:
+                        print(f"Error searching {database} with query: {esearch_query}: {str(e)}", file=sys.stderr)
                     return list(set(ids))
             except Exception as e:
-               print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
-               return list(set(ids))
+                if verbose:
+                    print(f"Error searching {database} with query: {esearch_query}: {str(e)}", file=sys.stderr)
+                return list(set(ids))
         else:
             break
         # if max_ids is set and has been reached, break
