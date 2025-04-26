@@ -173,7 +173,7 @@ def create_sragent_agent_node():
             "\n".join([f" - {x}" for x in metadata_items]),
             "# IMPORTANT NOTES",
             " - If the dataset is not single cell, then some of the other metadata fields may not be applicable",
-            " - Try to confirm all metadata values with two data sources",
+            " - Try to confirm questionable metadata values with two data sources",
             " - Do NOT make assumptions about the metadata values; find explicit evidence",
         ])
         # call the agent

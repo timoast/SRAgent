@@ -128,8 +128,8 @@ def create_router_node() -> Callable:
                 " - You determine whether Sequence Read Archive SRX accessions (e.g., SRX123456) have been obtained from the Entrez ID.",
                 " - There should be at least one SRX accession.",
                 " - ERX accessions are also valid.",
-                " - If the accessions have been obtained, select STOP. If more information is needed, select CONTINUE.",
-                " - If more information is needed (CONTINUE), provide one or two sentences of feedback on how to obtain the data (e.g., use esearch instead of efetch).",
+                " - If one or more accessions have been obtained, state \"STOP\". If more information is needed, state \"CONTINUE\".",
+                " - If more information is needed (\"CONTINUE\"), provide one or two sentences of feedback on how to obtain the data (e.g., use esearch instead of efetch).",
             ])),
             ("system", "\nHere are the last few messages:"),
             MessagesPlaceholder(variable_name="history"),
@@ -186,8 +186,8 @@ async def invoke_convert_graph(
     # filter state to just GraphState keys
     state_filt = {k: v for k, v in state.items() if k in graph.state_keys}
     response = await graph.ainvoke(state_filt)
-    # filter to just the keys we want to return
-    return {"SRX" : response["SRX"]}
+    # filter to just distinct SRX accessions
+    return {"SRX" : list(set(response["SRX"]))}
 
 # main
 if __name__ == "__main__":

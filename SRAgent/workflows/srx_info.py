@@ -77,7 +77,7 @@ def continue_to_metadata(state: GraphState, config: RunnableConfig) -> List[Dict
         "For the SRA experiment accession {SRX_accession}, find the following dataset metadata:",
         metadata_items,
         "# Notes",
-        " - Try to confirm all metadata values with two data sources"
+        " - Try to confirm questionable metadata values with two data sources"
     ])
     
     # submit each accession to the metadata graph    
