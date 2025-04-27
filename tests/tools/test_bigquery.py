@@ -1,11 +1,11 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from google.cloud import bigquery
 from SRAgent.tools.bigquery import (
-    create_get_study_metadata,
-    create_get_experiment_metadata,
-    create_get_run_metadata,
-    create_get_study_experiment_run
+    get_study_metadata,
+    get_experiment_metadata,
+    get_run_metadata,
+    get_study_experiment_run
 )
 
 @pytest.fixture
@@ -14,7 +14,12 @@ def mock_client():
     client = MagicMock(spec=bigquery.Client)
     return client
 
-def test_get_study_metadata(mock_client):
+@pytest.fixture
+def config(mock_client):
+    """Create a RunnableConfig with mock client"""
+    return {"configurable": {"client": mock_client}}
+
+def test_get_study_metadata(mock_client, config):
     """Test get_study_metadata function"""
     # Mock the query result
     mock_result = [
@@ -26,11 +31,10 @@ def test_get_study_metadata(mock_client):
     ]
     mock_client.query.return_value = mock_result
 
-    # Create and invoke function
-    get_study_metadata = create_get_study_metadata(mock_client)
+    # Invoke function
     result = get_study_metadata.invoke({
         "study_accessions": ["SRP548813"]
-    })
+    }, config=config)
 
     # Verify query results
     assert isinstance(result, str)
@@ -38,7 +42,7 @@ def test_get_study_metadata(mock_client):
     assert "PRJNA1234567" in result
     assert "SRX26939191" in result
 
-def test_get_experiment_metadata(mock_client):
+def test_get_experiment_metadata(mock_client, config):
     """Test get_experiment_metadata function"""
     # Mock the query result
     mock_result = [
@@ -56,11 +60,10 @@ def test_get_experiment_metadata(mock_client):
     ]
     mock_client.query.return_value = mock_result
 
-    # Create and invoke function
-    get_experiment_metadata = create_get_experiment_metadata(mock_client)
+    # Invoke function
     result = get_experiment_metadata.invoke({
         "experiment_accessions": ["SRX26939191"]
-    })
+    }, config=config)
 
     # Verify query results
     assert isinstance(result, str)
@@ -70,7 +73,7 @@ def test_get_experiment_metadata(mock_client):
     assert "ILLUMINA" in result
     assert "SRR31573627" in result
 
-def test_get_run_metadata(mock_client):
+def test_get_run_metadata(mock_client, config):
     """Test get_run_metadata function"""
     # Mock the query result
     mock_result = [
@@ -87,11 +90,10 @@ def test_get_run_metadata(mock_client):
     ]
     mock_client.query.return_value = mock_result
 
-    # Create and invoke function
-    get_run_metadata = create_get_run_metadata(mock_client)
+    # Invoke function
     result = get_run_metadata.invoke({
         "run_accessions": ["SRR31573627"]
-    })
+    }, config=config)
 
     # Verify query results
     assert isinstance(result, str)
@@ -100,7 +102,7 @@ def test_get_run_metadata(mock_client):
     assert "Homo sapiens" in result
     assert "RNA-Seq" in result
 
-def test_get_study_experiment_run(mock_client):
+def test_get_study_experiment_run(mock_client, config):
     """Test get_study_experiment_run function"""
     # Mock the query result for different accession types
     mock_result = [
@@ -112,72 +114,65 @@ def test_get_study_experiment_run(mock_client):
     ]
     mock_client.query.return_value = mock_result
 
-    # Create and invoke function with different accession types
-    get_metadata = create_get_study_experiment_run(mock_client)
-
     # Test SRP accession
-    result = get_metadata.invoke({
+    result = get_study_experiment_run.invoke({
         "accessions": ["SRP548813"]
-    })
+    }, config=config)
     assert isinstance(result, str)
     assert "SRP548813" in result
     assert "SRX26939191" in result
     assert "SRR31573627" in result
 
     # Test SRX accession
-    result = get_metadata.invoke({
+    result = get_study_experiment_run.invoke({
         "accessions": ["SRX26939191"]
-    })
+    }, config=config)
     assert isinstance(result, str)
     assert "SRP548813" in result
     assert "SRX26939191" in result
     assert "SRR31573627" in result
 
     # Test SRR accession
-    result = get_metadata.invoke({
+    result = get_study_experiment_run.invoke({
         "accessions": ["SRR31573627"]
-    })
+    }, config=config)
     assert isinstance(result, str)
     assert "SRP548813" in result
     assert "SRX26939191" in result
     assert "SRR31573627" in result
 
-def test_study_metadata_no_results(mock_client):
+def test_study_metadata_no_results(mock_client, config):
     """Test get_study_metadata with no results"""
     mock_client.query.return_value = []
-    get_study_metadata = create_get_study_metadata(mock_client)
     result = get_study_metadata.invoke({
         "study_accessions": ["SRP999999"]
-    })
+    }, config=config)
     assert result == "No results found"
 
-def test_experiment_metadata_no_results(mock_client):
+def test_experiment_metadata_no_results(mock_client, config):
     """Test get_experiment_metadata with no results"""
     mock_client.query.return_value = []
-    get_experiment_metadata = create_get_experiment_metadata(mock_client)
     result = get_experiment_metadata.invoke({
         "experiment_accessions": ["SRX999999"]
-    })
+    }, config=config)
     assert result == "No results found"
 
-def test_run_metadata_no_results(mock_client):
+def test_run_metadata_no_results(mock_client, config):
     """Test get_run_metadata with no results"""
     mock_client.query.return_value = []
-    get_run_metadata = create_get_run_metadata(mock_client)
     result = get_run_metadata.invoke({
         "run_accessions": ["SRR999999"]
-    })
+    }, config=config)
     assert result == "No results found"
 
-def test_invalid_query_input(mock_client):
+def test_invalid_query_input(mock_client, config):
     """Test handling of invalid input"""
-    get_metadata = create_get_study_experiment_run(mock_client)
-    result = get_metadata.invoke({
+    result = get_study_experiment_run.invoke({
         "accessions": []
-    })
+    }, config=config)
     assert result == "No valid accessions provided."
 
-def test_study_experiment_run_mixed_accessions(mock_client):
+def test_study_experiment_run_mixed_accessions(mock_client, config):
     """Test get_study_experiment_run with mixed accession types"""
     mock_result = [
         {
@@ -193,10 +188,9 @@ def test_study_experiment_run_mixed_accessions(mock_client):
     ]
     mock_client.query.return_value = mock_result
 
-    get_metadata = create_get_study_experiment_run(mock_client)
-    result = get_metadata.invoke({
+    result = get_study_experiment_run.invoke({
         "accessions": ["SRP548813", "SRX26939191", "SRR31573627"]
-    })
+    }, config=config)
 
     assert isinstance(result, str)
     assert "SRP548813" in result
