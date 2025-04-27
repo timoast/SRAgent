@@ -34,10 +34,8 @@ def efetch(
             # Fetch the records for the current batch of IDs
             handle = Entrez.efetch(db=database, id=id_str, retmode="xml")
             batch_record = handle.read()
-        except Entrez.Parser.ValidationError:
-            batch_record = f"Failed to fetch record for IDs: {id_str}"
         except Exception as e:
-            batch_record = f"An error occurred: {e}"
+            batch_record = f"Failed to fetch record for IDs: {id_str}. Error: {e}"
         finally:
             if handle is not None:
                 try:
@@ -78,6 +76,7 @@ if __name__ == "__main__":
     Entrez.email = os.getenv("EMAIL")
 
     # Test efetch
-    input = { "entrez_ids" : ["35966237"], "database" : "sra"}
+    #input = { "entrez_ids" : ["35966237"], "database" : "sra"}
     #input = { "entrez_ids" : ["200254051"], "database" : "gds"}
+    #input = {'entrez_ids': ['ERS23955837'], 'database': 'sra'}
     print(efetch.invoke(input))
