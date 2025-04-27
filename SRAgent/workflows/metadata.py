@@ -70,16 +70,14 @@ class CellPrepEnum(Enum):
     UNSURE = "unsure"   
     NA = "not_applicable"
 
-class PrimaryMetadataEnum(BaseModel):
-    """Metadata to extract"""
+class AllMetadataEnum(BaseModel):
+    """All metadata to extract"""
     is_illumina: YesNo = Field(description="Is the dataset Illumina sequence data?")
     is_single_cell: YesNo = Field(description="Is the dataset single cell?")
     is_paired_end: YesNo = Field(description="Is the dataset paired-end?")
     lib_prep: LibPrepEnum = Field(description="The library preparation technology")
     tech_10x: Tech10XEnum = Field(description="The 10x Genomics technology")
     cell_prep: CellPrepEnum = Field(description="The cell preparation technology")
-
-class SecondaryMetadataEnum(BaseModel):
     organism: OrganismEnum = Field(description="The organism sequenced")
     tissue: str = Field(description="The tissues where sequenced")
     disease: str = Field(description="The diseases of interest")
@@ -89,15 +87,6 @@ class SecondaryMetadataEnum(BaseModel):
 class TertiaryMetadataEnum(BaseModel):
     tissue_ontology_term_id: List[str] = Field(description="A list of tissue ontology terms")
 
-class ChoicesEnum(Enum):
-    """Choices for the router"""
-    CONTINUE = "CONTINUE"
-    STOP = "STOP"
-
-class Choice(BaseModel):
-    """Choice to continue or stop"""
-    Choice: ChoicesEnum
-
 class SRR(BaseModel):
     """SRR accessions"""
     SRR: List[str] = Field(description="A list of SRR accessions")
@@ -105,24 +94,20 @@ class SRR(BaseModel):
 class GraphState(TypedDict):
     """Shared state of the agents in the graph"""
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    route: Annotated[str, "Route"]
-    attempts: Annotated[int, "Number of attempts to extract metadata"]
-    metadata_level: Annotated[str, "Metadata level"]
     # metadata
     ## IDs
     database: Annotated[str, "Database"]
     entrez_id: Annotated[str, "Entrez ID"]
     SRX: Annotated[str, "SRX accession to query"]
     SRR: Annotated[List[str], "SRR accessions for the SRX"]
-    ## primary metadata
+    ## metadata
     is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
     is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
     lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
     tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
-    organism: Annotated[str, "Which organism was sequenced?"]
-    ## secondary metadata
     cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
+    organism: Annotated[str, "Which organism was sequenced?"]
     tissue: Annotated[str, "Which tissues were sequenced?"]
     disease: Annotated[str, "Any disease information?"]
     perturbation: Annotated[str, "Any treatment/perturbation information?"]
@@ -132,21 +117,19 @@ class GraphState(TypedDict):
     
 
 # functions
-def get_metadata_items(metadata_level: str="primary") -> Dict[str, str]:
+def get_metadata_items(metadata_level: str="all") -> Dict[str, str]:
     """
-    Get primary metadata items based on graph state annotations
+    Get metadata items based on graph state annotations
     Return:
         A dictionary of metadata items
     """
     # which metadata items to include?
-    if metadata_level == "primary":
-        to_include = PrimaryMetadataEnum.model_fields.keys()
-    elif metadata_level == "secondary":
-        to_include = SecondaryMetadataEnum.model_fields.keys()
+    if metadata_level == "all":
+        to_include = AllMetadataEnum.model_fields.keys()
     elif metadata_level == "tertiary":
         to_include = TertiaryMetadataEnum.model_fields.keys()
     else:
-        raise ValueError("The metadata_level must be 'primary', 'secondary', or 'tertiary'.")
+        raise ValueError("The metadata_level must be 'all' or 'tertiary'.")
 
     # get the metadata items
     metadata_items = {}
@@ -165,23 +148,19 @@ def create_sragent_agent_node():
         """Invoke the SRAgent to get the initial messages"""
     
         # create message prompt
-        metadata_level = state.get("metadata_level", "primary")
-        metadata_items = get_metadata_items(metadata_level).values()
+        metadata_items = get_metadata_items("all").values()
         prompt = "\n".join([
             "# Instructions",
             f"For the SRA experiment accession {state['SRX']}, find the following dataset metadata:",
             "\n".join([f" - {x}" for x in metadata_items]),
             "# IMPORTANT NOTES",
-            " - If the dataset is not single cell, then some of the other metadata fields may not be applicable",
-            " - Try to confirm questionable metadata values with two data sources",
-            " - Do NOT make assumptions about the metadata values; find explicit evidence",
+            " - If the dataset is not single cell, then some of the other metadata fields may not be applicable.",
         ])
         # call the agent
         response = await agent.ainvoke({"messages" : [HumanMessage(content=prompt)]})
         # return the last message in the response
         return {
-            "messages" : [response["messages"][-1]],
-            "metadata_level" : metadata_level
+            "messages" : [response["messages"][-1]]
         }
     return invoke_sragent_agent_node
 
@@ -238,7 +217,7 @@ def create_get_metadata_node() -> Callable:
 
     async def invoke_get_metadata_node(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
         """Structured data extraction"""
-        metadata_items = "\n".join([f" - {x}" for x in get_metadata_items(state["metadata_level"]).values()])
+        metadata_items = "\n".join([f" - {x}" for x in get_metadata_items("all").values()])
         # format prompt
         prompt = "\n".join([
             "# Instructions",
@@ -258,14 +237,8 @@ def create_get_metadata_node() -> Callable:
             MessagesPlaceholder(variable_name="history"),
         ])
         prompt = prompt.format_messages(history=state["messages"]) 
-        # call the model with a certain enum
-        if state["metadata_level"] == "primary":
-            selected_enum = PrimaryMetadataEnum
-        elif state["metadata_level"] == "secondary":
-            selected_enum = SecondaryMetadataEnum
-        else:
-            raise ValueError("The metadata_level must be 'primary' or 'secondary'.")
-        response = await model.with_structured_output(selected_enum, strict=True).ainvoke(prompt)
+        # call the model
+        response = await model.with_structured_output(AllMetadataEnum, strict=True).ainvoke(prompt)
         extracted_fields = get_extracted_fields(response)
         # check logic
         try:
@@ -290,82 +263,11 @@ def create_get_metadata_node() -> Callable:
         }
     return invoke_get_metadata_node
 
-def create_router_node() -> Callable:
-    """Routing based on percieved completion of metadata extraction"""
-    model = set_model(agent_name="metadata_router")
-
-    async def invoke_router_node(state: GraphState):
-        """
-        Router for the graph
-        """
-        # bypassing the router node
-        return {
-            "route": "STOP",
-            "attempts": state.get("attempts", 0) + 1,
-            "messages": [AIMessage(content="Bypassing the router node")]
-        }
-
-        # no need to evaluate secondary metadata
-        if state["metadata_level"] != "primary":
-            return {
-                "route": "STOP", 
-                "attempts": state.get("attempts", 0) + 1, 
-                "messages": [AIMessage(content="No evaluation needed for secondary metadata")]
-            }
-
-        # create prompt
-        prompt = "\n".join([
-            "# Instructions",
-            " - You are a helpful bioinformatican who is evaluating the metadata extracted from the SRA experiment.",
-            " - You will be provided with the extracted metadata and will determine if the metadata is complete.",
-            " - Metadata values of \"unsure\" or \"other\" are considered incomplete.",
-            " - \"not_applicable\" is considered complete if the metadata field is not applicable, given other metadata values.",
-            " - If the metadata is incomplete, you will respond to let the system know if more information is needed.",
-            "# Notes",
-            " - The organism may be \"other\" if the organism is not a common model organism.",
-            " - If the library preparation method is not 10X Genomics, then there is no need to provide a 10X technology.",
-            "# Response",
-            " - Based on your evaluation of the metadata, select \"STOP\" if the task is complete or \"CONTINUE\" if more information is needed.",
-        ])
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", prompt),
-            MessagesPlaceholder(variable_name="history")
-        ])
-        prompt = prompt.format_messages(history=[state["messages"][-1]]) 
-        # call the model
-        response = await model.with_structured_output(Choice, strict=True).ainvoke(prompt)
-        # format the response
-        if response.Choice.value == ChoicesEnum.CONTINUE.value:
-            message = "\n".join([
-                f"At least some of the metadata for {state['SRX']} is incomplete (uncertain).",
-                "Please try to provide more information by using a different approach (e.g., different agent calls)."
-            ])
-        else:
-            message = f"Enough of the metadata has been extracted for {state['SRX']}."
-        return {
-            "route": response.Choice.value, 
-            "attempts": state.get("attempts", 0) + 1, 
-            "messages": [HumanMessage(content=message)]
-        }
-    return invoke_router_node
-
-def route_retry_metadata(state: GraphState) -> str:
-    """Determine the route based on the current state of the conversation."""
-    # move on to which node?
-    next_node = "bump_metadata_level_node" if state["metadata_level"] == "primary" else "tissue_ontology_node"
-    max_attempts = 2 if state["metadata_level"] == "primary" else 1
-    # limit the number of attempts
-    if state["attempts"] >= max_attempts:
-        return next_node
-    # return route choice
-    return "sragent_agent_node" if state["route"] == "CONTINUE" else next_node 
-
-def bump_metadata_level(state: GraphState) -> str:
-    """Bump the metadata level"""
-    return {
-        "metadata_level": "secondary",
-        "attempts" : 0
-    }
+def fmt(x: Union[str, List[str]]) -> str:
+    """If a list, join them with a comma into one string"""
+    if type(x) != list:
+        return x
+    return ",".join([str(y) for y in x])
 
 def create_tissue_ontology_node() -> Callable:
     """Create a node to extract tissue ontology"""
@@ -455,19 +357,11 @@ def add2db(state: GraphState, config: RunnableConfig):
         with db_connect() as conn:
             db_upsert(pd.DataFrame(data), "srx_srr", conn)
 
-def fmt(x: Union[str, List[str]]) -> str:
-    """If a list, join them with a comma into one string"""
-    if type(x) != list:
-        return x
-    return ",".join([str(y) for y in x])
-
 def final_state(state: GraphState):
     """Provide the final state"""
     # get the metadata fields
     metadata = []
-    for k,v in get_metadata_items("primary").items():
-        metadata.append(f" - {v}: {state[k]}")
-    for k,v in get_metadata_items("secondary").items():
+    for k,v in get_metadata_items("all").items():
         metadata.append(f" - {v}: {state[k]}")
     for k,v in get_metadata_items("tertiary").items():
         try:
@@ -496,8 +390,6 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     # nodes
     workflow.add_node("sragent_agent_node", create_sragent_agent_node())
     workflow.add_node("get_metadata_node", create_get_metadata_node())
-    workflow.add_node("router_node", create_router_node())
-    workflow.add_node("bump_metadata_level_node", bump_metadata_level)
     workflow.add_node("tissue_ontology_node", create_tissue_ontology_node())
     workflow.add_node("SRX2SRR_node", invoke_SRX2SRR_sragent_agent_node)
     if db_add:
@@ -507,9 +399,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
     # edges
     workflow.add_edge(START, "sragent_agent_node")
     workflow.add_edge("sragent_agent_node", "get_metadata_node")
-    workflow.add_edge("get_metadata_node", "router_node")
-    workflow.add_conditional_edges("router_node", route_retry_metadata)
-    workflow.add_edge("bump_metadata_level_node", "sragent_agent_node")
+    workflow.add_edge("get_metadata_node", "tissue_ontology_node")
     workflow.add_edge("tissue_ontology_node", "SRX2SRR_node")
     if db_add:
        workflow.add_edge("SRX2SRR_node", "add2db_node")
@@ -523,7 +413,7 @@ def create_metadata_graph(db_add: bool=True) -> StateGraph:
 async def invoke_metadata_graph(
     state: GraphState, 
     graph: StateGraph,
-    to_return: List[str] = list(PrimaryMetadataEnum.model_fields.keys()) + list(SecondaryMetadataEnum.model_fields.keys()),
+    to_return: List[str] = list(AllMetadataEnum.model_fields.keys()),
     config: RunnableConfig=None,
 ) -> Annotated[dict, "Response from the metadata graph"]:
     """
@@ -558,7 +448,6 @@ if __name__ == "__main__":
             "database": "sra",
             "entrez_id": entrez_id,
             "SRX": SRX_accession,
-            #"metadata_level": "primary",
         }
         graph = create_metadata_graph(db_add=False)
         config = {"max_concurrency" : 3, "recursion_limit": 50, "configurable": {"organisms": ["mouse", "rat"]}}
@@ -575,32 +464,3 @@ if __name__ == "__main__":
     ## invoke with graph object directly provided
     #invoke_metadata_graph = partial(invoke_metadata_graph, graph=graph)
     #print(invoke_metadata_graph(input))
-
-    #-- nodes --#
-    msg = """# The extracted metadata:
-   - Is the dataset Illumina sequence data?: yes
-   - Is the dataset single cell RNA-seq data?: yes
-   - Is the dataset paired-end sequencing data?: yes
-   - Which scRNA-seq library preparation technology?: 10x_Genomics
-   - If 10X Genomics, which particular 10X technologies?: 5_prime_gex
-   - Single nucleus or single cell RNA sequencing?: single_cell
- """
-    state = {
-        "messages" : [HumanMessage(content=msg)],
-        "SRX": "SRX22716300",
-        "SRR": [],
-        "metadata_level": "primary",
-        "is_illumina": "unsure",
-        "is_single_cell": "unsure",
-        "is_paired_end": "unsure",
-        "lib_prep": "other",
-        "tech_10x": "other",
-        "cell_prep": "unsure",
-        "organism": "other",
-        "tissue": "other",
-        "disease": "other",
-        "perturbation": "other",
-        "cell_line": "other", 
-    }
-    #node = create_router_node()
-    #print(node(state)); exit();
