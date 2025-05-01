@@ -2,7 +2,7 @@
 
 ```bash
 IMG_NAME=sragent
-IMG_VERSION=0.2.0
+IMG_VERSION=0.3.0
 REGION="us-east1"
 ```
 
@@ -36,6 +36,7 @@ docker run -it --rm \
   --platform linux/amd64 \
   ${IMG_NAME}:${IMG_VERSION} --help
 ```
+
 
 # GCP Artifact registry
 

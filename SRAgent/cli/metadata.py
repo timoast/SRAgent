@@ -70,7 +70,7 @@ async def _process_single_srx(
         "For the SRA experiment accession {SRX_accession}, find the following dataset metadata:",
         metadata_items,
         "# Notes",
-        " - Try to confirm all metadata values with two data sources"
+        " - Try to confirm any questionable metadata values with two data sources"
     ])
     input = {
         "entrez_id": entrez_srx[0],

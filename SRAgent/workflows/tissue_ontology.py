@@ -46,7 +46,7 @@ def create_tissue_ontology_workflow(
         " - Your task is to categorize the tissues based on the Uberon ontology.",
         " - You must find the single most suitable Uberon ontology term that best describes the tissue description.",
         " - You have a set of tools that can help you with this task.",
-        "# Tools",
+        "# Tool summary",
         " - create_tissue_ontology_agent: Use this tool to find the most suitable Uberon ontology term that best describes the tissue description.",
         "# Workflow",
         " 1. Identify each unique tissue description in the input.",

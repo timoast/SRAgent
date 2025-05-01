@@ -26,6 +26,7 @@ def create_entrez_agent(
 ) -> Callable:
     # create model
     model_supervisor = set_model(model_name=model_name, agent_name="entrez")
+
     # set tools
     tools = [
         create_esearch_agent(),
@@ -41,10 +42,14 @@ def create_entrez_agent(
         " - You have a team of agents who can perform specific tasks using Entrez tools.",
         " - Provide guidance to the agents to help them complete the task successfully.",
         "# Strategies",
-        " - Generally, start with esearch to find Entrez records, then use efetch to get detailed information.",
-        " - Use esummary to obtain summary information on an Entrez record.",
-        " - Use elink to navigate between databases to find related records (e.g., GEO to SRA).",
-        " - Continue sending tasks to your agents until you successfully complete the task.",
+        " - Generally, start with the esearch agent to find Entrez records, then use the efetch agent to get detailed information.",
+        " - Use the esummary agent to obtain summary information on an Entrez record.",
+        " - Use the elink agent to navigate between databases to find related records (e.g., GEO to SRA).",
+        " - After each agent call, briefly analyze the agent's response:",
+        "   - What information was obtained?",
+        "   - Should I verify any questionable information with another data source?",
+        "   - What information is still missing?",
+        "   - Which agent(s) should be tried next?",
         "# Calling agents",
         " - Be sure to provide context to the agents (e.g., \"Use efetch to determine whether SRX4967527 is Illumina data.\")."
         " - Generally, you will want to specify the database(s) to search (e.g., sra, gds, or pubmed).",
@@ -57,6 +62,7 @@ def create_entrez_agent(
         "   - If you do not find evidence of single cell, do not assume it is scRNA-seq.",
         "   - A single layout does not imply single-cell data.",
         "# Response",
+        " - Base your response on the evidence you found; do not infer information.",
         " - Be very concise; provide simple lists when possible; do not include unnecessary wording.",
         " - Write your output as plain text instead of markdown.",
         "# Example workflows",
@@ -153,8 +159,8 @@ if __name__ == "__main__":
         config = {"configurable": {"organisms": ["mouse", "rat"]}}
         #config = {"configurable": {"organisms": ["human"]}}
         #input = {"message": "Find rat single cell RNA-seq datasets in the SRA database"}
-        input = {"message": "Convert GSE121737 to SRX accessions"}
-        #input = {"message": "Is SRX20554853 paired-end Illumina data?"}
+        #input = {"message": "Convert GSE121737 to SRX accessions"}
+        input = {"message": "Is SRX20554853 paired-end Illumina data?"}
         #input = {"message": "List the collaborators for the SRX20554853 dataset"}
         #input = {"message": "How many bases per run in SRX20554853?"}
         result = await agent.ainvoke(input, config=config)

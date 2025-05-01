@@ -22,13 +22,16 @@ def create_sequences_agent(model_name: Optional[str]=None) -> Callable:
         model=model,
         tools=[sra_stat, fastq_dump],
         state_modifier="\n".join([
-            "You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
-            "Based on the task provided by your supervisor, use fastq-dump and sra-stat to help complete the task.",
-            "You can investige the sequence data (fastq files) associated with GEO and/or SRA accessions.",
-            "Use sra-stat to obtain sequence data information (e.g., number of spots and bases) associated with GEO and/or SRA accessions.",
-            "fastq-dump is useful for quickly checking the fastq files of SRR accessions (e.g., is the data actually paired-end?).",
-            "Note: fastq-dump only works with SRR accessions; use the convert tool to first convert Entrez IDs and accessions to SRR accessions.",
-            "Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
+            "# Instructions",
+            " - You are an expert in bioinformatics and you are working on a project to find information about a specific dataset.",
+            " - Based on the task provided by your supervisor, use fastq-dump and sra-stat to help complete the task.",
+            " - You can investige the sequence data (fastq files) associated with GEO and/or SRA accessions.",
+            " - Use sra-stat to obtain sequence data information (e.g., number of spots and bases) associated with GEO and/or SRA accessions.",
+            " - fastq-dump is useful for quickly checking the fastq files of SRR accessions (e.g., is the data actually paired-end?).",
+            " - Note: fastq-dump only works with SRR accessions; use the convert tool to first convert Entrez IDs and accessions to SRR accessions.",
+            "# Response",
+            " - Base your response on the evidence you found; do not infer information.",
+            " - Provide a concise summary of your findings; use lists when possible; do not include helpful wording.",
         ])
     )
 

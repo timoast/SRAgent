@@ -5,7 +5,7 @@ import json
 import random
 import decimal
 from subprocess import Popen, PIPE
-from typing import Annotated, List, Dict, Tuple, Any
+from typing import List, Tuple, Optional
 import xml.etree.ElementTree as ET
 from xml.parsers.expat import ExpatError
 from Bio import Entrez
@@ -46,19 +46,21 @@ def truncate_values(record, max_length: int) -> str:
     # convert back to string
     return ET.tostring(root, encoding="unicode")
 
-def xml2json(record: str, indent: int=None) -> str:
+def xml2json(record: str, indent: Optional[int]=None, max_records: Optional[int]=None) -> str:
     """
     Convert an XML record to a JSON object.
     Args:
         record: XML record.
         indent: Number of spaces to indent the JSON.
+        max_records: Maximum number of records to return.
     Returns:
         JSON object or original record if conversion fails.
     """
     if not record:
         return ''
     try:
-        return json.dumps(xmltodict.parse(record), indent=indent)
+        d = xmltodict.parse(record) 
+        return json.dumps(truncate_data(d, max_records), indent=indent)
     except (ExpatError, TypeError, ValueError) as e:
         return record
 
@@ -138,6 +140,61 @@ def set_entrez_access() -> None:
     n = random.choice(email_indices)
     Entrez.email = os.getenv(f"EMAIL{n}", os.getenv("EMAIL"))
     Entrez.api = os.getenv(f"NCBI_API_KEY{n}", os.getenv("NCBI_API_KEY")) 
+
+def truncate_data(data, max_items: Optional[int]=None) -> dict:
+    """
+    Limits the number of leaf nodes in a nested data structure.
+    Args:
+        data: A nested structure of dicts, lists, and primitive values
+        max_items: Maximum number of leaf nodes to include
+    Returns:
+        Limited data structure
+    """
+    if max_items is None:
+        return data
+    count = 0
+    
+    def process(obj):
+        nonlocal count
+        
+        # Base case: primitive values
+        if isinstance(obj, (str, int, float, bool, type(None))):
+            count += 1
+            return obj, (count <= max_items)
+        
+        # Handle dictionaries
+        elif isinstance(obj, dict):
+            result = {}
+            for key, value in obj.items():
+                if count >= max_items:
+                    break
+                processed_value, continue_processing = process(value)
+                if continue_processing:
+                    result[key] = processed_value
+                if not continue_processing:
+                    break
+            return result, (count <= max_items)
+        
+        # Handle lists
+        elif isinstance(obj, list):
+            result = []
+            for item in obj:
+                if count >= max_items:
+                    break
+                processed_item, continue_processing = process(item)
+                if continue_processing:
+                    result.append(processed_item)
+                if not continue_processing:
+                    break
+            return result, (count <= max_items)
+        
+        # Other types treated as primitives
+        else:
+            count += 1
+            return obj, (count <= max_items)
+    
+    limited_data, _ = process(data)
+    return limited_data
 
 # main
 if __name__ == '__main__':

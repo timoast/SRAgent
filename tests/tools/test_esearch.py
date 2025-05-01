@@ -55,7 +55,7 @@ def test_esearch_batch_large_result():
         esearch_query=query,
         database="sra",
         max_ids=15000,
-        verbose=True
+        verbose=False
     )
     # Verify we got more than 10000 records
     assert len(ids) > 10000, f"Expected more than 10000 records, got {len(ids)}"

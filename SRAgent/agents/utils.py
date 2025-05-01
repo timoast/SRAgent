@@ -63,9 +63,9 @@ def set_model(
         if effort == "low":
             think_tokens = 1024
         elif effort == "medium":
-            think_tokens = 1024 * 4
+            think_tokens = 1024 * 3
         elif effort == "high":
-            think_tokens = 1024 * 16
+            think_tokens = 1024 * 8
         else:
             think_tokens = 0
         if think_tokens > 0:
@@ -75,7 +75,7 @@ def set_model(
         else:
             thinking = {"type": "disabled"}
         model = ChatAnthropic(model=model_name, temperature=temp, thinking=thinking, max_tokens=max_tokens)
-    elif model_name.startswith("gpt-4o"):
+    elif model_name.startswith("gpt-4"):
         # GPT-4o models use temperature but not reasoning_effort
         model = ChatOpenAI(model_name=model_name, temperature=temp, reasoning_effort=None)
     elif re.search(r"^o[0-9]-", model_name):
@@ -86,7 +86,7 @@ def set_model(
 
     return model
 
-def create_step_summary_chain(model: str="gpt-4o-mini", max_tokens: int=45):
+def create_step_summary_chain(model: str="gpt-4.1-mini", max_tokens: int=45):
     """
     Create a chain of tools to summarize each step in a workflow.
     Args:

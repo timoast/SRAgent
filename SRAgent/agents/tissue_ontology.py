@@ -42,7 +42,7 @@ def create_tissue_ontology_agent(
         " - Your task is to categorize the tissue based on the Uberon ontology.",
         " - You must find the single most suitable Uberon ontology term that best describes the tissue description.",
         " - You have a set of tools that can help you with this task.",
-        "# Tools",
+        "# Tool summary",
         " - query_vector_db: Perform a semantic search on a vector database to find Uberon terms related to the target tissue. The database contains a collection of tissue descriptions and their corresponding Uberon terms.",
         " - get_neighbors: Get the neighbors of a given Uberon term in the Uberon ontology. Useful for finding adjacent terms in the ontology.",
         " - query_uberon_ols: Query the Ontology Lookup Service (OLS) for Uberon terms matching the search term.",

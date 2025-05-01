@@ -52,7 +52,8 @@ def test_efetch_general_error(monkeypatch):
     monkeypatch.setattr(Entrez, "efetch", mock_efetch)
     result = efetch.invoke({"entrez_ids": ["29110018"], "database": "sra"})
     
-    assert "An error occurred" in result
+    assert "Failed to fetch record" in result
+    assert "Network error" in result
 
 def test_efetch_long_values_truncation(monkeypatch):
     """Test truncation of long values"""

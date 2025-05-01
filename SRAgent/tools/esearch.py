@@ -17,7 +17,6 @@ from SRAgent.db.get import db_get_entrez_ids
 from SRAgent.organisms import OrganismEnum
 
 # functions
-
 def to_sci_name(organism: str) -> str:
     """
     Convert organism name to scientific name using OrganismEnum.
@@ -154,11 +153,13 @@ def esearch_batch(
                         print(f"Got HTTP 429; retrying in {wait_time} s...", file=sys.stderr)
                     time.sleep(wait_time)
                 else:
-                    print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
+                    if verbose:
+                        print(f"Error searching {database} with query: {esearch_query}: {str(e)}", file=sys.stderr)
                     return list(set(ids))
             except Exception as e:
-               print(f"Error searching {database} with query: {esearch_query}: {str(e)}")
-               return list(set(ids))
+                if verbose:
+                    print(f"Error searching {database} with query: {esearch_query}: {str(e)}", file=sys.stderr)
+                return list(set(ids))
         else:
             break
         # if max_ids is set and has been reached, break
@@ -181,6 +182,7 @@ def esearch(
     esearch_query: Annotated[str, "Entrez query string."],
     database: Annotated[str, "Database name (e.g., sra, gds, or pubmed)"],
     config: RunnableConfig,
+    verbose: Annotated[bool, "Print progress to stderr"]=False,
     )-> Annotated[str, "Entrez IDs of database records"]:
     """
     Run an Entrez search query and return the Entrez IDs of the results.
@@ -226,11 +228,13 @@ def esearch(
                     time.sleep(base_delay * 2 ** attempt)
                 else:
                     msg = f"HTTP Error searching {database} with query {esearch_query}: {e}"
-                    print(msg, file=sys.stderr)
+                    if verbose:
+                        print(msg, file=sys.stderr)
                     return msg
             except Exception as e:
                 msg = f"Error searching {database} with query {esearch_query}: {str(e)}"
-                print(msg, file=sys.stderr)
+                if verbose:
+                    print(msg, file=sys.stderr)
                 return msg
         else:
             break
