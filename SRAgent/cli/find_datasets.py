@@ -14,64 +14,13 @@ from SRAgent.cli.utils import CustomFormatter
 from SRAgent.workflows.find_datasets import create_find_datasets_graph
 from SRAgent.agents.utils import create_step_summary_chain
 from SRAgent.tools.utils import set_entrez_access
+from SRAgent.organisms import OrganismEnum
 
 # organism parameters
-human_mouse = ["human", "mouse"]
-other_orgs = organisms = [
-    # mammals
-    "rat",
-    "macaque",
-    "marmoset",
-    "horse",
-    "dog",
-    "bovine",
-    "sheep",
-    "pig",
-    "rabbit",
-    "naked_mole_rat",
-    "chimpanzee",
-    "gorilla",
-    "cat",
-    "bonobo",
-    "green_monkey",
-    "gray_short_tailed_opposum",
-    "vervet_monkey",
-    "goat",
-    "alpaca",
-    "chinchilla",
-    "domestic_guinea_pig",
-    "golden_hamster",
-    "eurasian_hedgehog",
-    "american_mink",
-    "rednecked_wallaby",
-    "sunda_pangolin",
-    "platypus",
-    "ferret",
-    "northern_tree_shrew",
-    # birds
-    "chicken",
-    "zebrafinch",
-    "goose",
-    "duck",
-    # reptiles
-    "turtle",
-    # amphibians
-    "frog",
-    "axolotl",
-    # fish
-    "zebrafish",
-    "salmon",
-    "stickleback",
-    # invertebrates
-    "fruit_fly",
-    "blood_fluke",
-    "roundworm",
-    "mosquito",
-    # plants
-    "thale_cress",
-    "rice",
-    "tomato",
-    "corn"
+human_mouse = [OrganismEnum.HUMAN.name.lower(), OrganismEnum.MOUSE.name.lower()]
+other_orgs = [
+    org.name.lower().replace("_", " ") for org in OrganismEnum 
+    if org not in [OrganismEnum.HUMAN, OrganismEnum.MOUSE]
 ]
 
 # functions
