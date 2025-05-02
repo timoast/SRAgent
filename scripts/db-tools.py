@@ -57,6 +57,9 @@ db-tools.py --upsert-target srx_metadata --upsert-csv db_bkup/2024-12-17/srx_met
 
 # count records in all tables
 db-tools.py --count-records
+
+# display schema for all tables
+db-tools.py --schema
     """
     parser = argparse.ArgumentParser(
         description=desc, epilog=epi, formatter_class=CustomFormatter
@@ -88,6 +91,10 @@ db-tools.py --count-records
     parser.add_argument(
         '--count-records', action="store_true", default=False,
         help='Count records in all tables in database'
+    )
+    parser.add_argument(
+        '--schema', action="store_true", default=False,
+        help='Display the schema (column definitions) for all tables'
     )
     parser.add_argument(
         '--view', type=str, default=None,
@@ -253,6 +260,51 @@ def count_records_per_table(conn: connection) -> None:
             count = cur.fetchone()[0]
             print(f"{table}: {count}")
 
+def display_table_schemas(conn: connection) -> None:
+    """Display the schema for each table in the database.
+    Args:
+        conn: Database connection
+    """
+    db_tables = db_list_tables(conn)
+    if not db_tables:
+        print("No tables found in the database.")
+        return
+
+    print("Table Schemas:")
+    with conn.cursor() as cur:
+        for table in db_tables:
+            print(f"\nTable: {table}")
+            query = """
+            SELECT
+                column_name,
+                data_type,
+                character_maximum_length,
+                is_nullable
+            FROM
+                information_schema.columns
+            WHERE
+                table_schema = 'public' -- Assuming tables are in the public schema
+            AND
+                table_name = %s
+            ORDER BY
+                ordinal_position;
+            """
+            try:
+                cur.execute(query, (table,))
+                columns = cur.fetchall()
+                if not columns:
+                    print("  No columns found.")
+                    continue
+
+                for col_name, data_type, max_len, is_nullable in columns:
+                    type_str = data_type.upper()
+                    if max_len is not None:
+                        type_str += f"({max_len})"
+                    null_str = "NULL" if is_nullable == "YES" else "NOT NULL"
+                    print(f"  {col_name}: {type_str} ({null_str})")
+            except Exception as e:
+                print(f"  Error fetching schema for table {table}: {e}")
+
 # functions
 def main(args):
     # set pandas options
@@ -288,6 +340,11 @@ def main(args):
                 sys.exit(1)
             df = pd.read_sql(f"SELECT * FROM {args.view}", conn)
             df.to_csv(sys.stdout, index=False)
+
+    # display schemas
+    if args.schema:
+        with db_connect() as conn:
+            display_table_schemas(conn)
 
     # find SRX accessions
     if args.find_srx:
