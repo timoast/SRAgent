@@ -91,7 +91,7 @@ def query_vector_db(
     # Check if the Chroma DB directory exists
     if not os.path.exists(chroma_dir_path) or not os.listdir(chroma_dir_path):
         # Download and extract the tarball
-        gcp_url = "https://storage.googleapis.com/arc-ctc-scbasecamp/2025-02-25/tissue_ontology/uberon-full_chroma.tar.gz"
+        gcp_url = "https://storage.googleapis.com/arc-scbasecount/2025-02-25/tissue_ontology/uberon-full_chroma.tar.gz"
         tarball_path = os.path.join(cache_dir, "uberon-full_chroma.tar.gz")
         
         print(f"Downloading Chroma DB from {gcp_url}...", file=sys.stdout)
