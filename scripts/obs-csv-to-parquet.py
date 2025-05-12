@@ -19,7 +19,7 @@ def parse_cli_args() -> argparse.Namespace:
         description="Database tools",
         epilog="""DESCRIPTION:
 Example:
-./obs-csv-to-parquet.py gs://arc-ctc-scbasecamp/2025-02-25/metadata_TMP/ --workers 4
+./obs-csv-to-parquet.py gs://arc-scbasecount/2025-02-25/metadata_TMP/ --workers 4
 """,
         formatter_class=CustomFormatter
     )
@@ -33,7 +33,7 @@ Example:
     parser.add_argument(
         "--outdir",
         type=str,
-        default="gs://arc-ctc-scbasecamp/2025-02-25/",
+        default="gs://arc-ctc-scbasecount/2025-02-25/",
         help="Output directory for parquet files on GCS"
     )
     parser.add_argument(

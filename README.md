@@ -5,7 +5,7 @@ Agentic workflows for obtaining data from the Sequence Read Archive.
 
 # Manuscript
 
-**scBaseCamp: An AI agent-curated, uniformly processed, and continually expanding single cell data repository**.
+**scBaseCount: An AI agent-curated, uniformly processed, and continually expanding single cell data repository**.
 Nicholas D Youngblut, Christopher Carpenter, Jaanak Prashar, Chiara Ricci-Tam, Rajesh Ilango, Noam Teyssier,
 Silvana Konermann, Patrick Hsu, Alexander Dobin, David P Burke, Hani Goodarzi, Yusuf H Roohani.
 bioRxiv 2025.02.27.640494; doi: [https://doi.org/10.1101/2025.02.27.640494](https://doi.org/10.1101/2025.02.27.640494)
@@ -64,7 +64,7 @@ pytest tests/
 
 Components of SRAgent can use an SQL database to store the results.
 
-This was crucial for the scBaseCamp project, in order to:
+This was crucial for the scBaseCount project, in order to:
 * track which datasets had been processed 
 * quickly assess the progress of the project
 
@@ -392,4 +392,4 @@ See the [eval.py](./scripts/eval.py) script for running evaluations.
 
 Feel free to fork the repository and submit a pull request.
 However, the top priority is to keep SRAgent functioning 
-for the ongoing scBaseCamp project.
+for the ongoing scBaseCount project.

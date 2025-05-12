@@ -45,11 +45,11 @@ def metadata_agent_parser(subparsers):
     )
     sub_parser.add_argument(
         '--no-srr', action='store_true', default=False, 
-        help='Do NOT upload SRR accessions to scBaseCamp SQL database'
+        help='Do NOT upload SRR accessions to scBaseCount SQL database'
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
-        help='Add the results to the scBaseCamp SQL database'
+        help='Add the results to the scBaseCount SQL database'
     )
     sub_parser.add_argument(
         '--tenant', type=str, default='prod',

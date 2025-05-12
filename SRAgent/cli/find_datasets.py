@@ -64,7 +64,7 @@ def find_datasets_parser(subparsers):
     )
     sub_parser.add_argument(
         '--use-database', action='store_true', default=False, 
-        help='Use the scBaseCamp database to screen out existing datasets for adding the newly found datasets'
+        help='Use the scBaseCount database to screen out existing datasets for adding the newly found datasets'
     )  
     sub_parser.add_argument(
         '--tenant', type=str, default='prod',
@@ -73,7 +73,7 @@ def find_datasets_parser(subparsers):
     )
     sub_parser.add_argument(
         '--reprocess-existing', action='store_true', default=False, 
-        help='Reprocess existing Entrez IDs in the scBaseCamp database instead of re-processing them (assumning --use-database)'
+        help='Reprocess existing Entrez IDs in the scBaseCount database instead of re-processing them (assumning --use-database)'
     )  
 
 async def _find_datasets_main(args):
