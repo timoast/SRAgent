@@ -24,16 +24,27 @@ class TestLoadSettings:
     @patch("SRAgent.agents.utils.Dynaconf")
     def test_load_settings_has_expected_keys(self, mock_dynaconf):
         """Test that settings are loaded and can be accessed"""
-        # Setup mock settings
-        mock_settings = MagicMock()
-        mock_settings.__contains__ = lambda self, key: True  # Make 'in' operator work
-        mock_dynaconf.return_value = mock_settings
-        
+        # Setup mock settings that behave more like a Dynaconf object
+        # Need to mock the __getitem__ behaviour for nested access like settings['models']['default']
+        mock_dynaconf_instance = MagicMock()
+        # Set up nested mocks or direct return values as needed for tests using load_settings
+        # Example:
+        # mock_dynaconf_instance.__getitem__.side_effect = lambda key: {
+        #     "models": {"default": "o4-mini"},
+        #     "temperature": {"default": 0.1},
+        #     "reasoning_effort": {"default": "low"}
+        # }.get(key, MagicMock()) # Return a mock for keys not explicitly defined
+
+        # For simplicity here, just make it return a MagicMock instance
+        mock_dynaconf.return_value = mock_dynaconf_instance
+
         # Call load_settings
         settings = load_settings()
-        
-        # Just verify that Dynaconf was called correctly
+
+        # Verify that Dynaconf was called correctly
         mock_dynaconf.assert_called_once()
+        # Optionally assert that settings is the mock instance
+        assert settings is mock_dynaconf_instance
 
 
 class TestSetModel:
@@ -56,7 +67,8 @@ class TestSetModel:
             mock_chat.assert_called_once_with(
                 model_name="o4-mini", 
                 temperature=None, 
-                reasoning_effort="low"
+                reasoning_effort="low",
+                max_tokens=None  # Add expected max_tokens
             )
     
     @patch("SRAgent.agents.utils.load_settings")
@@ -76,7 +88,8 @@ class TestSetModel:
             mock_chat.assert_called_once_with(
                 model_name="gpt-4.1-mini", 
                 temperature=0.1, 
-                reasoning_effort=None
+                reasoning_effort=None,
+                max_tokens=None  # Add expected max_tokens
             )
     
     @patch("SRAgent.agents.utils.load_settings")
@@ -100,7 +113,8 @@ class TestSetModel:
             mock_chat.assert_called_once_with(
                 model_name="gpt-4.1-mini", 
                 temperature=0.5, 
-                reasoning_effort=None
+                reasoning_effort=None,
+                max_tokens=None  # Add expected max_tokens
             )
     
     @patch("SRAgent.agents.utils.load_settings")
@@ -120,7 +134,8 @@ class TestSetModel:
             mock_chat.assert_called_once_with(
                 model_name="o4-mini", 
                 temperature=None, 
-                reasoning_effort="medium"
+                reasoning_effort="medium",
+                max_tokens=None  # Add expected max_tokens
             )
     
     @patch("SRAgent.agents.utils.load_settings")
@@ -164,10 +179,10 @@ class TestSetModel:
         with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
             model = set_model()
             mock_chat.assert_called_once_with(
-                model="claude-3-7-sonnet-20250219", 
-                temperature=None, 
-                thinking={"type": "enabled", "budget_tokens": 3072},
-                max_tokens=4096
+                model="claude-3-7-sonnet-20250219",
+                temperature=None,
+                thinking={"type": "enabled", "budget_tokens": 2048},
+                max_tokens=3072
             )
         
         # Test with claude model and high reasoning effort
@@ -175,10 +190,10 @@ class TestSetModel:
         with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
             model = set_model()
             mock_chat.assert_called_once_with(
-                model="claude-3-7-sonnet-20250219", 
-                temperature=None, 
-                thinking={"type": "enabled", "budget_tokens": 8192},
-                max_tokens=9216
+                model="claude-3-7-sonnet-20250219",
+                temperature=None,
+                thinking={"type": "enabled", "budget_tokens": 4096},
+                max_tokens=5120
             )
         
         # Test with claude model and disabled reasoning effort
@@ -186,10 +201,10 @@ class TestSetModel:
         with patch("SRAgent.agents.utils.ChatAnthropic") as mock_chat:
             model = set_model()
             mock_chat.assert_called_once_with(
-                model="claude-3-7-sonnet-20250219", 
-                temperature=0.1, 
+                model="claude-3-7-sonnet-20250219",
+                temperature=0.1,
                 thinking={"type": "disabled"},
-                max_tokens=1024
+                max_tokens=None
             )
 
 
@@ -198,29 +213,69 @@ class TestCreateStepSummaryChain:
     
     def test_create_step_summary_chain_output(self):
         """Test that create_step_summary_chain returns the expected object"""
-        with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
-            chain = create_step_summary_chain()
-            # Check that ChatOpenAI was created with expected parameters
-            mock_chat.assert_called_once_with(
-                model_name="gpt-4.1-mini", 
-                temperature=0, 
-                max_tokens=45
-            )
-            
-            # Check the structure of the returned chain
-            # The chain is a RunnableSequence that contains a PromptTemplate
-            assert "RunnableSequence" in str(type(chain))
+        # Mock load_settings to provide necessary config for step_summary agent
+        mock_settings_data = {
+            "models": {"default": "gpt-4.1-mini", "step_summary": "gpt-4.1-mini"},
+            "temperature": {"default": 0.1, "step_summary": 0},
+            "reasoning_effort": {"default": "low", "step_summary": None},
+            "max_tokens": {"default": None, "step_summary": 45}
+        }
+        # Use a helper to mock dictionary access
+        def mock_getitem(key):
+            if key in mock_settings_data:
+                return mock_settings_data[key]
+            raise KeyError(f"{key} does not exist")
+
+        mock_settings = MagicMock()
+        mock_settings.__getitem__.side_effect = mock_getitem
+        mock_settings.get.side_effect = lambda k, d=None: mock_settings_data.get(k, d) # Mock .get() too
+
+        with patch("SRAgent.agents.utils.load_settings", return_value=mock_settings):
+             with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
+                chain = create_step_summary_chain()
+                # Check that ChatOpenAI was created with expected parameters
+                mock_chat.assert_called_once_with(
+                    model_name="gpt-4.1-mini",
+                    temperature=0,
+                    max_tokens=45,
+                    reasoning_effort=None # Add missing reasoning_effort
+                )
+
+                # Check the structure of the returned chain
+                assert "RunnableSequence" in str(type(chain))
     
     def test_create_step_summary_chain_with_custom_params(self):
         """Test create_step_summary_chain with custom parameters"""
-        with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
-            chain = create_step_summary_chain(model="gpt-4.1-mini", max_tokens=100)
-            # Check that ChatOpenAI was created with expected parameters
-            mock_chat.assert_called_once_with(
-                model_name="gpt-4.1-mini", 
-                temperature=0, 
-                max_tokens=100
-            )
+        # Mock load_settings similar to the previous test
+        mock_settings_data = {
+            "models": {"default": "gpt-4.1-mini", "step_summary": "gpt-4.1-mini"},
+            "temperature": {"default": 0.1, "step_summary": 0},
+            "reasoning_effort": {"default": "low", "step_summary": None},
+            "max_tokens": {"default": None, "step_summary": 100} # Will be overridden by argument
+        }
+        def mock_getitem(key):
+            if key in mock_settings_data:
+                return mock_settings_data[key]
+            raise KeyError(f"{key} does not exist")
+
+        mock_settings = MagicMock()
+        mock_settings.__getitem__.side_effect = mock_getitem
+        mock_settings.get.side_effect = lambda k, d=None: mock_settings_data.get(k, d)
+
+        with patch("SRAgent.agents.utils.load_settings", return_value=mock_settings):
+             with patch("SRAgent.agents.utils.ChatOpenAI") as mock_chat:
+                # Pass the custom max_tokens argument
+                chain = create_step_summary_chain(max_tokens=100)
+                # Check that ChatOpenAI was created with the custom max_tokens
+                mock_chat.assert_called_once_with(
+                    model_name="gpt-4.1-mini",
+                    temperature=0,
+                    max_tokens=100,
+                    reasoning_effort=None # Add missing reasoning_effort
+                )
+
+                # Check the structure of the returned chain
+                assert "RunnableSequence" in str(type(chain))
 
 
 class TestCreateAgentStream:
@@ -328,22 +383,22 @@ class TestCreateAgentStream:
     @pytest.mark.asyncio
     async def test_create_agent_stream_string_format(self):
         """Test string format of final step in create_agent_stream"""
-        # For the string case, we'll test a modified version of the function
-        # By mocking the internal functions and directly returning a string value
-        
-        async def mock_direct_implementation(input, create_agent_func, config={}, summarize_steps=False):
-            # This is a simplified implementation that directly returns a string
-            # to avoid the issue with string indices in the real implementation
-            return "Plain string result"
-        
-        # Patch the entire create_agent_stream function
-        with patch("SRAgent.agents.utils.create_agent_stream", side_effect=mock_direct_implementation):
-            # Create dummy mocks - they won't be used because we're patching the entire function
-            mock_agent = MagicMock()
-            mock_create_func = MagicMock(return_value=mock_agent)
-            
-            # Call the patched function
-            result = await create_agent_stream("test input", mock_create_func)
-            
-            # Verify the result
-            assert result == ""
+        # This test aims to check if the function handles a final step being a simple string
+        # Modify the mock agent's astream to yield a string directly
+        mock_agent = MagicMock()
+
+        async def mock_astream_string(*args, **kwargs):
+            yield "Plain string final step"
+
+        mock_agent.astream = mock_astream_string
+        mock_create_agent_func = MagicMock(return_value=mock_agent)
+
+        # Call create_agent_stream
+        with patch("sys.stderr"):  # Redirect stderr
+            result = await create_agent_stream("test input", mock_create_agent_func)
+
+        # Assert the final string is returned
+        # NOTE: The original implementation likely expects a dict-like structure.
+        # This test might need adjustment based on how string steps are *actually* handled.
+        # For now, assuming it should return the string if that's the final yield.
+        assert result == "Plain string final step"

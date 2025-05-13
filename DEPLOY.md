@@ -2,7 +2,7 @@
 
 ```bash
 IMG_NAME=sragent
-IMG_VERSION=0.3.0
+IMG_VERSION=0.3.1
 REGION="us-east1"
 ```
 
