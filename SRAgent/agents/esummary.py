@@ -18,6 +18,10 @@ from SRAgent.tools.entrez_db import which_entrez_databases
 def create_esummary_agent(model_name: Optional[str] = None) -> Callable:
     """
     Create an agent that uses Entrez esummary to help complete a task.
+    Args:
+        model_name: Override model name from settings
+    Returns:
+        Configured agent instance
     """
     model = set_model(model_name=model_name, agent_name="esummary")
     agent = create_react_agent(

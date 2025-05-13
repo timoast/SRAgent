@@ -15,6 +15,13 @@ from SRAgent.agents.entrez_convert import create_entrez_convert_agent
 
 # functions
 def create_bigquery_agent(model_name: Optional[str]=None) -> Callable:
+    """
+    Create an agent that uses BigQuery to help complete a task.
+    Args:
+        model_name: Override model name from settings
+    Returns:
+        Configured agent instance
+    """
     # create model
     model = set_model(model_name=model_name, agent_name="bigquery")
 

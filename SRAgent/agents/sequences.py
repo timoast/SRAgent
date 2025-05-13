@@ -15,7 +15,11 @@ from SRAgent.tools.sequences import sra_stat, fastq_dump
 # functions
 def create_sequences_agent(model_name: Optional[str]=None) -> Callable:
     """
-    Create an agent to call the sequence-based tools
+    Create an agent to call the sequence-based tools.
+    Args:
+        model_name: Override model name from settings
+    Returns:
+        Configured agent instance
     """
     model = set_model(model_name=model_name, agent_name="sequences")
     agent = create_react_agent(

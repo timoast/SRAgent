@@ -106,7 +106,7 @@ The tools available:
 #### Example of converting a GEO accession to SRX accessions:
 
 ```bash
-SRAgent sragent "Convert GSE121737 to SRX accessions"
+SRAgent sragent "Summarize SRX4967527"
 ```
 
 #### Example of obtaining metadata for a specific SRX accession:
@@ -357,7 +357,7 @@ Claude models support different reasoning effort levels:
 Example:
 ```bash
 export ANTHROPIC_API_KEY=your_api_key
-export DYNACONF=claude
+export DYNACONF="claude"
 SRAgent entrez "Convert GSE121737 to SRX accessions"
 ```
 
@@ -369,7 +369,7 @@ claude:
   temperature:
     default: 0.1
   reasoning_effort:
-    default: "medium"  # Set your preferred reasoning effort
+    default: "medium"  # Set your preferred reasoning effort; use "" to disable
 ```
 
 # Setting up the SQL database

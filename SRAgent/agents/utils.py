@@ -37,15 +37,16 @@ def set_model(
     temperature: Optional[float] = None,
     reasoning_effort: Optional[str] = None,
     agent_name: str = "default",
+    max_tokens: Optional[int] = None,
 ) -> Any:
     """
     Create a model instance with settings from configuration
-    
     Args:
         model_name: Override model name from settings
         temperature: Override temperature from settings
         reasoning_effort: Override reasoning effort from settings
         agent_name: Name of the agent to get settings for
+        max_tokens: Maximum number of tokens to use for the model
     Returns:
         Configured model instance
     """
@@ -53,40 +54,66 @@ def set_model(
     settings = load_settings()
     
     # Use provided params or get from settings
-    model_name = model_name or settings["models"].get(agent_name, settings["models"]["default"])
-    temp = temperature or settings["temperature"].get(agent_name, settings["temperature"]["default"])
-    effort = reasoning_effort or settings["reasoning_effort"].get(agent_name, settings["reasoning_effort"]["default"])
+    if model_name is None:
+        try:
+            model_name = settings["models"][agent_name]
+        except KeyError:
+            # try default
+            try:
+                model_name = settings["models"]["default"]
+            except KeyError:
+                raise ValueError(f"No model name was provided for agent '{agent_name}'")
+    if temperature is None:
+        try:
+            temperature = settings["temperature"][agent_name]
+        except KeyError:
+            try:
+                temperature = settings["temperature"]["default"]
+            except KeyError:
+                raise ValueError(f"No temperature was provided for agent '{agent_name}'")
+    if reasoning_effort is None:
+        try:
+            reasoning_effort = settings["reasoning_effort"][agent_name]
+        except KeyError:
+            try:
+                reasoning_effort = settings["reasoning_effort"]["default"]
+            except KeyError:
+                if temperature is None:
+                    raise ValueError(f"No reasoning effort or temperature was provided for agent '{agent_name}'")
 
     # Check model provider and initialize appropriate model
     if model_name.startswith("claude"): # e.g.,  "claude-3-7-sonnet-20250219"
-        max_tokens = 1024       
-        if effort == "low":
+        if reasoning_effort == "low":
             think_tokens = 1024
-        elif effort == "medium":
-            think_tokens = 1024 * 3
-        elif effort == "high":
-            think_tokens = 1024 * 8
+        elif reasoning_effort == "medium":
+            think_tokens = 1024 * 2
+        elif reasoning_effort == "high":
+            think_tokens = 1024 * 4
         else:
             think_tokens = 0
         if think_tokens > 0:
+            if not max_tokens:
+                max_tokens = 1024
             max_tokens += think_tokens
             thinking = {"type": "enabled", "budget_tokens": think_tokens}
-            temp = None
+            temperature = None
         else:
             thinking = {"type": "disabled"}
-        model = ChatAnthropic(model=model_name, temperature=temp, thinking=thinking, max_tokens=max_tokens)
+            if temperature is None:
+                raise ValueError(f"Temperature is required for Claude models if reasoning_effort is not set")
+        model = ChatAnthropic(model=model_name, temperature=temperature, thinking=thinking, max_tokens=max_tokens)
     elif model_name.startswith("gpt-4"):
         # GPT-4o models use temperature but not reasoning_effort
-        model = ChatOpenAI(model_name=model_name, temperature=temp, reasoning_effort=None)
+        model = ChatOpenAI(model_name=model_name, temperature=temperature, reasoning_effort=None, max_tokens=max_tokens)
     elif re.search(r"^o[0-9]-", model_name):
         # o[0-9] models use reasoning_effort but not temperature
-        model = ChatOpenAI(model_name=model_name, temperature=None, reasoning_effort=effort)
+        model = ChatOpenAI(model_name=model_name, temperature=None, reasoning_effort=reasoning_effort, max_tokens=max_tokens)
     else:
         raise ValueError(f"Model {model_name} not supported")
 
     return model
 
-def create_step_summary_chain(model: str="gpt-4.1-mini", max_tokens: int=45):
+def create_step_summary_chain(model: Optional[str]=None, max_tokens: int=45):
     """
     Create a chain of tools to summarize each step in a workflow.
     Args:
@@ -107,10 +134,10 @@ def create_step_summary_chain(model: str="gpt-4.1-mini", max_tokens: int=45):
     prompt = PromptTemplate(input_variables=["step"], template=template)
 
     # Initialize the language model
-    llm = ChatOpenAI(model_name=model, temperature=0, max_tokens=max_tokens)
+    model = set_model(agent_name="step_summary", max_tokens=max_tokens)
 
     # Return the LLM chain
-    return prompt | llm
+    return prompt | model
 
 
 async def create_agent_stream(
