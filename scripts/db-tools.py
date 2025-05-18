@@ -46,7 +46,7 @@ db-tools.py --dump --parallel 4 --chunk-size 10000
 # drop >=1 table 
 db-tools.py --drop srx_metadata
 
-# delete >=1 SRX accession
+# delete >=1 SRX accession from all tables
 db-tools.py --delete-srx SRR1234567
 
 # delete >=1 SRX accession from the scRecounter tables

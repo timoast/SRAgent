@@ -302,7 +302,7 @@ def create_tissue_ontology_node() -> Callable:
 
     return invoke_tissue_ontology_node
 
-async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]:
+async def invoke_SRX2SRR_sragent_agent_node(state: GraphState, attempts: int=2) -> Dict[str, Any]:
     """Invoke the SRAgent to get the SRR accessions for the SRX accession"""
     # format the message
     suffix = "Generally, the bigquery agent can handle this task."
@@ -311,13 +311,29 @@ async def invoke_SRX2SRR_sragent_agent_node(state: GraphState) -> Dict[str, Any]
     elif state["SRX"].startswith("ERX"):
         message = f"Find the ERR accessions for {state['SRX']}. Provide a list of ERR accessions. {suffix}"
     else:
-        message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRX\" or \"ERR\"."
+        message = f"The wrong accession was provided: \"{state['SRX']}\". The accession must start with \"SRR\" or \"ERR\"."
     # call the agent
     agent = create_sragent_agent()
-    response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
-    # extract all SRR/ERR accessions in the message
-    regex = re.compile(r"(?:SRR|ERR)\d{4,}")
-    SRR_acc = regex.findall(response["messages"][-1].content)
+
+    # run the agent
+    for i in range(attempts):
+        response = await agent.ainvoke({"messages" : [HumanMessage(content=message)]})
+        # extract all SRR/ERR accessions in the message
+        regex = re.compile(r"(?:SRR|ERR)\d{4,}")
+        SRR_acc = regex.findall(response["messages"][-1].content)
+        # any SRR accessions found?
+        if SRR_acc:
+            break
+        else:
+            print(f"Attempt {i+1} failed. Retrying...")
+            message = "\n".join([
+                f"The accession must start with \"SRR\" or \"ERR\".",
+                f"Your previous response was: {response['messages'][-1].content},",
+                f"which did not contain any valid SRR/ERR accessions.",
+                "Try again using a different approach."
+            ])
+            await asyncio.sleep(1)
+
     return {"SRR" : list(set(SRR_acc))}
 
 def add2db(state: GraphState, config: RunnableConfig):
