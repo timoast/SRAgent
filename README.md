@@ -139,7 +139,7 @@ Obtain specific metadata for >=1 SRA dataset.
   * Which tissue(s) were sequenced?
   * Corresponding tissue ontology ID(s)
   * Any disease information?
-  * Any treatment/purturbation information?
+  * Any treatment/perturbation information?
   * Any cell line information?
 * Workflow
   * The agent converts the Entrez IDs to SRX accessions
