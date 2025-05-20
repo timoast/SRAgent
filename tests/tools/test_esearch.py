@@ -7,10 +7,16 @@ from SRAgent.organisms import OrganismEnum
 
 def test_esearch_successful():
     """Test successful esearch with actual API call"""
-    input = {"esearch_query" : "35447314", "database" : "sra"}
-    ret = esearch.invoke(input)
-    assert "'Count': '1'" in ret
-    assert "'IdList': ['35447314']" in ret
+    import socket
+    try:
+        # Try to connect to NCBI to check internet
+        socket.create_connection(("www.ncbi.nlm.nih.gov", 80), timeout=5)
+        input = {"esearch_query" : "35447314", "database" : "sra"}
+        ret = esearch.invoke(input)
+        assert "'Count': '1'" in ret
+        assert "'IdList': ['35447314']" in ret
+    except (socket.timeout, socket.error):
+        pytest.skip("No internet connection available")
     
 def test_esearch_invalid():
     """Test successful esearch with actual API call"""

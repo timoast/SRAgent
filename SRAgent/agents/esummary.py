@@ -43,7 +43,7 @@ def create_esummary_agent(model_name: Optional[str] = None) -> Callable:
         message: Annotated[str, "Message to the esummary agent"]
     ) -> Annotated[str, "Response from the esummary agent"]:
         """
-        Invoke the esearch agent to perform a task.
+        Invoke the esummary agent to perform a task.
         """
         # Invoke the agent with the message
         result = await agent.ainvoke({"messages": [HumanMessage(content=message)]})
