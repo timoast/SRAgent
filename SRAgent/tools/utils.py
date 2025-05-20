@@ -133,13 +133,13 @@ def set_entrez_access() -> None:
     # if no numbered email and API key are found
     if len(email_indices) == 0:
         Entrez.email = os.getenv("EMAIL")
-        Entrez.api = os.getenv("NCBI_API_KEY")
+        Entrez.api_key = os.getenv("NCBI_API_KEY")
         return None
 
     # random selection from 1 to i
     n = random.choice(email_indices)
     Entrez.email = os.getenv(f"EMAIL{n}", os.getenv("EMAIL"))
-    Entrez.api = os.getenv(f"NCBI_API_KEY{n}", os.getenv("NCBI_API_KEY")) 
+    Entrez.api_key = os.getenv(f"NCBI_API_KEY{n}", os.getenv("NCBI_API_KEY")) 
 
 def truncate_data(data, max_items: Optional[int]=None) -> dict:
     """
