@@ -43,7 +43,7 @@ class Tech10XEnum(Enum):
     NA = "not_applicable"
 
 class LibPrepEnum(Enum):
-    """scRNA-seq library preparation technology"""
+    """Single cell library preparation technology"""
     TENX = "10x_Genomics"
     SMART_SEQ = "Smart-seq"
     SMART_SEQ2 = "Smart-seq2"
@@ -60,11 +60,13 @@ class LibPrepEnum(Enum):
     PLEXWELL = "plexWell"
     MARS_SEQ = "MARS-seq"
     BD_RHAPSODY = "BD_Rhapsody"
+    FLUIDIGM = "Fluidigm"
+    SCI_ATAC = "sci-ATAC-seq"
     OTHER = "other"
     NA = "not_applicable"
 
 class CellPrepEnum(Enum):
-    """Distinguishes between single nucleus and single cell RNA sequencing methods"""
+    """Distinguishes between single nucleus and single cell sequencing methods"""
     SINGLE_NUCLEUS = "single_nucleus"
     SINGLE_CELL = "single_cell" 
     UNSURE = "unsure"   
@@ -102,11 +104,11 @@ class GraphState(TypedDict):
     SRR: Annotated[List[str], "SRR accessions for the SRX"]
     ## metadata
     is_illumina: Annotated[str, "Is the dataset Illumina sequence data?"]
-    is_single_cell: Annotated[str, "Is the dataset single cell RNA-seq data?"]
+    is_single_cell: Annotated[str, "Is the dataset single cell data?"]
     is_paired_end: Annotated[str, "Is the dataset paired-end sequencing data?"]
-    lib_prep: Annotated[str, "Which scRNA-seq library preparation technology?"]
+    lib_prep: Annotated[str, "Which library preparation technology?"]
     tech_10x: Annotated[str, "If 10X Genomics, which particular 10X technology?"]
-    cell_prep: Annotated[str, "Single nucleus or single cell RNA sequencing?"]
+    cell_prep: Annotated[str, "Single nucleus or single cell sequencing?"]
     organism: Annotated[str, "Which organism was sequenced?"]
     tissue: Annotated[str, "Which tissues were sequenced?"]
     disease: Annotated[str, "Any disease information?"]
